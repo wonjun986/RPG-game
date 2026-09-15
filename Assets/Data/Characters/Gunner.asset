@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1a2a4563939980b47aaf8cd9a65ae503, type: 3}
+  m_Name: Gunner
+  m_EditorClassIdentifier: Assembly-CSharp::Aethoria.Data.CharacterData
+  characterId: 2
+  characterName: "\uAC70\uB108"
+  description: 
+  minLevel: 1
+  maxLevel: 50
+  baseStats:
+    attack: 70
+    magic: 10
+    hp: 60
+    agility: 90
+    defense: 15
+    mana: 50
+  growthPerLevel:
+    attack: 3
+    magic: 0
+    hp: 1
+    agility: 4
+    defense: 0
+    mana: 1
+  isUnlockedByDefault: 1
+  unlockRequiredLevel: 0
