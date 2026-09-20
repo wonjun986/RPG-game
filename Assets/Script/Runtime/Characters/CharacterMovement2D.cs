@@ -12,6 +12,8 @@ namespace Aethoria.Characters
         [SerializeField] private float gravityScale = 4f;
 
         private Rigidbody2D body;
+        private Collider2D bodyCollider;
+        private readonly Collider2D[] groundCheckResults = new Collider2D[8];
         private float horizontalInput;
         private bool jumpRequested;
         private bool isGrounded;
@@ -20,10 +22,12 @@ namespace Aethoria.Characters
         public Vector2 FacingDirection { get; private set; } = Vector2.right;
         public bool IsMoving => Mathf.Abs(horizontalInput) > 0.01f;
         public bool IsGrounded => isGrounded;
+        public bool IsInputLocked => inputLocked;
 
         private void Awake()
         {
             body = GetComponent<Rigidbody2D>();
+            bodyCollider = GetComponent<Collider2D>();
             body.gravityScale = gravityScale;
             body.freezeRotation = true;
         }
@@ -58,11 +62,20 @@ namespace Aethoria.Characters
 
         // 발밑(자신의 콜라이더 바로 아래)에 뭔가 있는지로 착지 여부를 매 프레임 새로 판정한다.
         // 콜리전 이벤트 기반보다 단순하고, "공중에서 점프가 다시 풀리는" 문제가 없다.
+        // 트리거 콜라이더(퀘스트/영역 감지 등)와 자기 자신의 콜라이더는 바닥으로 치지 않는다.
+        // (이걸 걸러내지 않으면 공중의 트리거 안에서도 착지 판정이 나서 무한 점프가 가능해진다.)
         private bool CheckGrounded()
         {
             Vector2 checkCenter = (Vector2)transform.position + Vector2.down * 0.05f;
             Vector2 checkSize = new Vector2(0.5f, 0.06f);
-            return Physics2D.OverlapBox(checkCenter, checkSize, 0f) != null;
+
+            var filter = new ContactFilter2D { useTriggers = false };
+            int count = Physics2D.OverlapBox(checkCenter, checkSize, 0f, filter, groundCheckResults);
+            for (int i = 0; i < count; i++)
+            {
+                if (groundCheckResults[i] != bodyCollider) return true;
+            }
+            return false;
         }
 
         private void ReadInput()

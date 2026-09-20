@@ -1,4 +1,3 @@
-using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Aethoria.Combat;
@@ -6,41 +5,49 @@ using Aethoria.Monsters;
 
 namespace Aethoria.Characters
 {
-    // A = 낫 연속 베기. 짧은 쿨타임의 3연타 근접 콤보 (기획서: 마나20, 쿨타임2초, 히트당 공격력x1.0, 총 0.6초).
+    // A = 낫 회전 베기. 몸 주위 원형 범위를 즉시 크게 벤다.
+    // 최대 3충전(charge) 방식: 충전이 남아있는 한 연달아 재시전할 수 있고,
+    // 최대치보다 모자랄 때만 충전 하나당 cooldown 시간을 들여 서서히 회복한다.
     [RequireComponent(typeof(Character))]
     [RequireComponent(typeof(CharacterMovement2D))]
-    [RequireComponent(typeof(ScytheVisual))]
+    [RequireComponent(typeof(ASkillSpriteAnimator))]
     public class CharacterSkillA : MonoBehaviour
     {
-        [SerializeField] private float manaCost = 20f;
-        [SerializeField] private float cooldown = 2f;
-        [SerializeField] private float hitDamageMultiplier = 1.0f;
-        [SerializeField] private int hitCount = 3;
-        [SerializeField] private float totalDuration = 0.6f;
-        [SerializeField] private float attackRange = 0.9f;
-        [SerializeField] private float attackRadius = 0.6f;
+        [SerializeField] private float manaCost = 0f;
+        [SerializeField] private int maxCharges = 3;
+        [SerializeField] private float rechargeCooldown = 2f;
+        [SerializeField] private float damageMultiplier = 1.0f;
+        [SerializeField] private float radius = 1.5f;
 
         private Character character;
         private CharacterMovement2D movement;
-        private ScytheVisual weaponVisual;
+        private ASkillSpriteAnimator skillAnimator;
 
-        private float cooldownRemaining;
-        private bool isAttacking;
+        private int currentCharges;
+        private float rechargeTimer;
 
-        public float CooldownRemaining => cooldownRemaining;
+        public int CurrentCharges => currentCharges;
+        public int MaxCharges => maxCharges;
 
         private void Awake()
         {
             character = GetComponent<Character>();
             movement = GetComponent<CharacterMovement2D>();
-            weaponVisual = GetComponent<ScytheVisual>();
+            skillAnimator = GetComponent<ASkillSpriteAnimator>();
+
+            currentCharges = maxCharges;
         }
 
         private void Update()
         {
-            if (cooldownRemaining > 0f)
+            if (currentCharges < maxCharges)
             {
-                cooldownRemaining = Mathf.Max(0f, cooldownRemaining - Time.deltaTime);
+                rechargeTimer -= Time.deltaTime;
+                if (rechargeTimer <= 0f)
+                {
+                    currentCharges++;
+                    rechargeTimer = currentCharges < maxCharges ? rechargeCooldown : 0f;
+                }
             }
 
             var keyboard = Keyboard.current;
@@ -52,45 +59,36 @@ namespace Aethoria.Characters
 
         private void TryUseSkill()
         {
-            if (isAttacking || cooldownRemaining > 0f) return;
+            if (currentCharges <= 0) return;
             if (!character.TrySpendMana(manaCost)) return;
 
-            cooldownRemaining = cooldown;
-            StartCoroutine(ComboRoutine());
+            if (currentCharges == maxCharges) rechargeTimer = rechargeCooldown;
+            currentCharges--;
+
+            PerformSlash();
         }
 
-        private IEnumerator ComboRoutine()
+        private void PerformSlash()
         {
-            isAttacking = true;
-            movement.SetInputLocked(true);
+            skillAnimator.Play(movement.FacingDirection);
 
-            Vector2 direction = movement.FacingDirection;
-            float interval = totalDuration / hitCount;
-
-            for (int i = 0; i < hitCount; i++)
-            {
-                weaponVisual.PlaySwing(direction);
-                DealDamage(direction);
-                yield return new WaitForSeconds(interval);
-            }
-
-            movement.SetInputLocked(false);
-            isAttacking = false;
-        }
-
-        private void DealDamage(Vector2 direction)
-        {
-            Vector2 origin = (Vector2)transform.position + direction * attackRange;
-            var hits = Physics2D.OverlapCircleAll(origin, attackRadius);
+            Vector2 origin = transform.position;
+            var hits = Physics2D.OverlapCircleAll(origin, radius);
 
             foreach (var hit in hits)
             {
                 var monster = hit.GetComponent<Monster>();
                 if (monster == null || monster.IsDead) continue;
 
-                float damage = CombatMath.PhysicalDamage(character.Stats.attack * hitDamageMultiplier, monster.Defense);
+                float damage = CombatMath.PhysicalDamage(character.Stats.attack * damageMultiplier, monster.Defense);
                 monster.TakeDamage(damage);
             }
+        }
+
+        private void OnDrawGizmosSelected()
+        {
+            Gizmos.color = Color.magenta;
+            Gizmos.DrawWireSphere(transform.position, radius);
         }
     }
 }

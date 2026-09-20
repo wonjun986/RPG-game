@@ -6,37 +6,59 @@ using Aethoria.Monsters;
 namespace Aethoria.Characters
 {
     // Z = 기본 공격. 바라보는 방향 앞의 원형 범위 안에 있는 몬스터를 때린다.
+    // 연타 방지를 위해 자체 쿨타임(기본 0.5초)을 둔다.
     [RequireComponent(typeof(Character))]
     [RequireComponent(typeof(CharacterMovement2D))]
-    [RequireComponent(typeof(ScytheVisual))]
+    [RequireComponent(typeof(AttackSpriteAnimator))]
     public class CharacterAttack2D : MonoBehaviour
     {
-        [SerializeField] private float attackRange = 0.9f;
+        [SerializeField] private float attackRange = 1.4f;
         [SerializeField] private float attackRadius = 0.6f;
+        [SerializeField] private float cooldown = 0.5f;
 
         private Character character;
         private CharacterMovement2D movement;
-        private ScytheVisual weaponVisual;
+        private AttackSpriteAnimator attackAnimator;
+
+        private float cooldownRemaining;
+
+        public float CooldownRemaining => cooldownRemaining;
+        public float Cooldown => cooldown;
 
         private void Awake()
         {
             character = GetComponent<Character>();
             movement = GetComponent<CharacterMovement2D>();
-            weaponVisual = GetComponent<ScytheVisual>();
+            attackAnimator = GetComponent<AttackSpriteAnimator>();
         }
 
         private void Update()
         {
+            if (cooldownRemaining > 0f)
+            {
+                cooldownRemaining = Mathf.Max(0f, cooldownRemaining - Time.deltaTime);
+            }
+
+            if (movement.IsInputLocked) return;
+
             var keyboard = Keyboard.current;
             if (keyboard != null && keyboard.zKey.wasPressedThisFrame)
             {
-                PerformBasicAttack();
+                TryPerformBasicAttack();
             }
+        }
+
+        private void TryPerformBasicAttack()
+        {
+            if (cooldownRemaining > 0f) return;
+
+            cooldownRemaining = cooldown;
+            PerformBasicAttack();
         }
 
         private void PerformBasicAttack()
         {
-            weaponVisual.PlaySwing(movement.FacingDirection);
+            attackAnimator.Play(movement.FacingDirection);
 
             Vector2 origin = (Vector2)transform.position + movement.FacingDirection * attackRange;
             var hits = Physics2D.OverlapCircleAll(origin, attackRadius);

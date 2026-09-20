@@ -9,10 +9,13 @@ namespace Aethoria.Characters
     {
         [SerializeField] private CharacterData data;
         [SerializeField] private int level = 1;
+        [SerializeField] private float manaRegenPerSecond = 5f;
 
         private StatBlock currentStats;
         private float currentHp;
         private float currentMana;
+        private int currentExp;
+        private bool isInvincible;
 
         public CharacterData Data => data;
         public int Level => level;
@@ -22,6 +25,9 @@ namespace Aethoria.Characters
         public float CurrentMana => currentMana;
         public float MaxMana => currentStats.mana;
         public bool IsDead => currentHp <= 0f;
+        public bool IsInvincible => isInvincible;
+        public int CurrentExp => currentExp;
+        public int ExpToNextLevel => level * 100; // 레벨이 오를수록 다음 레벨까지 필요한 경험치도 늘어난다
 
         public event Action<Character> OnDied;
         public event Action<Character, float> OnDamaged;
@@ -30,6 +36,12 @@ namespace Aethoria.Characters
         protected virtual void Awake()
         {
             InitializeStats();
+        }
+
+        protected virtual void Update()
+        {
+            if (IsDead || manaRegenPerSecond <= 0f) return;
+            RestoreMana(manaRegenPerSecond * Time.deltaTime);
         }
 
         public void AssignData(CharacterData newData)
@@ -71,9 +83,28 @@ namespace Aethoria.Characters
             SetLevel(level + 1);
         }
 
+        // 몬스터를 잡는 등으로 경험치를 얻는다. 최대 레벨이 아니면 문턱을 넘을 때마다 자동으로 레벨업한다.
+        public void AddExp(int amount)
+        {
+            if (amount <= 0 || data == null || level >= data.maxLevel) return;
+
+            currentExp += amount;
+            while (level < data.maxLevel && currentExp >= ExpToNextLevel)
+            {
+                currentExp -= ExpToNextLevel;
+                LevelUp();
+            }
+        }
+
+        // 궁극기 시전 등으로 무적 상태일 때는 피해를 전혀 받지 않는다.
+        public void SetInvincible(bool invincible)
+        {
+            isInvincible = invincible;
+        }
+
         public void TakeDamage(float finalDamage)
         {
-            if (IsDead || finalDamage <= 0f) return;
+            if (IsDead || isInvincible || finalDamage <= 0f) return;
 
             currentHp = Mathf.Max(0f, currentHp - finalDamage);
             OnDamaged?.Invoke(this, finalDamage);
@@ -106,5 +137,8 @@ namespace Aethoria.Characters
 
         [ContextMenu("Test/Level Up")]
         private void DebugLevelUp() => LevelUp();
+
+        [ContextMenu("Test/Add 50 Exp")]
+        private void DebugAddExp() => AddExp(50);
     }
 }

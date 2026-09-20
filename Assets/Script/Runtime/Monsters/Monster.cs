@@ -14,10 +14,12 @@ namespace Aethoria.Monsters
         public MonsterData Data => data;
         public float CurrentHp => currentHp;
         public float MaxHp => data != null ? data.maxHp : 0f;
+        public float Attack => data != null ? data.attack : 0f;
         public float Defense => data != null ? data.defense : 0f;
         public bool IsDead => currentHp <= 0f;
 
         public event Action<Monster> OnDied;
+        public event Action<Monster, float> OnDamaged;
 
         private void Awake()
         {
@@ -40,6 +42,8 @@ namespace Aethoria.Monsters
             if (IsDead || finalDamage <= 0f) return;
 
             currentHp = Mathf.Max(0f, currentHp - finalDamage);
+            OnDamaged?.Invoke(this, finalDamage);
+
             if (currentHp <= 0f)
             {
                 OnDied?.Invoke(this);

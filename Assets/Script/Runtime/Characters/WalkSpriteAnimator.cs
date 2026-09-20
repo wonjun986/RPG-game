@@ -38,6 +38,9 @@ namespace Aethoria.Characters
 
         private void Update()
         {
+            // 원본 프레임은 오른쪽을 보고 있다고 가정하고, 왼쪽을 볼 때는 스프라이트를 좌우 반전한다.
+            spriteRenderer.flipX = movement.FacingDirection.x < 0f;
+
             if (movement.IsMoving && movement.IsGrounded)
             {
                 timer += Time.deltaTime;

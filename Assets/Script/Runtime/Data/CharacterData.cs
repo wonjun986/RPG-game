@@ -12,7 +12,7 @@ namespace Aethoria.Data
 
         [Header("Level Range")]
         public int minLevel = 1;
-        public int maxLevel = 50;
+        public int maxLevel = 30;
 
         [Header("Base Stats (Lv 1)")]
         public StatBlock baseStats;
