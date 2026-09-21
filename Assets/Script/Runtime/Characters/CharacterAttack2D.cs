@@ -15,6 +15,7 @@ namespace Aethoria.Characters
         [SerializeField] private float attackRange = 1.4f;
         [SerializeField] private float attackRadius = 0.6f;
         [SerializeField] private float cooldown = 0.5f;
+        [SerializeField] private float manaRestoreOnAttack = 5f;
 
         private Character character;
         private CharacterMovement2D movement;
@@ -59,6 +60,7 @@ namespace Aethoria.Characters
         private void PerformBasicAttack()
         {
             attackAnimator.Play(movement.FacingDirection);
+            character.RestoreMana(manaRestoreOnAttack);
 
             Vector2 origin = (Vector2)transform.position + movement.FacingDirection * attackRange;
             var hits = Physics2D.OverlapCircleAll(origin, attackRadius);

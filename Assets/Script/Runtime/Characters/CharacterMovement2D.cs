@@ -8,7 +8,9 @@ namespace Aethoria.Characters
     public class CharacterMovement2D : MonoBehaviour
     {
         [SerializeField] private float moveSpeed = 4f;
-        [SerializeField] private float jumpForce = 8f;
+        // 점프 최고 높이는 초기 속도의 제곱에 비례해서(h = v² / 2g), 높이를 2배로 하려면
+        // 속도는 root(2)배(약 1.414배)를 곱해야 한다. 기존 8 -> 8*root(2) ≈ 11.3.
+        [SerializeField] private float jumpForce = 11.3f;
         [SerializeField] private float gravityScale = 4f;
 
         private Rigidbody2D body;

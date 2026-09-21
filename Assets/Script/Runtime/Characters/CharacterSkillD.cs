@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Aethoria.Combat;
@@ -7,7 +8,7 @@ using Aethoria.Monsters;
 namespace Aethoria.Characters
 {
     // D = 낫 부메랑 스트라이크. 낫을 멀리 던졌다가 다시 손으로 회수한다.
-    // 던질 때와 받을 때 각각 한 번씩 피해를 준다.
+    // 날아가는 동안과 돌아오는 동안 경로에 겹치는 모든 적에게 피해를 준다(같은 다리에서는 적당 한 번씩만).
     [RequireComponent(typeof(Character))]
     [RequireComponent(typeof(CharacterMovement2D))]
     public class CharacterSkillD : MonoBehaviour
@@ -69,6 +70,7 @@ namespace Aethoria.Characters
             Vector2 farPoint = throwOrigin + direction * throwRange;
 
             var flyingScythe = FlipbookSpriteEffect.Create("BoomerangScythe", scytheEffectPath, throwOrigin, spinFrameDuration, loop: true);
+            var hitThisLeg = new HashSet<Monster>();
 
             float elapsed = 0f;
             while (elapsed < throwDuration)
@@ -76,10 +78,11 @@ namespace Aethoria.Characters
                 elapsed += Time.deltaTime;
                 float t = Mathf.Clamp01(elapsed / throwDuration);
                 flyingScythe.transform.position = Vector2.Lerp(throwOrigin, farPoint, t);
+                DealDamageAlongPath(flyingScythe.transform.position, hitThisLeg);
                 yield return null;
             }
 
-            DealDamage(farPoint);
+            hitThisLeg.Clear(); // 돌아오는 다리에서는 같은 적이라도 다시 한 번 맞을 수 있게 초기화
 
             elapsed = 0f;
             while (elapsed < returnDuration)
@@ -88,20 +91,23 @@ namespace Aethoria.Characters
                 float t = Mathf.Clamp01(elapsed / returnDuration);
                 Vector2 currentOrigin = transform.position;
                 flyingScythe.transform.position = Vector2.Lerp(farPoint, currentOrigin, t);
+                DealDamageAlongPath(flyingScythe.transform.position, hitThisLeg);
                 yield return null;
             }
 
-            DealDamage(transform.position);
             Destroy(flyingScythe.gameObject);
         }
 
-        private void DealDamage(Vector2 point)
+        // 매 프레임 낫의 현재 위치를 기준으로 피해를 확인한다. alreadyHit에 있는 몬스터는
+        // 같은 다리(던지기/회수) 안에서는 건너뛰어 프레임마다 중복 피해가 들어가지 않게 한다.
+        private void DealDamageAlongPath(Vector2 point, HashSet<Monster> alreadyHit)
         {
             var hits = Physics2D.OverlapCircleAll(point, hitRadius);
             foreach (var hit in hits)
             {
                 var monster = hit.GetComponent<Monster>();
                 if (monster == null || monster.IsDead) continue;
+                if (!alreadyHit.Add(monster)) continue;
 
                 float damage = CombatMath.PhysicalDamage(character.Stats.attack * damageMultiplier, monster.Defense);
                 monster.TakeDamage(damage);

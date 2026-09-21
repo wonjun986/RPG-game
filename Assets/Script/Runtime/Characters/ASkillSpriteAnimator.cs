@@ -48,9 +48,11 @@ namespace Aethoria.Characters
             for (int i = 0; i < frames.Length; i++)
             {
                 spriteRenderer.sprite = frames[i];
+                SkillFrameNormalizer.Apply(spriteRenderer.transform, frames[i]);
                 yield return new WaitForSeconds(frameDuration);
             }
 
+            SkillFrameNormalizer.Reset(spriteRenderer.transform);
             if (walkAnimator != null) walkAnimator.enabled = true;
             playRoutine = null;
         }

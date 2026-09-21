@@ -81,6 +81,7 @@ namespace Aethoria.Characters
             StopHold();
             yield return PlaySequence(RetractStart, RetractEnd, duration);
 
+            SkillFrameNormalizer.Reset(spriteRenderer.transform);
             if (walkAnimator != null) walkAnimator.enabled = true;
         }
 
@@ -91,6 +92,7 @@ namespace Aethoria.Characters
             while (true)
             {
                 spriteRenderer.sprite = frames[index];
+                SkillFrameNormalizer.Apply(spriteRenderer.transform, frames[index]);
                 yield return new WaitForSeconds(holdFrameInterval);
 
                 index += step;
@@ -109,6 +111,7 @@ namespace Aethoria.Characters
             for (int i = startIndex; i <= endIndex; i++)
             {
                 spriteRenderer.sprite = frames[i];
+                SkillFrameNormalizer.Apply(spriteRenderer.transform, frames[i]);
                 yield return new WaitForSeconds(frameDuration);
             }
         }

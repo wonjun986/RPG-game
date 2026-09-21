@@ -68,6 +68,7 @@ namespace Aethoria.UI
             fillRect.offsetMin = new Vector2(2f, 2f);
             fillRect.offsetMax = new Vector2(-2f, -2f);
             var fillImage = fillGO.GetComponent<Image>();
+            fillImage.UseAsFilled();
             fillImage.color = fillColor;
             fillImage.type = Image.Type.Filled;
             fillImage.fillMethod = Image.FillMethod.Horizontal;
@@ -175,6 +176,7 @@ namespace Aethoria.UI
             overlayRect.offsetMin = Vector2.zero;
             overlayRect.offsetMax = Vector2.zero;
             var overlay = overlayGO.GetComponent<Image>();
+            overlay.UseAsFilled();
             overlay.color = new Color(0f, 0f, 0f, 0.75f);
             overlay.type = Image.Type.Filled;
             overlay.fillMethod = Image.FillMethod.Vertical;

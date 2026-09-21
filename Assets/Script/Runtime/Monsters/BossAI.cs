@@ -44,6 +44,7 @@ namespace Aethoria.Monsters
         private Monster monster;
         private Rigidbody2D body;
         private SpriteRenderer spriteRenderer;
+        private MonsterAttackSpriteAnimator attackAnimator;
         private Character target;
         private Color normalColor;
 
@@ -60,6 +61,7 @@ namespace Aethoria.Monsters
             monster = GetComponent<Monster>();
             body = GetComponent<Rigidbody2D>();
             spriteRenderer = GetComponent<SpriteRenderer>();
+            attackAnimator = GetComponent<MonsterAttackSpriteAnimator>();
             body.gravityScale = gravityScale;
             body.freezeRotation = true;
             normalColor = spriteRenderer.color;
@@ -95,7 +97,16 @@ namespace Aethoria.Monsters
 
         private void FixedUpdate()
         {
-            if (monster.IsDead || isAttacking || isStaggered || target == null || target.IsDead)
+            if (monster.IsDead || isStaggered || target == null || target.IsDead)
+            {
+                body.linearVelocity = new Vector2(0f, body.linearVelocity.y);
+                return;
+            }
+
+            // 패턴이 이미 진행 중이면 사거리를 다시 확인하지 않는다. 즉, 한 번 시작된 공격은
+            // 플레이어가 도중에 사거리 밖으로 나가도 끝까지(RunNextPattern이 끝날 때까지) 재생된다.
+            // (맞아서 경직되는 것과는 별개 - 피격 중단은 HandleDamaged에서만 일어난다.)
+            if (isAttacking)
             {
                 body.linearVelocity = new Vector2(0f, body.linearVelocity.y);
                 return;
@@ -140,6 +151,7 @@ namespace Aethoria.Monsters
                 patternRoutine = null;
             }
             isAttacking = false;
+            if (attackAnimator != null) attackAnimator.Stop();
             RefreshStagger();
         }
 
@@ -186,6 +198,14 @@ namespace Aethoria.Monsters
 
             bool useDash = nextIsDash;
             nextIsDash = !nextIsDash;
+
+            if (attackAnimator != null)
+            {
+                float patternDuration = useDash
+                    ? dashComboHits * dashHitInterval
+                    : sweepComboHits * sweepHitInterval;
+                attackAnimator.Play(patternDuration);
+            }
 
             yield return useDash ? DashComboRoutine() : SweepComboRoutine();
             yield return new WaitForSeconds(patternCooldown);

@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.Tilemaps;
 using UnityEngine.UI;
 using Aethoria.Characters;
 using Aethoria.Data;
@@ -16,8 +15,8 @@ namespace Aethoria.Bootstrap
         private const int MapWidth = 20;
         private const int MapHeight = 14;
         private const float WallThickness = 0.5f;
-        private const int TotalStages = 5;
-        private const int BossStage = 5;
+        private const int TotalStages = 3;
+        private const int BossStage = 3;
 
         // 플레이어/카메라/HUD는 스테이지가 바뀌어도 유지되고, 맵/몬스터/포탈만 stageRoot 아래에
         // 묶어서 통째로 지웠다가 다시 짓는다.
@@ -26,6 +25,7 @@ namespace Aethoria.Bootstrap
         private static int currentStage;
         private static int mapXMin, mapXMax, mapYMin, mapYMax;
         private static StageClearUI stageClearUI;
+        private static BossHealthUI bossHealthUI;
 
         // 궁극기의 칼날폭풍처럼 맵 전역에 이펙트를 뿌리는 연출이 현재 맵의 실제 크기를 알아야 할 때 쓴다.
         public static Rect CurrentMapBounds => new Rect(mapXMin, mapYMin, mapXMax - mapXMin + 1, mapYMax - mapYMin + 1);
@@ -94,46 +94,44 @@ namespace Aethoria.Bootstrap
 
         private static void BuildMap(Transform parent, out int xMin, out int xMax, out int yMin, out int yMax)
         {
-            var groundTile = CreateGroundTile();
-
-            var grid = new GameObject("Grid", typeof(Grid));
-            grid.transform.SetParent(parent);
-            var groundGO = new GameObject("Ground", typeof(Tilemap), typeof(TilemapRenderer));
-            groundGO.transform.SetParent(grid.transform, false);
-            var tilemap = groundGO.GetComponent<Tilemap>();
-
             xMin = -MapWidth / 2;
             xMax = xMin + MapWidth - 1;
             yMin = -MapHeight / 2;
             yMax = yMin + MapHeight - 1;
 
-            for (int x = xMin; x <= xMax; x++)
-            {
-                for (int y = yMin; y <= yMax; y++)
-                {
-                    tilemap.SetTile(new Vector3Int(x, y, 0), groundTile);
-                }
-            }
-
+            BuildMapBackground(parent, xMin, xMax, yMin);
             BuildBoundaryWalls(parent, xMin, xMax, yMin, yMax);
         }
 
-        private static Tile CreateGroundTile()
+        // map.png 원화 속에서 실제로 밟고 서 있는 돌바닥은 이미지 맨 아래가 아니라 위에서부터
+        // 약 80% 지점에 있고, 그 아래는 반사되는 물웅덩이(파란 배경)라 예전 방식(이미지를 맵 높이에
+        // 맞춰 그냥 늘리기)으로는 캐릭터 발밑에 그 물웅덩이가 걸려 붕 떠 보였다.
+        private const float BackgroundGroundFraction = 0.8f;
+
+        // 배경 원화(map.png)를 맵 폭(xMin~xMax+1)에 맞춰 가로세로 비율 그대로 깔고,
+        // 위 비율 지점이 정확히 바닥 높이(yMin)에 오도록 세로 위치를 맞춘다.
+        private static void BuildMapBackground(Transform parent, int xMin, int xMax, int yMin)
         {
-            const int size = 32;
-            var texture = new Texture2D(size, size) { filterMode = FilterMode.Point };
-            var groundColor = new Color(0.35f, 0.55f, 0.3f);
-            var pixels = new Color[size * size];
-            for (int i = 0; i < pixels.Length; i++) pixels[i] = groundColor;
-            texture.SetPixels(pixels);
-            texture.Apply();
+            var sprite = Resources.Load<Sprite>("Backgrounds/map");
+            if (sprite == null) return;
 
-            var sprite = Sprite.Create(texture, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), size);
+            float width = xMax - xMin + 1;
+            float centerX = (xMin + xMax + 1) / 2f;
 
-            var tile = ScriptableObject.CreateInstance<Tile>();
-            tile.sprite = sprite;
-            tile.color = Color.white;
-            return tile;
+            var go = new GameObject("MapBackground", typeof(SpriteRenderer));
+            go.transform.SetParent(parent);
+
+            var renderer = go.GetComponent<SpriteRenderer>();
+            renderer.sprite = sprite;
+            renderer.sortingOrder = -10;
+
+            Vector2 nativeSize = sprite.bounds.size;
+            float scale = width / nativeSize.x;
+            go.transform.localScale = new Vector3(scale, scale, 1f);
+
+            float scaledHeight = nativeSize.y * scale;
+            float centerY = yMin + scaledHeight * (BackgroundGroundFraction - 0.5f);
+            go.transform.position = new Vector3(centerX, centerY, 0f);
         }
 
         private static void BuildBoundaryWalls(Transform parent, int xMin, int xMax, int yMin, int yMax)
@@ -194,6 +192,9 @@ namespace Aethoria.Bootstrap
 
             stageClearUI = canvasGO.AddComponent<StageClearUI>();
             stageClearUI.Initialize();
+
+            bossHealthUI = canvasGO.AddComponent<BossHealthUI>();
+            bossHealthUI.Initialize();
         }
 
         private static Character SpawnPlayer()
@@ -240,27 +241,28 @@ namespace Aethoria.Bootstrap
         private static void SpawnMonsters(Transform parent, int floorY)
         {
             var data = ScriptableObject.CreateInstance<MonsterData>();
-            data.monsterName = "슬라임";
+            data.monsterName = "기사";
             data.level = 1;
             data.maxHp = 80f; // 플레이어 기본 공격(약 60 데미지) 한 방에 죽지 않고 2대는 맞아야 죽을 정도로
             data.attack = 2f;
             data.defense = 0f;
-            data.expReward = 10;
+            data.expReward = 20; // 보스 전 일반 스테이지가 줄어든 만큼(4→2) 마리당 경험치를 2배로 올려 보정
 
             float[] xOffsets = { 3f, -3f, 6f };
             foreach (var x in xOffsets)
             {
-                var go = new GameObject("Slime");
+                var go = new GameObject("Knight");
                 go.transform.position = new Vector3(x, floorY, 0f);
                 go.transform.SetParent(parent);
                 go.AddComponent<SpriteRenderer>();
                 go.AddComponent<CharacterPlaceholderVisual>().Configure(new Color(0.85f, 0.3f, 0.3f), 24, 24);
 
                 var collider = go.AddComponent<BoxCollider2D>();
-                collider.size = new Vector2(0.6f, 0.6f);
-                collider.offset = new Vector2(0f, 0.3f);
+                collider.size = new Vector2(0.6f, 1.3f);
+                collider.offset = new Vector2(0f, 0.65f);
 
                 go.AddComponent<Rigidbody2D>();
+                go.AddComponent<MonsterWalkSpriteAnimator>();
                 go.AddComponent<Monster>().AssignData(data);
                 go.AddComponent<MonsterAI>();
                 go.AddComponent<MonsterHealthBar>();
@@ -270,43 +272,46 @@ namespace Aethoria.Bootstrap
         private static void SpawnBoss(Transform parent, int floorY)
         {
             var data = ScriptableObject.CreateInstance<MonsterData>();
-            data.monsterName = "가디언";
+            data.monsterName = "보스 기사";
             data.level = 10;
             data.maxHp = 2500f;
             data.attack = 70f; // 플레이어 방어력(60) 기준 콤보 전체가 체력의 20~27% 정도 나가는 수준
             data.defense = 20f;
-            data.expReward = 500;
+            data.expReward = 600;
 
-            var go = new GameObject("Boss_Guardian");
+            var go = new GameObject("Boss_Knight");
             go.transform.position = new Vector3(5f, floorY, 0f);
             go.transform.SetParent(parent);
             go.AddComponent<SpriteRenderer>();
             go.AddComponent<CharacterPlaceholderVisual>().Configure(new Color(0.5f, 0.1f, 0.5f), 48, 72, PlaceholderShape.Humanoid);
 
             var collider = go.AddComponent<BoxCollider2D>();
-            collider.size = new Vector2(1.2f, 1.6f);
-            collider.offset = new Vector2(0f, 0.8f);
+            collider.size = new Vector2(1.3f, 1.8f);
+            collider.offset = new Vector2(0f, 0.9f);
 
             go.AddComponent<Rigidbody2D>();
-            go.AddComponent<Monster>().AssignData(data);
+            go.AddComponent<MonsterWalkSpriteAnimator>().Configure("Art/Monsters/BossKnight/Walk");
+            go.AddComponent<MonsterAttackSpriteAnimator>();
+            var monster = go.AddComponent<Monster>();
+            monster.AssignData(data);
             go.AddComponent<BossAI>();
             go.AddComponent<MonsterHealthBar>().Configure(newWidth: 1.4f, newVerticalOffset: 0.15f);
+
+            bossHealthUI.Bind(monster, data.monsterName);
         }
 
-        // 맵 오른쪽 끝에 포탈을 놓는다. 플레이어가 닿으면 새 스테이지로 넘어간다.
+        private const float PortalTriggerRadius = 2f;
+
+        // 맵 오른쪽 끝에 포탈을 놓는다. 화면에는 보이지 않고, 플레이어가 일정 거리 안에 들어오면 자동으로 다음 스테이지로 넘어간다.
         private static void SpawnPortal(Transform parent, int xMax, int floorY)
         {
             var go = new GameObject("Portal");
-            go.transform.position = new Vector3(xMax - 0.5f, floorY, 0f);
+            go.transform.position = new Vector3(xMax - 0.5f, floorY + 0.7f, 0f);
             go.transform.SetParent(parent);
 
-            go.AddComponent<SpriteRenderer>();
-            go.AddComponent<CharacterPlaceholderVisual>().Configure(new Color(0.3f, 0.85f, 0.9f), 28, 44, PlaceholderShape.Blob);
-
-            var collider = go.AddComponent<BoxCollider2D>();
+            var collider = go.AddComponent<CircleCollider2D>();
             collider.isTrigger = true;
-            collider.size = new Vector2(0.9f, 1.4f);
-            collider.offset = new Vector2(0f, 0.7f);
+            collider.radius = PortalTriggerRadius;
 
             go.AddComponent<Portal>();
         }

@@ -56,6 +56,7 @@ namespace Aethoria.Characters
                 StopCoroutine(playRoutine);
                 playRoutine = null;
             }
+            SkillFrameNormalizer.Reset(spriteRenderer.transform);
             if (walkAnimator != null) walkAnimator.enabled = true;
         }
 
@@ -68,9 +69,11 @@ namespace Aethoria.Characters
             for (int i = 0; i < frames.Length; i++)
             {
                 spriteRenderer.sprite = frames[i];
+                SkillFrameNormalizer.Apply(spriteRenderer.transform, frames[i]);
                 yield return new WaitForSeconds(frameDuration);
             }
 
+            SkillFrameNormalizer.Reset(spriteRenderer.transform);
             if (walkAnimator != null) walkAnimator.enabled = true;
             playRoutine = null;
         }
@@ -85,6 +88,7 @@ namespace Aethoria.Characters
             while (true)
             {
                 spriteRenderer.sprite = frames[i];
+                SkillFrameNormalizer.Apply(spriteRenderer.transform, frames[i]);
                 i = (i + 1) % frames.Length;
                 yield return new WaitForSeconds(frameDuration);
             }
