@@ -5,15 +5,6 @@ TextureImporter:
   - first:
       213: -4731199060103944189
     second: rvortex_08_0
-  - first:
-      213: 3991769667933631464
-    second: rvortex_08_1
-  - first:
-      213: 7041080067921258315
-    second: rvortex_08_2
-  - first:
-      213: -867290331532025567
-    second: rvortex_08_3
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -107,6 +98,19 @@ TextureImporter:
     ignorePlatformSupport: 0
     androidETC2FallbackOverride: 0
     forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: WebGL
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
   spriteSheet:
     serializedVersion: 2
     sprites:
@@ -115,9 +119,9 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 0
-        y: 31
-        width: 337
-        height: 355
+        y: 0
+        width: 355
+        height: 410
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -128,72 +132,6 @@ TextureImporter:
       bones: []
       spriteID: 308a7d49587675eb0800000000000000
       internalID: -4731199060103944189
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: rvortex_08_1
-      rect:
-        serializedVersion: 2
-        x: 330
-        y: 160
-        width: 13
-        height: 12
-      alignment: 0
-      pivot: {x: 0, y: 0}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
-      bones: []
-      spriteID: 8e3fc5a1d5d956730800000000000000
-      internalID: 3991769667933631464
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: rvortex_08_2
-      rect:
-        serializedVersion: 2
-        x: 137
-        y: 19
-        width: 13
-        height: 15
-      alignment: 0
-      pivot: {x: 0, y: 0}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
-      bones: []
-      spriteID: b47a78b3401f6b160800000000000000
-      internalID: 7041080067921258315
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: rvortex_08_3
-      rect:
-        serializedVersion: 2
-        x: 145
-        y: 0
-        width: 28
-        height: 22
-      alignment: 0
-      pivot: {x: 0, y: 0}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
-      bones: []
-      spriteID: 12127efd904c6f3f0800000000000000
-      internalID: -867290331532025567
       vertices: []
       indices: 
       edges: []

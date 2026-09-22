@@ -60,6 +60,7 @@ namespace Aethoria.Characters
 
         private void TryUseSkill()
         {
+            if (character.IsCombatLocked) return;
             if (isDashing || cooldownRemaining > 0f) return;
 
             cooldownRemaining = cooldown;

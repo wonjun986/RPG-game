@@ -5,12 +5,6 @@ TextureImporter:
   - first:
       213: 8277607869470219451
     second: rvortex_02_0
-  - first:
-      213: -8757047668882325405
-    second: rvortex_02_1
-  - first:
-      213: 954715838804065192
-    second: rvortex_02_2
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -104,6 +98,19 @@ TextureImporter:
     ignorePlatformSupport: 0
     androidETC2FallbackOverride: 0
     forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: WebGL
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
   spriteSheet:
     serializedVersion: 2
     sprites:
@@ -112,9 +119,9 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 0
-        y: 7
-        width: 285
-        height: 273
+        y: 0
+        width: 355
+        height: 316
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -125,50 +132,6 @@ TextureImporter:
       bones: []
       spriteID: bbc10c92088ffd270800000000000000
       internalID: 8277607869470219451
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: rvortex_02_1
-      rect:
-        serializedVersion: 2
-        x: 282
-        y: 59
-        width: 13
-        height: 11
-      alignment: 0
-      pivot: {x: 0, y: 0}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
-      bones: []
-      spriteID: 3604b1fba87b87680800000000000000
-      internalID: -8757047668882325405
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: rvortex_02_2
-      rect:
-        serializedVersion: 2
-        x: 228
-        y: 0
-        width: 11
-        height: 9
-      alignment: 0
-      pivot: {x: 0, y: 0}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
-      bones: []
-      spriteID: 8abfa514ff4df3d00800000000000000
-      internalID: 954715838804065192
       vertices: []
       indices: 
       edges: []

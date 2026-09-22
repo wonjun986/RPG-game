@@ -12,6 +12,8 @@ namespace Aethoria.Characters
         // 속도는 root(2)배(약 1.414배)를 곱해야 한다. 기존 8 -> 8*root(2) ≈ 11.3.
         [SerializeField] private float jumpForce = 11.3f;
         [SerializeField] private float gravityScale = 4f;
+        // 땅을 딛지 않은 채로 추가로 쓸 수 있는 공중 점프 횟수. 1이면 2단 점프.
+        [SerializeField] private int maxAirJumps = 1;
 
         private Rigidbody2D body;
         private Collider2D bodyCollider;
@@ -20,11 +22,16 @@ namespace Aethoria.Characters
         private bool jumpRequested;
         private bool isGrounded;
         private bool inputLocked;
+        private int airJumpsUsed;
 
         public Vector2 FacingDirection { get; private set; } = Vector2.right;
         public bool IsMoving => Mathf.Abs(horizontalInput) > 0.01f;
         public bool IsGrounded => isGrounded;
         public bool IsInputLocked => inputLocked;
+        public float VerticalVelocity => body.linearVelocity.y;
+
+        // 공중 점프(2단 점프 이상)를 쓸 때만 발생한다. 첫 점프(땅에서 뛰는 점프)는 발생시키지 않는다.
+        public event System.Action OnDoubleJump;
 
         private void Awake()
         {
@@ -49,15 +56,25 @@ namespace Aethoria.Characters
         private void FixedUpdate()
         {
             isGrounded = CheckGrounded();
+            if (isGrounded) airJumpsUsed = 0;
 
             if (inputLocked) return;
 
             body.linearVelocity = new Vector2(horizontalInput * moveSpeed, body.linearVelocity.y);
 
-            if (jumpRequested && isGrounded)
+            if (jumpRequested)
             {
-                body.linearVelocity = new Vector2(body.linearVelocity.x, jumpForce);
-                isGrounded = false; // 착지 전까지 재점프 금지
+                if (isGrounded)
+                {
+                    body.linearVelocity = new Vector2(body.linearVelocity.x, jumpForce);
+                    isGrounded = false; // 착지 전까지 재점프 금지
+                }
+                else if (airJumpsUsed < maxAirJumps)
+                {
+                    body.linearVelocity = new Vector2(body.linearVelocity.x, jumpForce);
+                    airJumpsUsed++;
+                    OnDoubleJump?.Invoke();
+                }
             }
             jumpRequested = false;
         }

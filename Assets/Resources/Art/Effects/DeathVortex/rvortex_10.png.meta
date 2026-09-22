@@ -5,21 +5,6 @@ TextureImporter:
   - first:
       213: 9002602765709615814
     second: rvortex_10_0
-  - first:
-      213: 4915577655463739724
-    second: rvortex_10_1
-  - first:
-      213: -7607012299973941640
-    second: rvortex_10_2
-  - first:
-      213: -5899521351754103610
-    second: rvortex_10_3
-  - first:
-      213: 1261035606543628480
-    second: rvortex_10_4
-  - first:
-      213: 2080587758574506011
-    second: rvortex_10_5
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -113,6 +98,19 @@ TextureImporter:
     ignorePlatformSupport: 0
     androidETC2FallbackOverride: 0
     forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: WebGL
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
   spriteSheet:
     serializedVersion: 2
     sprites:
@@ -120,10 +118,10 @@ TextureImporter:
       name: rvortex_10_0
       rect:
         serializedVersion: 2
-        x: 80
-        y: 250
-        width: 61
-        height: 34
+        x: 0
+        y: 0
+        width: 340
+        height: 370
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -134,116 +132,6 @@ TextureImporter:
       bones: []
       spriteID: 6c22210848bafec70800000000000000
       internalID: 9002602765709615814
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: rvortex_10_1
-      rect:
-        serializedVersion: 2
-        x: 177
-        y: 254
-        width: 7
-        height: 11
-      alignment: 0
-      pivot: {x: 0, y: 0}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
-      bones: []
-      spriteID: c4183c375d3a73440800000000000000
-      internalID: 4915577655463739724
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: rvortex_10_2
-      rect:
-        serializedVersion: 2
-        x: 186
-        y: 259
-        width: 50
-        height: 35
-      alignment: 0
-      pivot: {x: 0, y: 0}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
-      bones: []
-      spriteID: 876a60aed967e6690800000000000000
-      internalID: -7607012299973941640
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: rvortex_10_3
-      rect:
-        serializedVersion: 2
-        x: 278
-        y: 244
-        width: 14
-        height: 19
-      alignment: 0
-      pivot: {x: 0, y: 0}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
-      bones: []
-      spriteID: 6c44ddb6690b02ea0800000000000000
-      internalID: -5899521351754103610
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: rvortex_10_4
-      rect:
-        serializedVersion: 2
-        x: 0
-        y: 0
-        width: 288
-        height: 244
-      alignment: 0
-      pivot: {x: 0, y: 0}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
-      bones: []
-      spriteID: 0c8f621f339108110800000000000000
-      internalID: 1261035606543628480
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: rvortex_10_5
-      rect:
-        serializedVersion: 2
-        x: 285
-        y: 93
-        width: 15
-        height: 25
-      alignment: 0
-      pivot: {x: 0, y: 0}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
-      bones: []
-      spriteID: b101cd10b8bbfdc10800000000000000
-      internalID: 2080587758574506011
       vertices: []
       indices: 
       edges: []

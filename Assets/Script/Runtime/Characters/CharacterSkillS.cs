@@ -33,6 +33,7 @@ namespace Aethoria.Characters
         [SerializeField] private float launchHeight = 1.8f;
         [SerializeField] private float launchRiseDuration = 0.18f;
         [SerializeField] private float launchFallDuration = 0.25f;
+        [SerializeField] private float zFinisherAnimDuration = 0.35f;
 
         [Header("Phase 2-2 (X): 관통 돌진")]
         [SerializeField] private float pierceDamageMultiplier = 2.2f;
@@ -75,6 +76,7 @@ namespace Aethoria.Characters
 
         private void TryUseSkill()
         {
+            if (character.IsCombatLocked) return;
             if (isBusy || cooldownRemaining > 0f) return;
             if (!character.TrySpendMana(manaCost)) return;
 
@@ -169,6 +171,8 @@ namespace Aethoria.Characters
         // 몬스터에 물리/애니메이션 상태가 없어서 위치를 직접 보간해 "띄워진" 느낌만 표현한다.
         private IEnumerator PullAndLaunch(Vector2 direction, Monster hooked)
         {
+            StartCoroutine(chainAnimator.PlayFinisher(zFinisherAnimDuration));
+
             Transform hookedTransform = hooked.transform;
 
             Vector2 frontPoint = (Vector2)transform.position + direction * pullInDistance;

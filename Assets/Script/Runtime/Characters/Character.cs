@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using Aethoria.Combat;
 using Aethoria.Data;
 
 namespace Aethoria.Characters
@@ -16,6 +17,7 @@ namespace Aethoria.Characters
         private float currentMana;
         private int currentExp;
         private bool isInvincible;
+        private bool isCombatLocked;
 
         public CharacterData Data => data;
         public int Level => level;
@@ -26,6 +28,7 @@ namespace Aethoria.Characters
         public float MaxMana => currentStats.mana;
         public bool IsDead => currentHp <= 0f;
         public bool IsInvincible => isInvincible;
+        public bool IsCombatLocked => isCombatLocked;
         public int CurrentExp => currentExp;
         public int ExpToNextLevel => level * 100; // 레벨이 오를수록 다음 레벨까지 필요한 경험치도 늘어난다
 
@@ -102,12 +105,19 @@ namespace Aethoria.Characters
             isInvincible = invincible;
         }
 
+        // 마을처럼 몬스터가 없는 안전 지역에서는 공격 키(Z)가 NPC 대화 키와 겹치므로 공격을 막는다.
+        public void SetCombatLocked(bool locked)
+        {
+            isCombatLocked = locked;
+        }
+
         public void TakeDamage(float finalDamage)
         {
             if (IsDead || isInvincible || finalDamage <= 0f) return;
 
             currentHp = Mathf.Max(0f, currentHp - finalDamage);
             OnDamaged?.Invoke(this, finalDamage);
+            DamagePopup.Create(transform.position, finalDamage, Color.red);
 
             if (currentHp <= 0f)
             {

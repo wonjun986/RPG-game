@@ -5,6 +5,21 @@ TextureImporter:
   - first:
       213: 138893505439957865
     second: wskill_10_0
+  - first:
+      213: 3407379258588004597
+    second: wskill_10_1
+  - first:
+      213: -2635752326516174735
+    second: wskill_10_2
+  - first:
+      213: 4475142716377992700
+    second: wskill_10_3
+  - first:
+      213: 7362460003072849647
+    second: wskill_10_4
+  - first:
+      213: 302477914620939086
+    second: wskill_10_5
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -98,6 +113,19 @@ TextureImporter:
     ignorePlatformSupport: 0
     androidETC2FallbackOverride: 0
     forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: WebGL
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
   spriteSheet:
     serializedVersion: 2
     sprites:
@@ -105,10 +133,10 @@ TextureImporter:
       name: wskill_10_0
       rect:
         serializedVersion: 2
-        x: 0
-        y: 0
-        width: 328
-        height: 184
+        x: 15
+        y: 277
+        width: 22
+        height: 11
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -119,6 +147,116 @@ TextureImporter:
       bones: []
       spriteID: 9638b5548e27de100800000000000000
       internalID: 138893505439957865
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: wskill_10_1
+      rect:
+        serializedVersion: 2
+        x: 133
+        y: 267
+        width: 59
+        height: 21
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5f00c23f161794f20800000000000000
+      internalID: 3407379258588004597
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: wskill_10_2
+      rect:
+        serializedVersion: 2
+        x: 206
+        y: 253
+        width: 53
+        height: 35
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 170181e493deb6bd0800000000000000
+      internalID: -2635752326516174735
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: wskill_10_3
+      rect:
+        serializedVersion: 2
+        x: 251
+        y: 257
+        width: 79
+        height: 31
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cfd03e81796ea1e30800000000000000
+      internalID: 4475142716377992700
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: wskill_10_4
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 197
+        width: 44
+        height: 38
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fe6bd246d56bc2660800000000000000
+      internalID: 7362460003072849647
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: wskill_10_5
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 338
+        height: 232
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e4bc16d8f0e923400800000000000000
+      internalID: 302477914620939086
       vertices: []
       indices: 
       edges: []

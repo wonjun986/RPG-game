@@ -5,6 +5,15 @@ TextureImporter:
   - first:
       213: -525635757931908179
     second: wskill_07_0
+  - first:
+      213: -2811737501261865376
+    second: wskill_07_1
+  - first:
+      213: -8764568396754462860
+    second: wskill_07_2
+  - first:
+      213: 5660257717324048358
+    second: wskill_07_3
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -98,6 +107,19 @@ TextureImporter:
     ignorePlatformSupport: 0
     androidETC2FallbackOverride: 0
     forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: WebGL
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
   spriteSheet:
     serializedVersion: 2
     sprites:
@@ -105,10 +127,10 @@ TextureImporter:
       name: wskill_07_0
       rect:
         serializedVersion: 2
-        x: 0
-        y: 0
-        width: 326
-        height: 208
+        x: 103
+        y: 280
+        width: 30
+        height: 8
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -119,6 +141,72 @@ TextureImporter:
       bones: []
       spriteID: da3b937201194b8f0800000000000000
       internalID: -525635757931908179
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: wskill_07_1
+      rect:
+        serializedVersion: 2
+        x: 110
+        y: 277
+        width: 22
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 06e54abc3a3baf8d0800000000000000
+      internalID: -2811737501261865376
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: wskill_07_2
+      rect:
+        serializedVersion: 2
+        x: 305
+        y: 197
+        width: 41
+        height: 91
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 477d5d5da7ffd5680800000000000000
+      internalID: -8764568396754462860
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: wskill_07_3
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 355
+        height: 273
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6e7634297664d8e40800000000000000
+      internalID: 5660257717324048358
       vertices: []
       indices: 
       edges: []

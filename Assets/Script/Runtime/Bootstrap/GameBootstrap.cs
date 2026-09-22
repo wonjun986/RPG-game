@@ -15,6 +15,10 @@ namespace Aethoria.Bootstrap
         private const int MapWidth = 20;
         private const int MapHeight = 14;
         private const float WallThickness = 0.5f;
+        private const int VillageStage = 0; // 게임 시작 시 진입하는 안전 지역. 몬스터 없이 포탈로 1스테이지에 들어간다.
+        // 던전 맵(20유닛)과 폭이 같으면 화면 폭에 거의 꽉 차서 카메라가 거의 못 움직인다(가장자리 근처에서만 살짝).
+        // 마을은 좌우로 길게 걷는 구간이라 일부러 훨씬 넓게 잡아서 카메라가 계속 따라오는 느낌이 나게 한다.
+        private const int VillageWidth = 32;
         private const int TotalStages = 3;
         private const int BossStage = 3;
 
@@ -22,10 +26,12 @@ namespace Aethoria.Bootstrap
         // 묶어서 통째로 지웠다가 다시 짓는다.
         private static Character player;
         private static GameObject stageRoot;
+        private static GameObject hudRoot;
         private static int currentStage;
         private static int mapXMin, mapXMax, mapYMin, mapYMax;
         private static StageClearUI stageClearUI;
         private static BossHealthUI bossHealthUI;
+        private static NpcDialogueUI npcDialogueUI;
 
         // 궁극기의 칼날폭풍처럼 맵 전역에 이펙트를 뿌리는 연출이 현재 맵의 실제 크기를 알아야 할 때 쓴다.
         public static Rect CurrentMapBounds => new Rect(mapXMin, mapYMin, mapXMax - mapXMin + 1, mapYMax - mapYMin + 1);
@@ -35,10 +41,50 @@ namespace Aethoria.Bootstrap
         {
             if (Object.FindFirstObjectByType<StageManager>() != null) return;
 
+            ShowTitleScreen();
+        }
+
+        private static void ShowTitleScreen()
+        {
+            var titleGO = new GameObject("TitleScreen");
+            titleGO.AddComponent<TitleScreenUI>().Initialize(StartNewGame);
+        }
+
+        private static void StartNewGame()
+        {
             player = SpawnPlayer();
             BuildHud(player);
-            currentStage = 1;
+            currentStage = VillageStage;
             BuildStage();
+        }
+
+        // 게임오버 화면의 RETRY: 현재 판을 통째로 정리하고 스테이지 1부터 새로 시작한다.
+        public static void RestartGame()
+        {
+            TeardownRun();
+            StartNewGame();
+        }
+
+        // 게임오버 화면의 TITLE: 현재 판을 통째로 정리하고 타이틀 화면으로 돌아간다.
+        public static void ReturnToTitle()
+        {
+            TeardownRun();
+            ShowTitleScreen();
+        }
+
+        // 플레이어/맵/HUD를 전부 지우고 시간 배속도 원래대로 되돌린다.
+        private static void TeardownRun()
+        {
+            if (stageRoot != null) Object.Destroy(stageRoot);
+            if (player != null) Object.Destroy(player.gameObject);
+            if (hudRoot != null) Object.Destroy(hudRoot);
+            stageRoot = null;
+            player = null;
+            hudRoot = null;
+            stageClearUI = null;
+            bossHealthUI = null;
+            npcDialogueUI = null;
+            Time.timeScale = 1f;
         }
 
         // 포탈을 타고 다음 스테이지로 넘어갈 때 호출된다. 기존 맵/몬스터/포탈을 지우고 새로 짓는다.
@@ -50,14 +96,32 @@ namespace Aethoria.Bootstrap
             BuildStage();
         }
 
+        // 맵 왼쪽 끝 포탈을 타고 이전 스테이지(마을 포함)로 돌아갈 때 호출된다.
+        // 몬스터를 잡은 기록 등은 남지 않고, 그 스테이지를 처음 들어갈 때처럼 새로 짓는다.
+        public static void EnterPreviousStage()
+        {
+            if (currentStage <= VillageStage) return;
+
+            currentStage--;
+            BuildStage();
+        }
+
         private static void BuildStage()
         {
             if (stageRoot != null) Object.Destroy(stageRoot);
             stageRoot = new GameObject("StageRoot");
 
-            BuildMap(stageRoot.transform, out int xMin, out int xMax, out int yMin, out int yMax);
+            if (currentStage == VillageStage)
+            {
+                BuildVillage();
+                return;
+            }
+
+            BuildMap(stageRoot.transform, MapWidth, MapHeight, out int xMin, out int xMax, out int yMin, out int yMax,
+                "Backgrounds/map", BackgroundGroundFraction);
             mapXMin = xMin; mapXMax = xMax; mapYMin = yMin; mapYMax = yMax;
 
+            player.SetCombatLocked(false);
             PlacePlayerAtSpawn(xMin, yMin);
             FitCamera(xMin, xMax, yMin);
             SpawnMonsters(stageRoot.transform, yMin);
@@ -67,9 +131,12 @@ namespace Aethoria.Bootstrap
                 SpawnBoss(stageRoot.transform, yMin);
             }
 
+            // 왼쪽 끝은 항상 이전 스테이지(마을 포함)로 돌아가는 포탈, 오른쪽 끝은 마지막 스테이지가
+            // 아닐 때만 다음 스테이지로 가는 포탈.
+            SpawnPortal(stageRoot.transform, xMin + 0.5f, yMin, backward: true);
             if (currentStage < TotalStages)
             {
-                SpawnPortal(stageRoot.transform, xMax, yMin);
+                SpawnPortal(stageRoot.transform, xMax - 0.5f, yMin, backward: false);
             }
 
             var stageManagerGO = new GameObject("StageManager");
@@ -85,6 +152,53 @@ namespace Aethoria.Bootstrap
             Debug.Log($"Aethoria: 맵 {currentStage}/{TotalStages} 진입");
         }
 
+        // 마을: 몬스터도 StageManager도 없는 안전 지역. 포탈까지 걸어가면 1스테이지로 들어간다.
+        // 캐릭터가 떠 보인다는 피드백에 따라 바닥 기준점을 그림 더 아래쪽(가장 앞쪽 보도블록)으로 내림.
+        private const float VillageGroundFraction = 0.87f;
+
+        private static void BuildVillage()
+        {
+            BuildMap(stageRoot.transform, VillageWidth, MapHeight, out int xMin, out int xMax, out int yMin, out int yMax,
+                "Backgrounds/village", VillageGroundFraction);
+            mapXMin = xMin; mapXMax = xMax; mapYMin = yMin; mapYMax = yMax;
+
+            player.SetCombatLocked(true);
+            PlacePlayerAtSpawn(xMin, yMin);
+            FitCamera(xMin, xMax, yMin);
+            SpawnNoaShop(stageRoot.transform, yMin);
+            SpawnPortal(stageRoot.transform, xMax - 0.5f, yMin, backward: false);
+
+            Debug.Log("Aethoria: 마을 진입");
+        }
+
+        // 마을 중간쯤에 노아의 상점과 노아를 놓는다. 상점은 배경보다 앞, 캐릭터보다는 뒤에 그려진다.
+        // 원래 자리(-3)는 배경 그림상 분수/운하 근처라 부자연스러워서, 노점상들이 있는 쪽(왼쪽)으로 옮김.
+        private const float NoaShopX = -7f;
+        private const float NoaShopWidth = 6f;
+
+        private static void SpawnNoaShop(Transform parent, int floorY)
+        {
+            var shopSprite = Resources.Load<Sprite>("Backgrounds/NoaShop");
+            if (shopSprite != null)
+            {
+                var shopGO = new GameObject("NoaShop", typeof(SpriteRenderer));
+                shopGO.transform.SetParent(parent);
+                shopGO.transform.position = new Vector3(NoaShopX, floorY, 0f);
+
+                var shopRenderer = shopGO.GetComponent<SpriteRenderer>();
+                shopRenderer.sprite = shopSprite;
+                shopRenderer.sortingOrder = -5;
+
+                float scale = NoaShopWidth / shopSprite.bounds.size.x;
+                shopGO.transform.localScale = new Vector3(scale, scale, 1f);
+            }
+
+            var noaGO = new GameObject("Noa", typeof(SpriteRenderer));
+            noaGO.transform.SetParent(parent);
+            noaGO.transform.position = new Vector3(NoaShopX + 1.8f, floorY, 0f);
+            noaGO.AddComponent<NoaNpc>().Initialize(player.transform, npcDialogueUI);
+        }
+
         private static void PlacePlayerAtSpawn(int xMin, int floorY)
         {
             player.transform.position = new Vector3(xMin + 1.5f, floorY, 0f);
@@ -92,14 +206,15 @@ namespace Aethoria.Bootstrap
             if (body != null) body.linearVelocity = Vector2.zero;
         }
 
-        private static void BuildMap(Transform parent, out int xMin, out int xMax, out int yMin, out int yMax)
+        private static void BuildMap(Transform parent, int width, int height, out int xMin, out int xMax, out int yMin, out int yMax,
+            string backgroundResourcePath, float groundFraction)
         {
-            xMin = -MapWidth / 2;
-            xMax = xMin + MapWidth - 1;
-            yMin = -MapHeight / 2;
-            yMax = yMin + MapHeight - 1;
+            xMin = -width / 2;
+            xMax = xMin + width - 1;
+            yMin = -height / 2;
+            yMax = yMin + height - 1;
 
-            BuildMapBackground(parent, xMin, xMax, yMin);
+            BuildMapBackground(parent, xMin, xMax, yMin, backgroundResourcePath, groundFraction);
             BuildBoundaryWalls(parent, xMin, xMax, yMin, yMax);
         }
 
@@ -108,11 +223,17 @@ namespace Aethoria.Bootstrap
         // 맞춰 그냥 늘리기)으로는 캐릭터 발밑에 그 물웅덩이가 걸려 붕 떠 보였다.
         private const float BackgroundGroundFraction = 0.8f;
 
-        // 배경 원화(map.png)를 맵 폭(xMin~xMax+1)에 맞춰 가로세로 비율 그대로 깔고,
-        // 위 비율 지점이 정확히 바닥 높이(yMin)에 오도록 세로 위치를 맞춘다.
-        private static void BuildMapBackground(Transform parent, int xMin, int xMax, int yMin)
+        // 카메라(orthoSize 5)가 바닥 위로 넉넉히 8~9유닛까지 올려다봐도 배경이 다 채워지도록 요구하는
+        // 최소 높이. village.png처럼 가로로 아주 긴(파노라마) 배경은 맵 폭에 맞춰 늘리면 세로가
+        // 모자라 화면 위쪽에 빈 공간이 생기므로, 폭 기준 배율과 이 높이 기준 배율 중 더 큰 쪽을 쓴다.
+        private const float MinBackgroundHeightAboveGround = 9f;
+
+        // 배경 원화를 맵 폭(xMin~xMax+1)에 맞춰 가로세로 비율 그대로 깔되, 세로 커버리지가 모자라면
+        // 대신 세로 기준으로 확대한다. groundFraction 지점이 정확히 바닥 높이(yMin)에 오도록 맞춘다.
+        private static void BuildMapBackground(Transform parent, int xMin, int xMax, int yMin,
+            string backgroundResourcePath, float groundFraction)
         {
-            var sprite = Resources.Load<Sprite>("Backgrounds/map");
+            var sprite = Resources.Load<Sprite>(backgroundResourcePath);
             if (sprite == null) return;
 
             float width = xMax - xMin + 1;
@@ -126,11 +247,13 @@ namespace Aethoria.Bootstrap
             renderer.sortingOrder = -10;
 
             Vector2 nativeSize = sprite.bounds.size;
-            float scale = width / nativeSize.x;
+            float scaleByWidth = width / nativeSize.x;
+            float scaleByHeight = MinBackgroundHeightAboveGround / (nativeSize.y * groundFraction);
+            float scale = Mathf.Max(scaleByWidth, scaleByHeight);
             go.transform.localScale = new Vector3(scale, scale, 1f);
 
             float scaledHeight = nativeSize.y * scale;
-            float centerY = yMin + scaledHeight * (BackgroundGroundFraction - 0.5f);
+            float centerY = yMin + scaledHeight * (groundFraction - 0.5f);
             go.transform.position = new Vector3(centerX, centerY, 0f);
         }
 
@@ -167,9 +290,16 @@ namespace Aethoria.Bootstrap
             var mainCamera = Camera.main;
             if (mainCamera == null) return;
 
-            const float orthoSize = 5f;
+            // 캐릭터/몬스터/이펙트 등 모든 스프라이트가 각자 다른 PPU로 그려지는데, 그걸 하나하나
+            // 손보는 대신 카메라를 줌인해서 화면에 보이는 모든 것을 한 번에 비례대로 키운다.
+            const float orthoSize = 4f;
             mainCamera.orthographic = true;
             mainCamera.orthographicSize = orthoSize;
+
+            // 배경 스프라이트가 화면을 다 못 덮는 가장자리(특히 바닥 아래쪽)에서 Unity 기본 파란 배경이
+            // 그대로 비쳐 보이는 것을 막기 위해, 배경 그림과 어울리는 어두운 색으로 클리어 컬러를 맞춘다.
+            mainCamera.clearFlags = CameraClearFlags.SolidColor;
+            mainCamera.backgroundColor = new Color(0.03f, 0.02f, 0.05f);
 
             float cameraY = floorY + orthoSize * 0.6f;
             var follow = mainCamera.GetComponent<CameraFollow>();
@@ -179,7 +309,8 @@ namespace Aethoria.Bootstrap
 
         private static void BuildHud(Character player)
         {
-            var canvasGO = new GameObject("HUD", typeof(Canvas), typeof(CanvasScaler));
+            var canvasGO = new GameObject("HUD", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+            hudRoot = canvasGO;
             var canvas = canvasGO.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
 
@@ -195,6 +326,9 @@ namespace Aethoria.Bootstrap
 
             bossHealthUI = canvasGO.AddComponent<BossHealthUI>();
             bossHealthUI.Initialize();
+
+            npcDialogueUI = canvasGO.AddComponent<NpcDialogueUI>();
+            npcDialogueUI.Initialize();
         }
 
         private static Character SpawnPlayer()
@@ -222,6 +356,7 @@ namespace Aethoria.Bootstrap
 
             go.AddComponent<WalkBobVisual>();
             go.AddComponent<WalkSpriteAnimator>();
+            go.AddComponent<JumpSpriteAnimator>();
             var character = go.AddComponent<Character>();
             character.AssignData(data);
             go.AddComponent<CharacterAttack2D>();
@@ -302,18 +437,19 @@ namespace Aethoria.Bootstrap
 
         private const float PortalTriggerRadius = 2f;
 
-        // 맵 오른쪽 끝에 포탈을 놓는다. 화면에는 보이지 않고, 플레이어가 일정 거리 안에 들어오면 자동으로 다음 스테이지로 넘어간다.
-        private static void SpawnPortal(Transform parent, int xMax, int floorY)
+        // 지정한 x 위치에 포탈을 놓는다. 화면에는 보이지 않고, 플레이어가 일정 거리 안에 들어오면
+        // 자동으로 다음(또는 backward=true면 이전) 스테이지로 넘어간다.
+        private static void SpawnPortal(Transform parent, float x, int floorY, bool backward)
         {
-            var go = new GameObject("Portal");
-            go.transform.position = new Vector3(xMax - 0.5f, floorY + 0.7f, 0f);
+            var go = new GameObject(backward ? "Portal_Back" : "Portal_Forward");
+            go.transform.position = new Vector3(x, floorY + 0.7f, 0f);
             go.transform.SetParent(parent);
 
             var collider = go.AddComponent<CircleCollider2D>();
             collider.isTrigger = true;
             collider.radius = PortalTriggerRadius;
 
-            go.AddComponent<Portal>();
+            go.AddComponent<Portal>().Configure(backward);
         }
     }
 }

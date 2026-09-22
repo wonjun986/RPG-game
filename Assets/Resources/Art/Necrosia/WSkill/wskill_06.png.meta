@@ -5,6 +5,21 @@ TextureImporter:
   - first:
       213: -2060108005086192333
     second: wskill_06_0
+  - first:
+      213: -8353412907992878448
+    second: wskill_06_1
+  - first:
+      213: 9066137016879519671
+    second: wskill_06_2
+  - first:
+      213: -4428036269087660175
+    second: wskill_06_3
+  - first:
+      213: -1060120669439242732
+    second: wskill_06_4
+  - first:
+      213: 3503128202992981226
+    second: wskill_06_5
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -98,6 +113,19 @@ TextureImporter:
     ignorePlatformSupport: 0
     androidETC2FallbackOverride: 0
     forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: WebGL
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
   spriteSheet:
     serializedVersion: 2
     sprites:
@@ -105,10 +133,10 @@ TextureImporter:
       name: wskill_06_0
       rect:
         serializedVersion: 2
-        x: 0
-        y: 0
-        width: 302
-        height: 163
+        x: 69
+        y: 276
+        width: 70
+        height: 12
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -119,6 +147,116 @@ TextureImporter:
       bones: []
       spriteID: 33d16ed2fa60963e0800000000000000
       internalID: -2060108005086192333
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: wskill_06_1
+      rect:
+        serializedVersion: 2
+        x: 154
+        y: 278
+        width: 34
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 092fbece737b21c80800000000000000
+      internalID: -8353412907992878448
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: wskill_06_2
+      rect:
+        serializedVersion: 2
+        x: 308
+        y: 279
+        width: 19
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7b79f18159361dd70800000000000000
+      internalID: 9066137016879519671
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: wskill_06_3
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 340
+        height: 204
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 177eb7859747c82c0800000000000000
+      internalID: -4428036269087660175
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: wskill_06_4
+      rect:
+        serializedVersion: 2
+        x: 12
+        y: 193
+        width: 40
+        height: 43
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 41e460f2ed1b941f0800000000000000
+      internalID: -1060120669439242732
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: wskill_06_5
+      rect:
+        serializedVersion: 2
+        x: 319
+        y: 200
+        width: 21
+        height: 35
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ae49c0e4a8c9d9030800000000000000
+      internalID: 3503128202992981226
       vertices: []
       indices: 
       edges: []

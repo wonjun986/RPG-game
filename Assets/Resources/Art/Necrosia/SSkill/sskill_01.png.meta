@@ -5,6 +5,15 @@ TextureImporter:
   - first:
       213: 4498152223712866176
     second: sskill_01_0
+  - first:
+      213: -8058495037853365609
+    second: sskill_01_1
+  - first:
+      213: -132901025298608350
+    second: sskill_01_2
+  - first:
+      213: 9223254788737378792
+    second: sskill_01_3
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -98,6 +107,19 @@ TextureImporter:
     ignorePlatformSupport: 0
     androidETC2FallbackOverride: 0
     forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: WebGL
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
   spriteSheet:
     serializedVersion: 2
     sprites:
@@ -107,8 +129,8 @@ TextureImporter:
         serializedVersion: 2
         x: 0
         y: 0
-        width: 170
-        height: 205
+        width: 486
+        height: 504
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -119,6 +141,72 @@ TextureImporter:
       bones: []
       spriteID: 08fe9008d95ac6e30800000000000000
       internalID: 4498152223712866176
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sskill_01_1
+      rect:
+        serializedVersion: 2
+        x: 503
+        y: 264
+        width: 10
+        height: 59
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 79a808475797a2090800000000000000
+      internalID: -8058495037853365609
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sskill_01_2
+      rect:
+        serializedVersion: 2
+        x: 468
+        y: 72
+        width: 45
+        height: 86
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 22f8accb837d72ef0800000000000000
+      internalID: -132901025298608350
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sskill_01_3
+      rect:
+        serializedVersion: 2
+        x: 479
+        y: 158
+        width: 34
+        height: 58
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8e9ac9b0d559fff70800000000000000
+      internalID: 9223254788737378792
       vertices: []
       indices: 
       edges: []

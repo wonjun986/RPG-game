@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using Aethoria.Combat;
 using Aethoria.Data;
 
 namespace Aethoria.Monsters
@@ -43,6 +44,7 @@ namespace Aethoria.Monsters
 
             currentHp = Mathf.Max(0f, currentHp - finalDamage);
             OnDamaged?.Invoke(this, finalDamage);
+            DamagePopup.Create(transform.position, finalDamage, Color.white);
 
             if (currentHp <= 0f)
             {

@@ -56,6 +56,7 @@ namespace Aethoria.Characters
 
         private void TryUseSkill()
         {
+            if (character.IsCombatLocked) return;
             if (isBusy || cooldownRemaining > 0f) return;
             if (!character.TrySpendMana(initialManaCost)) return;
 
