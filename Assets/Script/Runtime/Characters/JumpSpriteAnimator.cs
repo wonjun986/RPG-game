@@ -60,6 +60,20 @@ namespace Aethoria.Characters
         private void OnDisable()
         {
             movement.OnDoubleJump -= HandleDoubleJump;
+
+            // 대시 등 다른 스킬이 이 애니메이터를 잠시 꺼둘 때, 진행 중이던 코루틴은 enabled와
+            // 상관없이 계속 돌아서 그쪽 스프라이트/스케일과 계속 충돌했다(대시+점프 시 크기가
+            // 제멋대로 바뀌던 원인). 꺼지는 시점에 확실히 멈춘다.
+            if (doubleJumpRoutine != null)
+            {
+                StopCoroutine(doubleJumpRoutine);
+                doubleJumpRoutine = null;
+            }
+            if (landRoutine != null)
+            {
+                StopCoroutine(landRoutine);
+                landRoutine = null;
+            }
         }
 
         private void Update()
@@ -76,7 +90,7 @@ namespace Aethoria.Characters
                     // 올라가는 중엔 상승 프레임, 정점을 지나 내려가는 중엔 체공/하강 프레임을 보여준다.
                     int frameIndex = movement.VerticalVelocity > 0.5f ? 1 : 2;
                     frameIndex = Mathf.Clamp(frameIndex, 0, jumpFrames.Length - 1);
-                    spriteRenderer.sprite = jumpFrames[frameIndex];
+                    SetFrame(jumpFrames[frameIndex]);
                 }
             }
             else if (!wasGrounded)
@@ -107,7 +121,7 @@ namespace Aethoria.Characters
             float frameDuration = doubleJumpDuration / doubleJumpFrames.Length;
             for (int i = 0; i < doubleJumpFrames.Length; i++)
             {
-                spriteRenderer.sprite = doubleJumpFrames[i];
+                SetFrame(doubleJumpFrames[i]);
                 yield return new WaitForSeconds(frameDuration);
             }
 
@@ -124,13 +138,22 @@ namespace Aethoria.Characters
 
             if (jumpFrames != null && jumpFrames.Length > 0)
             {
-                spriteRenderer.sprite = jumpFrames[jumpFrames.Length - 1]; // 착지 프레임
+                SetFrame(jumpFrames[jumpFrames.Length - 1]); // 착지 프레임
                 landRoutine = StartCoroutine(ReturnToWalkAfterLanding());
             }
             else if (walkAnimator != null)
             {
                 walkAnimator.enabled = true;
             }
+        }
+
+        // 걷기 애니메이터와 같은 기준 키로 매 프레임 보정한다. 점프/더블점프 시트도 프레임마다
+        // 캐릭터를 감싸는 크롭 크기가 제각각인 데다, 대시 등 다른 스킬이 스케일을 건드려 놓고
+        // 넘겨줄 수도 있어서, 원본 PPU만 믿고 그리면 크기가 프레임마다·상황마다 들쭉날쭉해진다.
+        private void SetFrame(Sprite frame)
+        {
+            spriteRenderer.sprite = frame;
+            SkillFrameNormalizer.Apply(spriteRenderer.transform, frame);
         }
 
         private IEnumerator ReturnToWalkAfterLanding()

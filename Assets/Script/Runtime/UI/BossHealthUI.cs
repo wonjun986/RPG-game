@@ -37,7 +37,9 @@ namespace Aethoria.UI
             Hide();
         }
 
-        private void Hide()
+        // 보스를 잡지 못한 채 스테이지를 나가도(포탈로 이전/다음 스테이지 이동) 체력바가 화면에
+        // 남아있지 않도록, 스테이지가 바뀔 때마다 호출해서 이전 보스와의 연결을 끊는다.
+        public void Hide()
         {
             if (boss != null) boss.OnDied -= HandleBossDied;
             boss = null;

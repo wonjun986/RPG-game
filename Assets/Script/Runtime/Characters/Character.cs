@@ -16,6 +16,7 @@ namespace Aethoria.Characters
         private float currentHp;
         private float currentMana;
         private int currentExp;
+        private int gold;
         private bool isInvincible;
         private bool isCombatLocked;
 
@@ -31,10 +32,12 @@ namespace Aethoria.Characters
         public bool IsCombatLocked => isCombatLocked;
         public int CurrentExp => currentExp;
         public int ExpToNextLevel => level * 100; // 레벨이 오를수록 다음 레벨까지 필요한 경험치도 늘어난다
+        public int Gold => gold;
 
         public event Action<Character> OnDied;
         public event Action<Character, float> OnDamaged;
         public event Action<Character> OnLevelUp;
+        public event Action<int> OnGoldChanged;
 
         protected virtual void Awake()
         {
@@ -81,6 +84,21 @@ namespace Aethoria.Characters
             OnLevelUp?.Invoke(this);
         }
 
+        // 저장 파일에서 이어하기: 레벨/경험치/골드를 되돌리고 체력/마나는 가득 채운다.
+        // 레벨업 연출이 아니므로 OnLevelUp은 발생시키지 않는다.
+        public void RestoreProgress(int savedLevel, int savedExp, int savedGold)
+        {
+            if (data == null) return;
+
+            level = Mathf.Clamp(savedLevel, data.minLevel, data.maxLevel);
+            currentStats = data.GetStatsAtLevel(level);
+            currentHp = currentStats.hp;
+            currentMana = currentStats.mana;
+            currentExp = Mathf.Max(0, savedExp);
+            gold = Mathf.Max(0, savedGold);
+            OnGoldChanged?.Invoke(gold);
+        }
+
         public void LevelUp()
         {
             SetLevel(level + 1);
@@ -97,6 +115,15 @@ namespace Aethoria.Characters
                 currentExp -= ExpToNextLevel;
                 LevelUp();
             }
+        }
+
+        // 몬스터를 잡는 등으로 골드를 얻는다.
+        public void AddGold(int amount)
+        {
+            if (amount <= 0) return;
+
+            gold += amount;
+            OnGoldChanged?.Invoke(gold);
         }
 
         // 궁극기 시전 등으로 무적 상태일 때는 피해를 전혀 받지 않는다.
@@ -150,5 +177,8 @@ namespace Aethoria.Characters
 
         [ContextMenu("Test/Add 50 Exp")]
         private void DebugAddExp() => AddExp(50);
+
+        [ContextMenu("Test/Add 100 Gold")]
+        private void DebugAddGold() => AddGold(100);
     }
 }

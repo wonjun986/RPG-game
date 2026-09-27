@@ -8,10 +8,12 @@ namespace Aethoria.UI
     {
         private const float BoxWidth = 1000f;
         private const float BoxHeight = BoxWidth * 724f / 2172f; // 대화 프레임 원본 비율(2172x724)에 맞춤
+        public const float DefaultTextLeft = 0.32f;
 
         private GameObject box;
         private RawImage frameImage;
         private Text dialogueText;
+        private RectTransform textRect;
         private string currentResourcePath;
 
         public void Initialize()
@@ -36,9 +38,9 @@ namespace Aethoria.UI
 
             // 대화 프레임 그림 속 비어있는 대사 영역(초상화 오른쪽의 어두운 직사각형)에 맞춘 좌표.
             var textGO = new GameObject("DialogueText", typeof(RectTransform), typeof(Text));
-            var textRect = (RectTransform)textGO.transform;
+            textRect = (RectTransform)textGO.transform;
             textRect.SetParent(rect, false);
-            textRect.anchorMin = new Vector2(0.32f, 0.22f);
+            textRect.anchorMin = new Vector2(DefaultTextLeft, 0.22f);
             textRect.anchorMax = new Vector2(0.92f, 0.53f);
             textRect.offsetMin = Vector2.zero;
             textRect.offsetMax = Vector2.zero;
@@ -54,8 +56,10 @@ namespace Aethoria.UI
             box.SetActive(false);
         }
 
-        public void Show(string resourcePath, string line)
+        // textLeft: 대사가 시작되는 가로 위치(프레임 폭 비율). 초상화가 대사 칸 쪽으로 더 튀어나온 프레임은 크게 준다.
+        public void Show(string resourcePath, string line, float textLeft = DefaultTextLeft)
         {
+            textRect.anchorMin = new Vector2(textLeft, textRect.anchorMin.y);
             if (currentResourcePath != resourcePath)
             {
                 frameImage.texture = Resources.Load<Texture2D>(resourcePath);

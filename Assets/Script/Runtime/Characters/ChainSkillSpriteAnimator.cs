@@ -11,6 +11,10 @@ namespace Aethoria.Characters
     {
         [SerializeField] private string throwResourcesPath = "Art/Necrosia/SSkill";
         [SerializeField] private string finisherResourcesPath = "Art/Necrosia/ZSkill";
+        // ZSkill 프레임은 위로 휘두르는 낫까지 담느라 모두 724px 높이의 큰 캔버스인데, 그 안의 캐릭터는
+        // SSkill보다 작게 그려져 있다(비슷한 런지 자세 기준 약 409px vs 502px). 프레임 높이를 기준 키(1.5)에
+        // 맞추면 캐릭터가 절반 가까이 작아지므로, 캐릭터 크기가 SSkill과 같아지는 프레임 높이로 맞춘다.
+        [SerializeField] private float finisherFrameHeight = 2.6f;
 
         private SpriteRenderer spriteRenderer;
         private WalkSpriteAnimator walkAnimator;
@@ -65,7 +69,7 @@ namespace Aethoria.Characters
         public IEnumerator PlayFinisher(float duration)
         {
             if (finisherFrames == null || finisherFrames.Length == 0) yield break;
-            yield return PlaySequence(finisherFrames, 0, finisherFrames.Length - 1, duration);
+            yield return PlaySequence(finisherFrames, 0, finisherFrames.Length - 1, duration, finisherFrameHeight);
         }
 
         // 사슬을 다시 감아들이며 원래 자세로 돌아오는 동작(뻗는 동작의 역재생)을 재생하고,
@@ -84,7 +88,8 @@ namespace Aethoria.Characters
             if (walkAnimator != null) walkAnimator.enabled = true;
         }
 
-        private IEnumerator PlaySequence(Sprite[] frames, int startIndex, int endIndex, float duration)
+        private IEnumerator PlaySequence(Sprite[] frames, int startIndex, int endIndex, float duration,
+            float targetHeight = SkillFrameNormalizer.ReferenceCharacterHeight)
         {
             int step = endIndex >= startIndex ? 1 : -1;
             int count = Mathf.Abs(endIndex - startIndex) + 1;
@@ -94,7 +99,7 @@ namespace Aethoria.Characters
             for (int i = 0; i < count; i++)
             {
                 spriteRenderer.sprite = frames[index];
-                SkillFrameNormalizer.Apply(spriteRenderer.transform, frames[index]);
+                SkillFrameNormalizer.Apply(spriteRenderer.transform, frames[index], targetHeight);
                 yield return new WaitForSeconds(frameDuration);
                 index += step;
             }

@@ -10,7 +10,7 @@ namespace Aethoria.Characters
     // Q = 어둠의 주먹. 전방으로 거대한 어둠의 주먹을 날려, 경로상의 몬스터를 모두 강타한다.
     [RequireComponent(typeof(Character))]
     [RequireComponent(typeof(CharacterMovement2D))]
-    public class CharacterSkillQ : MonoBehaviour
+    public class CharacterSkillQ : MonoBehaviour, ISkillCooldownReset
     {
         [SerializeField] private float manaCost = 40f;
         [SerializeField] private float cooldown = 10f;
@@ -27,6 +27,8 @@ namespace Aethoria.Characters
 
         public float CooldownRemaining => cooldownRemaining;
         public float Cooldown => cooldown;
+
+        public void ResetCooldown() => cooldownRemaining = 0f;
 
         private void Awake()
         {

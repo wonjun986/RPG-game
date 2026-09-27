@@ -53,6 +53,12 @@ namespace Aethoria.Characters
             if (locked) horizontalInput = 0f;
         }
 
+        // 순간이동 직후처럼 입력 없이 바라보는 방향만 정해 줄 때 쓴다.
+        public void Face(Vector2 direction)
+        {
+            if (Mathf.Abs(direction.x) > 0.01f) FacingDirection = direction.x > 0f ? Vector2.right : Vector2.left;
+        }
+
         private void FixedUpdate()
         {
             isGrounded = CheckGrounded();
@@ -92,7 +98,17 @@ namespace Aethoria.Characters
             int count = Physics2D.OverlapBox(checkCenter, checkSize, 0f, filter, groundCheckResults);
             for (int i = 0; i < count; i++)
             {
-                if (groundCheckResults[i] != bodyCollider) return true;
+                var hit = groundCheckResults[i];
+                if (hit == bodyCollider) continue;
+
+                // 단방향 발판(PlatformEffector2D)은 아래에서 뚫고 올라가는 중에도 발밑 검사에 걸린다.
+                // 올라가는 중이거나 발이 아직 발판 윗면보다 아래에 있으면 착지로 치지 않는다(2단 점프가 풀리는 것 방지).
+                if (hit.usedByEffector
+                    && (body.linearVelocity.y > 0.01f || transform.position.y < hit.bounds.max.y - 0.05f))
+                {
+                    continue;
+                }
+                return true;
             }
             return false;
         }

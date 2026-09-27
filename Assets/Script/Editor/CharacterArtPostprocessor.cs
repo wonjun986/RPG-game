@@ -18,15 +18,48 @@ namespace Aethoria.EditorTools
         // 걷기와 같은 240을 써도 눈에 띄게 커 보인다. 전용으로 더 높은 값을 써서 걷기 키와 맞춘다.
         private static readonly (string subfolder, float pixelsPerUnit)[] PixelsPerUnitOverrides =
         {
-            ("Art/Necrosia/Jump/", 340f),
+            // Jump는 위 설명대로 원본 캔버스가 커서 걷기와 같은 240을 쓰면 실제보다 커 보였는데,
+            // 처음 올렸던 340은 지나치게 높아서 오히려 작아 보였고, 그다음 470px 실루엣 기준으로 맞춘
+            // 270은 이번엔 던전에서 너무 커 보인다는 피드백을 받았다. 두 값 사이로 다시 낮췄다.
+            ("Art/Necrosia/Jump/", 300f),
+            // 더블 점프(낫 플립) 프레임은 전용 보정값이 없어 기본값(240)을 그대로 썼는데, 캔버스 대비
+            // 캐릭터 실루엣이 작게 그려져 있어서(약 320px) 걷기보다 작아 보였다. 걷기 키에 맞춘 값.
+            ("Art/Necrosia/DoubleJump/", 185f),
             ("Art/Necrosia/Attack/", 150f), ("Art/Necrosia/ChainSkill/", 150f),
             ("Art/Necrosia/WSkill/", 150f), ("Art/Necrosia/SSkill/", 150f),
             ("Art/Necrosia/ZSkill/", 150f),
             ("Art/Effects/ScytheSpin/", 150f), ("Art/Effects/ChainBurst/", 150f),
             ("Art/Effects/DarkFist/", 150f), ("Art/Effects/DeathVortex/", 150f),
-            ("Art/Monsters/BossKnight/Walk/", 150f), ("Art/Monsters/BossKnight/Attack/", 150f),
+            ("Art/Effects/ChainThrow/", 150f),
+            // E스킬 앉는 동작: 첫 프레임(선 자세) 키 560px가 기준 키 1.5유닛이 되도록 한다. 프레임마다 크기를
+            // 보정하지 않으므로(앉으면 키가 줄어야 해서) 폴더 값만으로 크기를 맞춘다.
+            ("Art/Necrosia/ESkill/", 373f),
+            // E스킬 사슬 폭풍: 회오리(Loop) 키 약 646px가 약 2.6유닛(캐릭터 키의 1.7배)이 되게 한다.
+            ("Art/Effects/ChainStormStart/", 250f), ("Art/Effects/ChainStormLoop/", 250f),
+            // 보스 시트들은 시트마다 기사를 그린 크기가 달라서(걷기 키 약 489px, 기본 공격 약 355px,
+            // 점프 공격 약 321px), 모두 같은 키(약 2.55유닛)로 보이도록 시트별로 환산한 값을 쓴다.
+            ("Art/Monsters/BossKnight/Walk/", 192f), ("Art/Monsters/BossKnight/Attack/", 140f),
+            ("Art/Monsters/BossKnight/JumpAttack/", 126f),
+            // 평야 발판 조각(Yard_scattfolding에서 잘라낸 것)은 폭 210~325px인데, 캐릭터가 여유 있게 올라설 수 있도록
+            // 2~3유닛 폭이 되게 한다.
+            ("Art/Props/Plains/", 100f),
+            // 보스 슬라임은 폭 약 3.5유닛(플레이어 키의 2배 이상)으로 크게 보이게 한다. 공격 시트는 잘라낼 때
+            // 왕관 폭 기준으로 이동 시트와 같은 크기로 맞춰 두었으므로 같은 값을 쓴다. 물대포 투사체도 같은 시트에서 나왔다.
+            ("Art/Monsters/BossSlime/", 100f), ("Art/Effects/SlimeWaterBall/", 100f),
             // 노아 대기 프레임도 Jump처럼 캐릭터가 프레임을 거의 꽉 채워서, 150을 쓰면 실제로 거대해진다.
             ("Art/NPC/Noa/Idle/", 400f),
+            // 이시스(연습장 NPC)는 갑옷 기사라 플레이어(1.5)보다 조금 큰 약 1.8유닛(프레임 키 약 704px).
+            ("Art/NPC/Isis/Idle/", 390f),
+            // 연습장 허수아비: 배경에 그려진 허수아비보다 작아 보이지 않게 약 2.4유닛(프레임 키 약 739px).
+            ("Art/Props/Dummy/", 308f),
+        };
+
+        // 대부분의 캐릭터/이펙트 스프라이트는 바닥에 서 있는 기준(BottomCenter)이 맞지만,
+        // 전방으로 뻗어나가는 사슬(ChainThrow)은 캐릭터 손 위치에 왼쪽 끝이 고정된 채
+        // 오른쪽으로 길이가 늘어나야 해서 왼쪽 중앙(LeftCenter)을 기준점으로 써야 한다.
+        private static readonly string[] LeftCenterPivotFolders =
+        {
+            "Art/Effects/ChainThrow/",
         };
 
         private void OnPreprocessTexture()
@@ -44,6 +77,16 @@ namespace Aethoria.EditorTools
                 }
             }
 
+            bool useLeftCenterPivot = false;
+            foreach (var subfolder in LeftCenterPivotFolders)
+            {
+                if (normalizedPath.Contains(subfolder))
+                {
+                    useLeftCenterPivot = true;
+                    break;
+                }
+            }
+
             var importer = (TextureImporter)assetImporter;
             importer.textureType = TextureImporterType.Sprite;
             importer.spriteImportMode = SpriteImportMode.Single;
@@ -55,8 +98,16 @@ namespace Aethoria.EditorTools
 
             var settings = new TextureImporterSettings();
             importer.ReadTextureSettings(settings);
-            settings.spriteAlignment = (int)SpriteAlignment.BottomCenter;
-            settings.spritePivot = new Vector2(0.5f, 0f);
+            if (useLeftCenterPivot)
+            {
+                settings.spriteAlignment = (int)SpriteAlignment.LeftCenter;
+                settings.spritePivot = new Vector2(0f, 0.5f);
+            }
+            else
+            {
+                settings.spriteAlignment = (int)SpriteAlignment.BottomCenter;
+                settings.spritePivot = new Vector2(0.5f, 0f);
+            }
             importer.SetTextureSettings(settings);
         }
     }

@@ -13,7 +13,7 @@ namespace Aethoria.Characters
     // 피해는 범위 제한 없이 현재 맵에 있는 모든 몬스터에게 매 틱마다 들어간다.
     [RequireComponent(typeof(Character))]
     [RequireComponent(typeof(CharacterMovement2D))]
-    public class CharacterSkillR : MonoBehaviour
+    public class CharacterSkillR : MonoBehaviour, ISkillCooldownReset
     {
         [SerializeField] private float manaCost = 100f;
         [SerializeField] private float cooldown = 25f;
@@ -43,6 +43,8 @@ namespace Aethoria.Characters
 
         public float CooldownRemaining => cooldownRemaining;
         public float Cooldown => cooldown;
+
+        public void ResetCooldown() => cooldownRemaining = 0f;
         public bool IsActive => isActive;
 
         private void Awake()
@@ -159,7 +161,7 @@ namespace Aethoria.Characters
         }
 
         // 맵 전역 궁극기이므로 캐릭터 주변이 아니라 현재 맵에 있는 모든 몬스터를 매 틱마다 타격한다.
-        // 보스(BossAI가 붙어있는 몬스터)에게는 추가 배율을 곱해 더 큰 피해를 준다.
+        // 보스(BossAI/BossSlimeAI 등 보스 전용 AI가 붙어있는 몬스터)에게는 추가 배율을 곱해 더 큰 피해를 준다.
         // (기본값 기준 풀캐스트 한 번에 보스 체력의 절반 정도가 빠지도록 맞춘 수치)
         private void DealDamage()
         {
@@ -169,11 +171,17 @@ namespace Aethoria.Characters
                 if (monster.IsDead) continue;
 
                 float multiplier = damageMultiplierPerTick;
-                if (monster.GetComponent<BossAI>() != null) multiplier *= bossDamageMultiplier;
+                if (IsBossMonster(monster)) multiplier *= bossDamageMultiplier;
 
                 float damage = CombatMath.PhysicalDamage(character.Stats.attack * multiplier, monster.Defense);
                 monster.TakeDamage(damage);
             }
+        }
+
+        // 새 보스 몬스터를 추가하면 여기에도 그 보스 전용 AI 타입을 추가해야 궁극기 배율이 적용된다.
+        private static bool IsBossMonster(Monster monster)
+        {
+            return monster.GetComponent<BossAI>() != null || monster.GetComponent<BossSlimeAI>() != null;
         }
     }
 }

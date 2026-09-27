@@ -48,9 +48,14 @@ namespace Aethoria.Characters
             for (int i = 0; i < frames.Length; i++)
             {
                 spriteRenderer.sprite = frames[i];
+                // 이동 중 걷기 스프라이트가 남겨둔 스케일을 그대로 물려받으면(걷기/대기 프레임마다
+                // 정규화 기준 키가 달라서) 이동 중에 공격할 때 스프라이트가 커 보였다. 다른
+                // 스킬 애니메이터들과 같은 방식으로 프레임마다 기준 키에 맞춰 직접 정규화한다.
+                SkillFrameNormalizer.Apply(spriteRenderer.transform, frames[i]);
                 yield return new WaitForSeconds(frameDuration);
             }
 
+            SkillFrameNormalizer.Reset(spriteRenderer.transform);
             if (walkAnimator != null) walkAnimator.enabled = true;
             playRoutine = null;
         }

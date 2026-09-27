@@ -17,6 +17,7 @@ namespace Aethoria.UI
         private Text hpLabel;
         private Text mpLabel;
         private Text expLabel;
+        private Text goldLabel;
 
         // 아이콘마다 "쿨타임 진행률(0=바로 사용 가능, 1=방금 씀)"을 구하는 함수만 따로 들고 있고,
         // 매 프레임 그 값을 오버레이 채우기/라벨 밝기에 그대로 반영한다.
@@ -38,11 +39,47 @@ namespace Aethoria.UI
             rootRect.anchorMax = new Vector2(0f, 1f);
             rootRect.pivot = new Vector2(0f, 1f);
             rootRect.anchoredPosition = new Vector2(16f, -16f);
-            rootRect.sizeDelta = new Vector2(220f, 76f);
+            rootRect.sizeDelta = new Vector2(220f, 100f);
 
             hpFill = CreateBar(rootRect, "HP", 0f, new Color(0.8f, 0.15f, 0.15f), out hpLabel);
             mpFill = CreateBar(rootRect, "MP", -26f, new Color(0.2f, 0.4f, 0.85f), out mpLabel);
             expFill = CreateBar(rootRect, "EXP", -52f, new Color(0.85f, 0.75f, 0.15f), out expLabel);
+            goldLabel = CreateGoldRow(rootRect, -78f);
+        }
+
+        // 골드는 막대가 아니라 주머니 아이콘 + 숫자로 보여준다(찰 수 있는 상한이 없어서 막대와 안 맞음).
+        private Text CreateGoldRow(RectTransform parent, float yOffset)
+        {
+            const float iconSize = 20f;
+
+            var iconGO = new GameObject("Gold_Icon", typeof(RectTransform), typeof(Image));
+            var iconRect = (RectTransform)iconGO.transform;
+            iconRect.SetParent(parent, false);
+            iconRect.anchorMin = new Vector2(0f, 1f);
+            iconRect.anchorMax = new Vector2(0f, 1f);
+            iconRect.pivot = new Vector2(0f, 1f);
+            iconRect.anchoredPosition = new Vector2(0f, yOffset);
+            iconRect.sizeDelta = new Vector2(iconSize, iconSize);
+            var iconImage = iconGO.GetComponent<Image>();
+            iconImage.sprite = Resources.Load<Sprite>("UI/Money");
+            iconImage.preserveAspect = true;
+
+            var textGO = new GameObject("Gold_Text", typeof(RectTransform), typeof(Text));
+            var textRect = (RectTransform)textGO.transform;
+            textRect.SetParent(parent, false);
+            textRect.anchorMin = new Vector2(0f, 1f);
+            textRect.anchorMax = new Vector2(0f, 1f);
+            textRect.pivot = new Vector2(0f, 1f);
+            textRect.anchoredPosition = new Vector2(iconSize + 6f, yOffset - 2f);
+            textRect.sizeDelta = new Vector2(180f, iconSize);
+
+            var text = textGO.GetComponent<Text>();
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.fontSize = 16;
+            text.fontStyle = FontStyle.Bold;
+            text.alignment = TextAnchor.MiddleLeft;
+            text.color = new Color(1f, 0.85f, 0.3f);
+            return text;
         }
 
         private Image CreateBar(RectTransform parent, string label, float yOffset, Color fillColor, out Text text)
@@ -219,6 +256,7 @@ namespace Aethoria.UI
             hpLabel.text = $"HP {Mathf.CeilToInt(target.CurrentHp)}/{Mathf.CeilToInt(target.MaxHp)}";
             mpLabel.text = $"MP {Mathf.CeilToInt(target.CurrentMana)}/{Mathf.CeilToInt(target.MaxMana)}";
             expLabel.text = $"Lv.{target.Level}  EXP {target.CurrentExp}/{target.ExpToNextLevel}";
+            goldLabel.text = target.Gold.ToString("N0");
 
             foreach (var (overlay, label, cooldownRatio) in skillIcons)
             {

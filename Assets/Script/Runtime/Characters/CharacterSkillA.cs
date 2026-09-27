@@ -11,7 +11,7 @@ namespace Aethoria.Characters
     [RequireComponent(typeof(Character))]
     [RequireComponent(typeof(CharacterMovement2D))]
     [RequireComponent(typeof(ASkillSpriteAnimator))]
-    public class CharacterSkillA : MonoBehaviour
+    public class CharacterSkillA : MonoBehaviour, ISkillCooldownReset
     {
         [SerializeField] private float manaCost = 0f;
         [SerializeField] private int maxCharges = 3;
@@ -28,6 +28,12 @@ namespace Aethoria.Characters
 
         public int CurrentCharges => currentCharges;
         public int MaxCharges => maxCharges;
+
+        public void ResetCooldown()
+        {
+            currentCharges = maxCharges;
+            rechargeTimer = 0f;
+        }
 
         private void Awake()
         {

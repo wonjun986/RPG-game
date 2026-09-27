@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using Aethoria.Bootstrap;
 using Aethoria.Characters;
 using Aethoria.Combat;
 
@@ -8,7 +9,8 @@ namespace Aethoria.Monsters
     // 보스 몬스터의 이동/공격 AI. 체력·방어력 등은 기존 Monster/MonsterData가 그대로 담당하고,
     // 여기서는 "플레이어를 쫓아가다가 사거리에 들어오면 콤보 패턴을 시전한다"는 행동과
     // 경직/슈퍼아머 상태를 담당한다.
-    // 패턴은 두 가지뿐이지만 각각 3연타 콤보로 구성해, 적은 패턴 수로도 위협적으로 느껴지게 한다.
+    // 근접 패턴 두 가지는 각각 3연타 콤보로 구성해, 적은 패턴 수로도 위협적으로 느껴지게 한다.
+    // 플레이어가 조금 떨어져 있으면 가끔 점프 내려찍기로 거리를 한 번에 좁힌다.
     [RequireComponent(typeof(Monster))]
     [RequireComponent(typeof(Rigidbody2D))]
     [RequireComponent(typeof(SpriteRenderer))]
@@ -33,6 +35,14 @@ namespace Aethoria.Monsters
         [SerializeField] private float sweepDamageMultiplier = 0.9f;
         [SerializeField] private float sweepFinisherMultiplier = 1.3f;
 
+        [Header("패턴 C: 점프 내려찍기 (중거리에서 플레이어 쪽으로 뛰어들어 넓은 충격파)")]
+        [SerializeField] private float jumpMaxRange = 6f; // 근접 사거리보다 멀고 이 거리 안이면 점프를 고려한다
+        [SerializeField] private float jumpMaxDistance = 5f; // 한 번 점프로 이동하는 최대 거리
+        [SerializeField] private float jumpDuration = 1.4f; // 8프레임 모션 전체 길이
+        [SerializeField] private float jumpSlamRadius = 2.2f;
+        [SerializeField] private float jumpDamageMultiplier = 1.6f;
+        [SerializeField] private float jumpCooldown = 7f;
+
         [SerializeField] private float patternCooldown = 1.2f;
 
         [Header("경직 / 슈퍼아머")]
@@ -52,6 +62,7 @@ namespace Aethoria.Monsters
         private bool isStaggered;
         private bool isSuperArmor;
         private bool nextIsDash = true;
+        private float jumpCooldownTimer;
         private Coroutine patternRoutine;
         private Coroutine staggerRoutine;
         private Coroutine superArmorCycleRoutine;
@@ -65,6 +76,7 @@ namespace Aethoria.Monsters
             body.gravityScale = gravityScale;
             body.freezeRotation = true;
             normalColor = spriteRenderer.color;
+            jumpCooldownTimer = jumpCooldown * 0.5f; // 보스전 시작하자마자 뛰어들지 않도록 약간 늦춘다
 
             target = Object.FindFirstObjectByType<Character>();
             monster.OnDamaged += HandleDamaged;
@@ -95,9 +107,14 @@ namespace Aethoria.Monsters
             if (monster != null) monster.OnDamaged -= HandleDamaged;
         }
 
+        private void Update()
+        {
+            if (jumpCooldownTimer > 0f && !isAttacking) jumpCooldownTimer -= Time.deltaTime;
+        }
+
         private void FixedUpdate()
         {
-            if (monster.IsDead || isStaggered || target == null || target.IsDead)
+            if (monster.IsDead || isStaggered || monster.IsImmobilized || target == null || target.IsDead)
             {
                 body.linearVelocity = new Vector2(0f, body.linearVelocity.y);
                 return;
@@ -117,6 +134,11 @@ namespace Aethoria.Monsters
             {
                 body.linearVelocity = new Vector2(0f, body.linearVelocity.y);
                 patternRoutine = StartCoroutine(RunNextPattern());
+            }
+            else if (Mathf.Abs(distance) <= jumpMaxRange && jumpCooldownTimer <= 0f && CanJumpAttack)
+            {
+                body.linearVelocity = new Vector2(0f, body.linearVelocity.y);
+                patternRoutine = StartCoroutine(RunJumpPattern());
             }
             else
             {
@@ -214,6 +236,54 @@ namespace Aethoria.Monsters
             patternRoutine = null;
         }
 
+        private bool CanJumpAttack => attackAnimator != null && attackAnimator.HasClip(JumpAttackClip);
+
+        public const string JumpAttackClip = "JumpAttack";
+
+        // 점프 공격 8프레임 기준 타이밍: 1 도약 준비 → 2~5 공중(이 동안 착지 지점까지 이동)
+        // → 6 내려찍기 충격(이때 피해) → 7~8 착지 후 자세 회복.
+        private const float JumpTakeoffFraction = 1f / 8f;
+        private const float JumpImpactFraction = 5f / 8f;
+
+        private IEnumerator RunJumpPattern()
+        {
+            isAttacking = true;
+            jumpCooldownTimer = jumpCooldown;
+
+            Vector2 direction = FacingToTarget();
+            spriteRenderer.flipX = direction.x < 0f;
+
+            // 도약하는 순간의 플레이어 위치로 착지 지점을 정한다(공중에서 따라가지 않음 → 피할 여지가 있다).
+            float startX = body.position.x;
+            float targetX = target != null ? target.transform.position.x : startX;
+            float landingX = Mathf.Clamp(targetX, startX - jumpMaxDistance, startX + jumpMaxDistance);
+            Rect bounds = GameBootstrap.CurrentMapBounds;
+            landingX = Mathf.Clamp(landingX, bounds.xMin + 1f, bounds.xMax - 1f);
+
+            attackAnimator.PlayClip(JumpAttackClip, jumpDuration);
+
+            yield return new WaitForSeconds(jumpDuration * JumpTakeoffFraction);
+
+            float airTime = jumpDuration * (JumpImpactFraction - JumpTakeoffFraction);
+            float elapsed = 0f;
+            while (elapsed < airTime)
+            {
+                yield return new WaitForFixedUpdate();
+                elapsed += Time.fixedDeltaTime;
+                float t = Mathf.Clamp01(elapsed / airTime);
+                body.position = new Vector2(Mathf.Lerp(startX, landingX, t), body.position.y);
+            }
+
+            if (monster.IsDead) yield break;
+            DealDamageAt(transform.position, jumpSlamRadius, jumpDamageMultiplier);
+
+            yield return new WaitForSeconds(jumpDuration * (1f - JumpImpactFraction));
+            yield return new WaitForSeconds(patternCooldown);
+
+            isAttacking = false;
+            patternRoutine = null;
+        }
+
         private IEnumerator DashComboRoutine()
         {
             for (int i = 0; i < dashComboHits; i++)
@@ -270,6 +340,8 @@ namespace Aethoria.Monsters
             Gizmos.DrawWireSphere(transform.position, attackRange);
             Gizmos.color = new Color(1f, 0.5f, 0f);
             Gizmos.DrawWireSphere(transform.position, sweepRadius);
+            Gizmos.color = new Color(0.6f, 0.2f, 1f);
+            Gizmos.DrawWireSphere(transform.position, jumpMaxRange);
         }
     }
 }

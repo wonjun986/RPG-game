@@ -15,7 +15,7 @@ namespace Aethoria.Characters
     [RequireComponent(typeof(CharacterMovement2D))]
     [RequireComponent(typeof(Rigidbody2D))]
     [RequireComponent(typeof(Collider2D))]
-    public class CharacterSkillDash : MonoBehaviour
+    public class CharacterSkillDash : MonoBehaviour, ISkillCooldownReset
     {
         [SerializeField] private float cooldown = 1.5f;
         [SerializeField] private float dashDistance = 3f;
@@ -23,10 +23,17 @@ namespace Aethoria.Characters
         [SerializeField] private float hitRadius = 0.6f;
         [SerializeField] private float damageMultiplier = 1f;
 
+        [Header("대시 모션")]
+        [SerializeField] private string dashFramesPath = "Art/Necrosia/Dash";
+
         private Character character;
         private CharacterMovement2D movement;
         private Rigidbody2D body;
         private Collider2D bodyCollider;
+        private SpriteRenderer visualRenderer;
+        private WalkSpriteAnimator walkAnimator;
+        private JumpSpriteAnimator jumpAnimator;
+        private Sprite[] dashFrames;
 
         private float cooldownRemaining;
         private bool isDashing;
@@ -34,12 +41,31 @@ namespace Aethoria.Characters
         public float CooldownRemaining => cooldownRemaining;
         public float Cooldown => cooldown;
 
+        public void ResetCooldown() => cooldownRemaining = 0f;
+
         private void Awake()
         {
             character = GetComponent<Character>();
             movement = GetComponent<CharacterMovement2D>();
             body = GetComponent<Rigidbody2D>();
             bodyCollider = GetComponent<Collider2D>();
+            walkAnimator = GetComponent<WalkSpriteAnimator>();
+            jumpAnimator = GetComponent<JumpSpriteAnimator>();
+
+            var visual = transform.Find("Visual");
+            visualRenderer = visual != null ? visual.GetComponent<SpriteRenderer>() : GetComponent<SpriteRenderer>();
+
+            dashFrames = LoadSortedFrames(dashFramesPath);
+        }
+
+        private static Sprite[] LoadSortedFrames(string path)
+        {
+            var frames = Resources.LoadAll<Sprite>(path);
+            if (frames != null && frames.Length > 0)
+            {
+                System.Array.Sort(frames, (a, b) => string.CompareOrdinal(a.name, b.name));
+            }
+            return frames;
         }
 
         private void Update()
@@ -77,6 +103,8 @@ namespace Aethoria.Characters
             Vector2 start = body.position;
             Vector2 end = start + direction * dashDistance;
 
+            BeginDashPose(direction);
+
             var monsterColliders = BeginIgnoringMonsterCollisions();
             var alreadyHit = new HashSet<Monster>();
 
@@ -89,13 +117,51 @@ namespace Aethoria.Characters
                 body.MovePosition(Vector2.Lerp(start, end, t));
 
                 DealDamageAlongPath(alreadyHit);
+                UpdateDashFrame(t);
             }
 
             RestoreMonsterCollisions(monsterColliders);
+            EndDashPose();
 
             character.SetInvincible(false);
             movement.SetInputLocked(false);
             isDashing = false;
+        }
+
+        // 걷기/점프 애니메이터가 스프라이트를 덮어쓰지 않도록 잠시 끄고, 대시가 끝나면 돌려준다.
+        private void BeginDashPose(Vector2 direction)
+        {
+            if (walkAnimator != null) walkAnimator.enabled = false;
+            if (jumpAnimator != null) jumpAnimator.enabled = false;
+            if (visualRenderer == null) return;
+
+            visualRenderer.flipX = direction.x < 0f;
+            if (dashFrames != null && dashFrames.Length > 0) SetDashFrame(dashFrames[0]);
+        }
+
+        private void UpdateDashFrame(float t)
+        {
+            if (visualRenderer == null || dashFrames == null || dashFrames.Length == 0) return;
+
+            int frameIndex = Mathf.Clamp(Mathf.FloorToInt(t * dashFrames.Length), 0, dashFrames.Length - 1);
+            SetDashFrame(dashFrames[frameIndex]);
+        }
+
+        // 대시 시트도 걷기처럼 프레임마다 캐릭터를 감싸는 크롭 크기가 제각각이라(특히 슬래시 이펙트가
+        // 걸치는 프레임), 걷기와 같은 기준 키로 매 프레임 보정해야 대시 중 캐릭터 크기가 안 흔들린다.
+        private void SetDashFrame(Sprite frame)
+        {
+            visualRenderer.sprite = frame;
+            SkillFrameNormalizer.Apply(visualRenderer.transform, frame);
+        }
+
+        private void EndDashPose()
+        {
+            if (walkAnimator != null) walkAnimator.enabled = true;
+            if (jumpAnimator != null) jumpAnimator.enabled = true;
+            // 점프 애니메이터는 스스로 스케일을 보정하지 않고 1배를 그대로 쓰므로, 대시가 남긴
+            // 보정 스케일을 원래대로 되돌려 둔다(ESkill이 시작할 때 하는 것과 같은 이유).
+            if (visualRenderer != null) SkillFrameNormalizer.Reset(visualRenderer.transform);
         }
 
         private void DealDamageAlongPath(HashSet<Monster> alreadyHit)

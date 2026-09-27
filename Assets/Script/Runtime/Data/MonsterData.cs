@@ -11,5 +11,6 @@ namespace Aethoria.Data
         public float attack = 2f;
         public float defense = 0f;
         public int expReward = 10;
+        public int goldReward = 5;
     }
 }

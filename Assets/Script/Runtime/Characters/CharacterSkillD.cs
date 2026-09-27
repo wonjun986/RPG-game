@@ -11,7 +11,8 @@ namespace Aethoria.Characters
     // 날아가는 동안과 돌아오는 동안 경로에 겹치는 모든 적에게 피해를 준다(같은 다리에서는 적당 한 번씩만).
     [RequireComponent(typeof(Character))]
     [RequireComponent(typeof(CharacterMovement2D))]
-    public class CharacterSkillD : MonoBehaviour
+    [RequireComponent(typeof(DSkillSpriteAnimator))]
+    public class CharacterSkillD : MonoBehaviour, ISkillCooldownReset
     {
         [SerializeField] private float manaCost = 30f;
         [SerializeField] private float cooldown = 7f;
@@ -25,16 +26,20 @@ namespace Aethoria.Characters
 
         private Character character;
         private CharacterMovement2D movement;
+        private DSkillSpriteAnimator skillAnimator;
 
         private float cooldownRemaining;
 
         public float CooldownRemaining => cooldownRemaining;
         public float Cooldown => cooldown;
 
+        public void ResetCooldown() => cooldownRemaining = 0f;
+
         private void Awake()
         {
             character = GetComponent<Character>();
             movement = GetComponent<CharacterMovement2D>();
+            skillAnimator = GetComponent<DSkillSpriteAnimator>();
         }
 
         private void Update()
@@ -60,6 +65,7 @@ namespace Aethoria.Characters
             if (!character.TrySpendMana(manaCost)) return;
 
             cooldownRemaining = cooldown;
+            skillAnimator.Play(movement.FacingDirection, throwDuration + returnDuration);
             StartCoroutine(BoomerangRoutine());
         }
 

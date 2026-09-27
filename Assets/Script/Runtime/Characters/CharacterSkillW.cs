@@ -10,7 +10,7 @@ namespace Aethoria.Characters
     [RequireComponent(typeof(Character))]
     [RequireComponent(typeof(CharacterMovement2D))]
     [RequireComponent(typeof(WSkillSpriteAnimator))]
-    public class CharacterSkillW : MonoBehaviour
+    public class CharacterSkillW : MonoBehaviour, ISkillCooldownReset
     {
         [SerializeField] private float initialManaCost = 20f;
         [SerializeField] private float manaDrainPerSecond = 5f;
@@ -30,6 +30,8 @@ namespace Aethoria.Characters
 
         public float CooldownRemaining => cooldownRemaining;
         public float Cooldown => cooldown;
+
+        public void ResetCooldown() => cooldownRemaining = 0f;
 
         private void Awake()
         {

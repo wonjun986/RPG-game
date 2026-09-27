@@ -11,8 +11,8 @@ namespace Aethoria.Stages
         private int remainingMonsters;
         private bool cleared;
 
-        // 이 스테이지의 몬스터를 모두 잡았을 때 발생한다. GameBootstrap이 마지막 스테이지에서만
-        // 여기에 구독해 게임 클리어 UI를 띄운다.
+        // 이 스테이지의 몬스터를 모두 잡았을 때 발생한다. (보스 처치 후 마을 귀환은 이 이벤트가 아니라
+        // GameBootstrap에서 보스 몬스터의 OnDied에 직접 연결한다.)
         public event Action OnCleared;
 
         public void Initialize(Character playerCharacter)
@@ -41,6 +41,7 @@ namespace Aethoria.Stages
             if (player != null && !player.IsDead)
             {
                 player.AddExp(monster.Data != null ? monster.Data.expReward : 0);
+                player.AddGold(monster.Data != null ? monster.Data.goldReward : 0);
             }
 
             if (remainingMonsters <= 0 && !cleared)
