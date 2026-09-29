@@ -312,6 +312,9 @@ namespace Aethoria.UI
             RefreshEquipIcons();
             RefreshTab();
             panel.SetActive(true);
+            // 나중에 추가된 HUD 요소(퀘스트 트래커, 토스트 등)가 형제 순서상 더 위라 이 화면 위에
+            // 겹쳐 보였다 — 열 때마다 맨 앞으로 올려서 다른 UI를 완전히 가린다.
+            panel.transform.SetAsLastSibling();
             if (playerMovement != null) playerMovement.SetInputLocked(true);
             Time.timeScale = 0f;
         }

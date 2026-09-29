@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Aethoria.Bootstrap;
+using Aethoria.Characters;
 using Aethoria.UI;
 
 namespace Aethoria.Stages
@@ -30,6 +31,7 @@ namespace Aethoria.Stages
         private int frameIndex;
         private float animTimer;
         private Transform player;
+        private CharacterMovement2D playerMovement;
         private NpcDialogueUI dialogueUI;
         private InventoryUI inventoryUI;
         private TextMesh promptText;
@@ -41,6 +43,7 @@ namespace Aethoria.Stages
         public void Initialize(Transform playerTransform, NpcDialogueUI dialogue, InventoryUI inventory)
         {
             player = playerTransform;
+            playerMovement = playerTransform != null ? playerTransform.GetComponent<CharacterMovement2D>() : null;
             dialogueUI = dialogue;
             inventoryUI = inventory;
         }
@@ -79,7 +82,9 @@ namespace Aethoria.Stages
 
         private void OnDisable()
         {
-            if (state != TalkState.None) dialogueUI?.Hide();
+            if (state == TalkState.None) return;
+            dialogueUI?.Hide();
+            if (playerMovement != null) playerMovement.SetInputLocked(false);
         }
 
         private void Update()
@@ -135,6 +140,7 @@ namespace Aethoria.Stages
                     {
                         state = TalkState.Offer;
                         if (promptText != null) promptText.gameObject.SetActive(false);
+                        if (playerMovement != null) playerMovement.SetInputLocked(true);
                         dialogueUI?.Show(TalkFrame, offerLine, TalkTextLeft);
                     }
                     break;
@@ -164,6 +170,7 @@ namespace Aethoria.Stages
         {
             state = TalkState.None;
             dialogueUI?.Hide();
+            if (playerMovement != null) playerMovement.SetInputLocked(false);
             if (promptText != null) promptText.gameObject.SetActive(inRange);
         }
     }

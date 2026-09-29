@@ -31,7 +31,7 @@ namespace Aethoria.Characters
         public bool IsInvincible => isInvincible;
         public bool IsCombatLocked => isCombatLocked;
         public int CurrentExp => currentExp;
-        public int ExpToNextLevel => level * 100; // 레벨이 오를수록 다음 레벨까지 필요한 경험치도 늘어난다
+        public int ExpToNextLevel => ExperienceMath.RequiredExpForLevel(level);
         public int Gold => gold;
 
         public event Action<Character> OnDied;
@@ -124,6 +124,16 @@ namespace Aethoria.Characters
 
             gold += amount;
             OnGoldChanged?.Invoke(gold);
+        }
+
+        // 상점 구매 등으로 골드를 쓴다. 보유량이 모자라면 아무 것도 하지 않고 false를 반환한다.
+        public bool TrySpendGold(int amount)
+        {
+            if (amount <= 0 || gold < amount) return false;
+
+            gold -= amount;
+            OnGoldChanged?.Invoke(gold);
+            return true;
         }
 
         // 궁극기 시전 등으로 무적 상태일 때는 피해를 전혀 받지 않는다.

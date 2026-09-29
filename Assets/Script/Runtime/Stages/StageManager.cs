@@ -40,8 +40,12 @@ namespace Aethoria.Stages
 
             if (player != null && !player.IsDead)
             {
-                player.AddExp(monster.Data != null ? monster.Data.expReward : 0);
-                player.AddGold(monster.Data != null ? monster.Data.goldReward : 0);
+                if (monster.Data != null)
+                {
+                    int exp = ExperienceMath.GetMonsterExp(player.Level, monster.Data.level, monster.Data.expReward);
+                    player.AddExp(exp);
+                    player.AddGold(monster.Data.goldReward);
+                }
             }
 
             if (remainingMonsters <= 0 && !cleared)

@@ -49,6 +49,7 @@ namespace Aethoria.Bootstrap
         private static NpcDialogueUI npcDialogueUI;
         private static WorldMapUI worldMapUI;
         private static InventoryUI inventoryUI;
+        private static ShopUI shopUI;
         private static QuestManager questManager;
         private static SaveToastUI saveToast;
         private static SaveScreenUI saveScreen;
@@ -183,6 +184,7 @@ namespace Aethoria.Bootstrap
             npcDialogueUI = null;
             worldMapUI = null;
             inventoryUI = null;
+            shopUI = null;
             questManager = null;
             saveToast = null;
             saveScreen = null;
@@ -518,7 +520,7 @@ namespace Aethoria.Bootstrap
             var noaGO = new GameObject("Noa", typeof(SpriteRenderer));
             noaGO.transform.SetParent(parent);
             noaGO.transform.position = new Vector3(NoaX, floorY, 0f);
-            noaGO.AddComponent<NoaNpc>().Initialize(player.transform, npcDialogueUI, questManager, saveScreen, inventoryUI);
+            noaGO.AddComponent<NoaNpc>().Initialize(player.transform, npcDialogueUI, questManager, saveScreen, inventoryUI, shopUI);
         }
 
         // 마을 왼쪽 광장(여신상 분수와 왼쪽 노점 사이)에 이시스의 연습장 건물과 이시스를 놓는다.
@@ -752,6 +754,9 @@ namespace Aethoria.Bootstrap
             inventoryUI = canvasGO.AddComponent<InventoryUI>();
             inventoryUI.Initialize(player, player.GetComponent<CharacterMovement2D>());
 
+            shopUI = canvasGO.AddComponent<ShopUI>();
+            shopUI.Initialize(player, player.GetComponent<CharacterMovement2D>());
+
             questManager = canvasGO.AddComponent<QuestManager>();
             questManager.Initialize(player, QuestDatabase.CreateMainLine());
             canvasGO.AddComponent<QuestTrackerUI>().Initialize(questManager);
@@ -771,7 +776,7 @@ namespace Aethoria.Bootstrap
             var data = ScriptableObject.CreateInstance<CharacterData>();
             data.characterName = "소울이터";
             data.minLevel = 1;
-            data.maxLevel = 30;
+            data.maxLevel = 50;
             data.baseStats = new StatBlock { attack = 60, magic = 70, hp = 150, agility = 30, defense = 60, mana = 120 };
             data.growthPerLevel = new StatBlock { attack = 2, magic = 2, hp = 5, agility = 0, defense = 2, mana = 2 };
 

@@ -14,5 +14,8 @@ namespace Aethoria.Data
         public string iconPath;
         public ItemCategory category;
         public string description;
+        // true인 아이템만 노아의 상점에 뜬다. 보스 드랍 전용 등은 false로 둔다.
+        public bool forSale;
+        public int shopPrice; // 0이면 무료.
     }
 }

@@ -82,7 +82,7 @@ namespace Aethoria.Quests
             if (status != QuestStatus.ReadyToTurnIn) return null;
 
             var finished = Current;
-            if (player != null) player.AddExp(finished.expReward);
+            if (player != null) player.AddExp(ExperienceMath.GetQuestExp(player.Level, finished.expReward));
 
             questIndex++;
             progress = 0;
