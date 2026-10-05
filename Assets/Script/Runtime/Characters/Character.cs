@@ -16,7 +16,7 @@ namespace Aethoria.Characters
         [SerializeField] private int level = 1;
         [SerializeField] private float manaRegenPerSecond = 5f;
 
-        public const float BaseCritChancePercent = 0f;
+        public const float BaseCritChancePercent = 10f;
         public const float BaseCritDamagePercent = 150f;
 
         [Header("피격 반응")]
@@ -52,7 +52,7 @@ namespace Aethoria.Characters
             }
         }
         public ItemStats EquipmentStats => equipmentStats;
-        // 치명타 확률(%), 치명타 피해(기본 150%), 스킬 피해 증가(%). 모두 장비로만 올라간다.
+        // 치명타 확률(기본 10%), 치명타 피해(기본 150%), 스킬 피해 증가(%). 기본값 위로는 장비로만 올라간다.
         public float CritChancePercent => BaseCritChancePercent + equipmentStats.critChance;
         public float CritDamagePercent => BaseCritDamagePercent + equipmentStats.critDamage;
         public float SkillDamagePercent => equipmentStats.skillDamage;

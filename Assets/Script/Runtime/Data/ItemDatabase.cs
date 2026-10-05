@@ -1,7 +1,7 @@
 namespace Aethoria.Data
 {
     // 게임에 등장하는 아이템 목록. 새 아이템은 여기에 항목만 추가하면 된다.
-    // 능력치 기준: 캐릭터 기본 공격력 60(레벨당 +2), 치명타 확률 기본 0%, 치명타 피해 기본 150%.
+    // 능력치 기준: 캐릭터 기본 공격력 60(레벨당 +2), 치명타 확률 기본 10%, 치명타 피해 기본 150%.
     public static class ItemDatabase
     {
         public static readonly ItemData DevilNecklace = new ItemData
