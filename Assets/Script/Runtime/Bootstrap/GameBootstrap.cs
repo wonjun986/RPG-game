@@ -50,9 +50,12 @@ namespace Aethoria.Bootstrap
         private static WorldMapUI worldMapUI;
         private static InventoryUI inventoryUI;
         private static ShopUI shopUI;
+        private static EnhanceUI enhanceUI;
         private static QuestManager questManager;
+        private static DailyQuestManager dailyQuestManager;
         private static SaveToastUI saveToast;
         private static SaveScreenUI saveScreen;
+        private static TutorialUI tutorialUI;
         // 자동 저장이 기록되는 슬롯. 이어하기면 불러온 슬롯, 새 게임이면 빈 슬롯(없으면 가장 오래된 슬롯),
         // 노아의 저장 화면에서 다른 슬롯에 저장하면 그 슬롯으로 바뀐다.
         private static int activeSlot = 1;
@@ -93,38 +96,45 @@ namespace Aethoria.Bootstrap
         private static void StartRun(SaveData save)
         {
             player = SpawnPlayer();
+            Monster.AnyDied -= HandleMonsterDiedForDrops; // 다시 시작할 때 중복 구독되지 않게
+            Monster.AnyDied += HandleMonsterDiedForDrops;
             var inventory = player.GetComponent<Inventory>();
             if (save != null)
             {
                 player.RestoreProgress(save.level, save.exp, save.gold);
                 inventory.RestoreItems(save.items);
                 inventory.RestoreEquipped(save.equipped);
+                inventory.RestoreEnhanceLevels(save.enhanceLevels);
             }
 
             BuildHud(player);
-            if (save != null) questManager.RestoreState(save.questIndex, (QuestStatus)save.questStatus, save.questProgress);
+            if (save != null)
+            {
+                questManager.RestoreState(save.questIndex, (QuestStatus)save.questStatus, save.questProgress);
+                dailyQuestManager.RestoreState(save.dailyQuestResetDate, save.dailyQuestIndex, (DailyQuestStatus)save.dailyQuestStatus, save.dailyQuestProgress);
+            }
 
-            // 기본 무기: 처음 시작하는 캐릭터든 이어하기든 항상 최소 1개는 갖고 있고, 무기 칸이
-            // 비어 있으면(예전 저장 파일 등) 자동으로 장착해 둔다.
+            // 기본 무기: 처음 시작하는 캐릭터든 이어하기든 항상 최소 1개는 가방에 갖고 있다(장착은 직접).
             EnsureDefaultWeapon(inventory);
 
             // 자동 저장: 퀘스트 상태가 바뀔 때, 레벨업할 때, 마을에 들어올 때(BuildVillage), 게임을 끌 때(AutoSaveOnQuit).
             questManager.OnChanged += SaveGame;
+            dailyQuestManager.OnChanged += SaveGame;
             player.OnLevelUp += _ => SaveGame();
 
             currentStage = VillageStage;
             BuildStage(enteringForward: true);
+
+            // 조작법 안내창은 새 게임을 처음 시작했을 때만 뜬다(이어하기는 건너뜀).
+            if (save == null) tutorialUI.Show();
         }
 
+        // 기본 무기는 가방에 넣어주기만 하고 장착은 하지 않는다. 장비 칸은 플레이어가 직접 장착하기 전까지 비워 둔다.
         private static void EnsureDefaultWeapon(Inventory inventory)
         {
             if (inventory.GetCount(ItemDatabase.ReaperScythe.id) <= 0)
             {
                 inventory.AddItem(ItemDatabase.ReaperScythe);
-            }
-            if (inventory.GetEquipped(ItemCategory.Weapon) == null)
-            {
-                inventory.Equip(ItemDatabase.ReaperScythe);
             }
         }
 
@@ -145,7 +155,7 @@ namespace Aethoria.Bootstrap
         // 죽은 상태로는 저장하지 않는다(게임오버 직후 덮어쓰기 방지). 저장했으면 true.
         public static bool SaveGameToSlot(int slot)
         {
-            if (player == null || player.IsDead || questManager == null) return false;
+            if (player == null || player.IsDead || questManager == null || dailyQuestManager == null) return false;
 
             activeSlot = slot;
             SaveSystem.Save(slot, new SaveData
@@ -155,9 +165,14 @@ namespace Aethoria.Bootstrap
                 gold = player.Gold,
                 items = player.GetComponent<Inventory>().ToSaveEntries(),
                 equipped = player.GetComponent<Inventory>().ToEquipSaveEntries(),
+                enhanceLevels = player.GetComponent<Inventory>().ToEnhanceSaveEntries(),
                 questIndex = questManager.QuestIndex,
                 questStatus = (int)questManager.Status,
                 questProgress = questManager.Progress,
+                dailyQuestIndex = dailyQuestManager.QuestIndex,
+                dailyQuestStatus = (int)dailyQuestManager.Status,
+                dailyQuestProgress = dailyQuestManager.Progress,
+                dailyQuestResetDate = dailyQuestManager.ResetDate,
             });
             saveToast?.Show();
             return true;
@@ -185,9 +200,12 @@ namespace Aethoria.Bootstrap
             worldMapUI = null;
             inventoryUI = null;
             shopUI = null;
+            enhanceUI = null;
             questManager = null;
+            dailyQuestManager = null;
             saveToast = null;
             saveScreen = null;
+            tutorialUI = null;
             Time.timeScale = 1f;
         }
 
@@ -355,6 +373,7 @@ namespace Aethoria.Bootstrap
             FitCamera(xMin, xMax, yMin);
             SpawnNoaShop(stageRoot.transform, yMin);
             SpawnPracticeHall(stageRoot.transform, yMin);
+            SpawnEllyForge(stageRoot.transform, yMin);
 
             // 마을 밖으로 나가는 포탈은 바로 1스테이지로 보내지 않고, 어느 지역으로 갈지 고르는
             // 월드맵 화면을 띄운다. 취소하면 포탈이 다시 발동하도록 풀어준다(ResetTrigger).
@@ -520,7 +539,7 @@ namespace Aethoria.Bootstrap
             var noaGO = new GameObject("Noa", typeof(SpriteRenderer));
             noaGO.transform.SetParent(parent);
             noaGO.transform.position = new Vector3(NoaX, floorY, 0f);
-            noaGO.AddComponent<NoaNpc>().Initialize(player.transform, npcDialogueUI, questManager, saveScreen, inventoryUI, shopUI);
+            noaGO.AddComponent<NoaNpc>().Initialize(player.transform, npcDialogueUI, questManager, dailyQuestManager, saveScreen, inventoryUI, shopUI);
         }
 
         // 마을 왼쪽 광장(여신상 분수와 왼쪽 노점 사이)에 이시스의 연습장 건물과 이시스를 놓는다.
@@ -557,6 +576,42 @@ namespace Aethoria.Bootstrap
             isisGO.transform.SetParent(parent);
             isisGO.transform.position = new Vector3(IsisX, floorY - IsisSink, 0f);
             isisGO.AddComponent<IsisNpc>().Initialize(player.transform, npcDialogueUI, inventoryUI);
+        }
+
+        // 마을 오른쪽 광장(노아의 상점과 마을 출구 포탈 사이)에 대장장이 엘리의 대장간과 엘리를 놓는다.
+        // 건물 그림(EllyForge, 검은 배경을 지우고 잘라낸 것)의 돌계단 아랫단이 그림 위에서 약 848px(전체 854px) 지점.
+        // 출구 포탈 그림(x 약 13.2~16)과 겹치지 않게 오른쪽 끝을 12.3쯤에 맞췄다.
+        private const float EllyForgeX = 8.8f;
+        private const float EllyForgeWidth = 7f;
+        private const float EllyForgeBaseFraction = 848f / 854f;
+        private const float EllyX = EllyForgeX - 2f; // 숫돌이 있는 왼쪽 처마 앞
+        private const float EllySink = 0.15f;
+
+        private static void SpawnEllyForge(Transform parent, int floorY)
+        {
+            var forgeSprite = Resources.Load<Sprite>("Backgrounds/EllyForge");
+            if (forgeSprite != null)
+            {
+                var forgeGO = new GameObject("EllyForge", typeof(SpriteRenderer));
+                forgeGO.transform.SetParent(parent);
+
+                var forgeRenderer = forgeGO.GetComponent<SpriteRenderer>();
+                forgeRenderer.sprite = forgeSprite;
+                forgeRenderer.sortingOrder = -5;
+
+                float scale = EllyForgeWidth / forgeSprite.bounds.size.x;
+                forgeGO.transform.localScale = new Vector3(scale, scale, 1f);
+
+                // 연습장과 같은 방식: 임포트 피벗이 어디든 계단 아랫단이 floorY에, 그림 가로 중앙이 EllyForgeX에 오게 한다.
+                var bounds = forgeSprite.bounds;
+                float baseAbovePivot = (bounds.max.y - bounds.size.y * EllyForgeBaseFraction) * scale;
+                forgeGO.transform.position = new Vector3(EllyForgeX - bounds.center.x * scale, floorY - baseAbovePivot, 0f);
+            }
+
+            var ellyGO = new GameObject("Elly", typeof(SpriteRenderer));
+            ellyGO.transform.SetParent(parent);
+            ellyGO.transform.position = new Vector3(EllyX, floorY - EllySink, 0f);
+            ellyGO.AddComponent<EllyNpc>().Initialize(player.transform, npcDialogueUI, inventoryUI, enhanceUI);
         }
 
         // 연습장: 왼쪽 끝 포탈로 마을(이시스 앞)로 돌아간다. 허수아비는 절대 쓰러지지 않고, 머무는 동안 마나/체력이 계속 가득 찬다.
@@ -757,9 +812,16 @@ namespace Aethoria.Bootstrap
             shopUI = canvasGO.AddComponent<ShopUI>();
             shopUI.Initialize(player, player.GetComponent<CharacterMovement2D>());
 
+            enhanceUI = canvasGO.AddComponent<EnhanceUI>();
+            enhanceUI.Initialize(player, player.GetComponent<CharacterMovement2D>());
+
             questManager = canvasGO.AddComponent<QuestManager>();
             questManager.Initialize(player, QuestDatabase.CreateMainLine());
             canvasGO.AddComponent<QuestTrackerUI>().Initialize(questManager);
+
+            dailyQuestManager = canvasGO.AddComponent<DailyQuestManager>();
+            dailyQuestManager.Initialize(player, DailyQuestDatabase.CreatePool());
+            canvasGO.AddComponent<DailyQuestTrackerUI>().Initialize(dailyQuestManager);
 
             saveToast = canvasGO.AddComponent<SaveToastUI>();
             saveToast.Initialize();
@@ -769,6 +831,10 @@ namespace Aethoria.Bootstrap
             saveScreen = canvasGO.AddComponent<SaveScreenUI>();
             saveScreen.Initialize(player.GetComponent<CharacterMovement2D>());
             canvasGO.AddComponent<AutoSaveOnQuit>().Initialize(SaveGame);
+
+            // 다른 HUD 요소 위에 그려지도록 가장 마지막에 추가한다(같은 캔버스에서 나중 자식이 위에 그려짐).
+            tutorialUI = canvasGO.AddComponent<TutorialUI>();
+            tutorialUI.Initialize(player.GetComponent<CharacterMovement2D>());
         }
 
         private static Character SpawnPlayer()
@@ -799,6 +865,7 @@ namespace Aethoria.Bootstrap
             go.AddComponent<JumpSpriteAnimator>();
             var character = go.AddComponent<Character>();
             character.AssignData(data);
+            go.AddComponent<HitReactSpriteAnimator>();
             go.AddComponent<Inventory>();
             go.AddComponent<CharacterAttack2D>();
             go.AddComponent<CharacterSkillDash>();
@@ -953,6 +1020,25 @@ namespace Aethoria.Bootstrap
             monster.OnDied += _ => TryDropDevilNecklace();
         }
 
+        // 강화석 드랍: 일반 몬스터는 25% 확률로 1개, 보스(기사/슬라임)는 항상 3개.
+        private const float EnhanceStoneDropChance = 0.25f;
+        private const int BossEnhanceStoneDrop = 3;
+
+        private static void HandleMonsterDiedForDrops(Monster monster)
+        {
+            if (player == null || player.IsDead || monster == null) return;
+
+            bool isBoss = monster.GetComponent<BossAI>() != null || monster.GetComponent<BossSlimeAI>() != null;
+            if (isBoss)
+            {
+                player.GetComponent<Inventory>().AddItem(ItemDatabase.EnhanceStone, BossEnhanceStoneDrop);
+            }
+            else if (Random.value < EnhanceStoneDropChance)
+            {
+                player.GetComponent<Inventory>().AddItem(ItemDatabase.EnhanceStone);
+            }
+        }
+
         // 보스 기사를 잡으면 30% 확률로 악마의 목걸이(장식)를 준다.
         private const float DevilNecklaceDropChance = 0.3f;
 
@@ -965,14 +1051,16 @@ namespace Aethoria.Bootstrap
         }
 
         private const float PortalTriggerRadius = 2f;
+        private const float PortalHeightAboveFloor = 0.7f;
+        private const float PortalVisualInwardOffset = 0.9f;
 
-        // 지정한 x 위치에 포탈을 놓는다. 화면에는 보이지 않고, 플레이어가 일정 거리 안에 들어오면
+        // 지정한 x 위치에 포탈을 놓는다. 포탈 그림이 반복 재생되고, 플레이어가 일정 거리 안에 들어오면
         // 자동으로 다음(또는 backward=true면 이전) 스테이지로 넘어간다. 반환값은 호출부에서
         // SetCustomTrigger로 기본 동작을 다른 걸로 바꿔치기하고 싶을 때(월드맵 등) 쓴다.
         private static Portal SpawnPortal(Transform parent, float x, int floorY, bool backward)
         {
             var go = new GameObject(backward ? "Portal_Back" : "Portal_Forward");
-            go.transform.position = new Vector3(x, floorY + 0.7f, 0f);
+            go.transform.position = new Vector3(x, floorY + PortalHeightAboveFloor, 0f);
             go.transform.SetParent(parent);
 
             var collider = go.AddComponent<CircleCollider2D>();
@@ -981,6 +1069,7 @@ namespace Aethoria.Bootstrap
 
             var portal = go.AddComponent<Portal>();
             portal.Configure(backward, player.transform);
+            portal.CreateVisual(PortalVisualInwardOffset, PortalHeightAboveFloor);
             return portal;
         }
     }

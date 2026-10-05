@@ -137,8 +137,8 @@ namespace Aethoria.UI
             maskRect.anchorMin = new Vector2(1f, 1f);
             maskRect.anchorMax = new Vector2(1f, 1f);
             maskRect.pivot = new Vector2(1f, 1f);
-            maskRect.anchoredPosition = new Vector2(-116f, -266f);
-            maskRect.sizeDelta = new Vector2(185f, 66f);
+            maskRect.anchoredPosition = new Vector2(-115f, -191f);
+            maskRect.sizeDelta = new Vector2(140f, 34f);
             maskGO.GetComponent<Image>().color = GoldMaskColor;
 
             var textGO = new GameObject("GoldText", typeof(RectTransform), typeof(Text));
@@ -147,8 +147,8 @@ namespace Aethoria.UI
             textRect.anchorMin = new Vector2(1f, 1f);
             textRect.anchorMax = new Vector2(1f, 1f);
             textRect.pivot = new Vector2(1f, 1f);
-            textRect.anchoredPosition = new Vector2(-116f, -266f);
-            textRect.sizeDelta = new Vector2(185f, 66f);
+            textRect.anchoredPosition = new Vector2(-115f, -191f);
+            textRect.sizeDelta = new Vector2(140f, 34f);
 
             goldText = textGO.GetComponent<Text>();
             goldText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
@@ -297,7 +297,9 @@ namespace Aethoria.UI
                     gridNameLabels[i].text = item.itemName;
                     gridNameLabels[i].enabled = !hasIcon;
 
-                    gridPriceLabels[i].text = item.shopPrice > 0 ? item.shopPrice.ToString("N0") + " G" : "무료";
+                    bool owned = inventory.GetCount(item.id) > 0;
+                    gridPriceLabels[i].text = owned ? "구매완료" : item.shopPrice > 0 ? item.shopPrice.ToString("N0") + " G" : "무료";
+                    gridPriceLabels[i].color = owned ? Color.gray : new Color(1f, 0.85f, 0.3f);
                     gridPriceLabels[i].enabled = true;
                 }
                 else
@@ -378,6 +380,12 @@ namespace Aethoria.UI
             if (player == null || inventory == null) return;
 
             var item = currentItems[selectedIndex];
+            if (inventory.GetCount(item.id) > 0)
+            {
+                ShowMessage("이미 보유한 아이템입니다.");
+                return;
+            }
+
             // 무료 아이템(0골드)은 TrySpendGold(0)이 실패로 취급하므로 그냥 바로 지급한다.
             if (item.shopPrice > 0 && !player.TrySpendGold(item.shopPrice))
             {
@@ -387,6 +395,8 @@ namespace Aethoria.UI
 
             inventory.AddItem(item);
             RefreshGold();
+            gridPriceLabels[selectedIndex].text = "구매완료";
+            gridPriceLabels[selectedIndex].color = Color.gray;
         }
 
         private void Update()

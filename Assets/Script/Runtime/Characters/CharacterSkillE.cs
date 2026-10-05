@@ -2,7 +2,6 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using Aethoria.Combat;
 using Aethoria.Monsters;
 
 namespace Aethoria.Characters
@@ -240,8 +239,7 @@ namespace Aethoria.Characters
                 monster.SetImmobilized(true);
                 boundTargets.Add(monster);
 
-                float damage = CombatMath.PhysicalDamage(character.Stats.attack * damageMultiplierPerHit, monster.Defense);
-                monster.TakeDamage(damage);
+                character.DealDamage(monster, damageMultiplierPerHit, isSkill: true);
             }
         }
 

@@ -45,13 +45,17 @@ namespace Aethoria.Monsters
             currentHp = MaxHp;
         }
 
-        public void TakeDamage(float finalDamage)
+        private static readonly Color CriticalPopupColor = new Color(1f, 0.55f, 0.15f);
+
+        // 치명타면 데미지 숫자를 주황색으로 크게 띄운다.
+        public void TakeDamage(float finalDamage, bool isCritical = false)
         {
             if (IsDead || finalDamage <= 0f) return;
 
             currentHp = Mathf.Max(0f, currentHp - finalDamage);
             OnDamaged?.Invoke(this, finalDamage);
-            DamagePopup.Create(transform.position, finalDamage, Color.white);
+            if (isCritical) DamagePopup.Create(transform.position, finalDamage, CriticalPopupColor, 1.4f);
+            else DamagePopup.Create(transform.position, finalDamage, Color.white);
 
             if (currentHp <= 0f)
             {

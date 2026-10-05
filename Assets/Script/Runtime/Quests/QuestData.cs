@@ -11,6 +11,7 @@ namespace Aethoria.Quests
         public string targetMonsterName;
         public int requiredCount;
         public int expReward;
+        public int goldReward; // 일일 의뢰에서 사용. 메인 퀘스트는 0(경험치만 지급).
 
         public string offerLine;    // 노아가 의뢰할 때 하는 말
         public string completeLine; // 완료 보고를 받았을 때 하는 말

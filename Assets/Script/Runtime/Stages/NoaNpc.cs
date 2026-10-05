@@ -8,14 +8,15 @@ namespace Aethoria.Stages
 {
     // 마을에 서 있는 노아. 제자리에서 깜빡이는 대기 애니메이션을 반복하다가, 플레이어가 가까이 오면
     // 머리 위에 "[Z] 대화하기" 프롬프트를 띄운다. Z를 누르면 인사말이 뜨고, 이어서 상점/퀘스트를
-    // 고르는 선택창이 나온다(1=상점, 2=퀘스트, 3=저장). 상점은 구매 화면(ShopUI)을 연다.
+    // 고르는 선택창이 나온다(1=상점, 2=퀘스트, 3=일일 의뢰, 4=저장). 상점은 구매 화면(ShopUI)을 연다.
     // 저장은 슬롯 5칸짜리 저장 화면(SaveScreenUI)을 연다.
     // 퀘스트는 QuestManager 상태에 따라 의뢰(Z 수락 / X 거절), 진행 상황 안내, 완료 보고(보상 지급)로 갈린다.
-    // 받을 퀘스트가 있으면 머리 위에 노란 "!", 보고할 퀘스트가 있으면 "?"를 띄운다.
+    // 일일 의뢰는 DailyQuestManager를 똑같은 방식으로 따르되, 매일 자정이 지나면 새 의뢰로 바뀐다.
+    // 받을(또는 보고할) 퀘스트가 메인/일일 중 하나라도 있으면 머리 위에 노란 "!"(보고 가능하면 "?")를 띄운다.
     [RequireComponent(typeof(SpriteRenderer))]
     public class NoaNpc : MonoBehaviour
     {
-        private enum TalkState { None, Greeting, Choice, QuestOffer, Response }
+        private enum TalkState { None, Greeting, Choice, QuestOffer, DailyQuestOffer, Response }
 
         [SerializeField] private string resourcesPath = "Art/NPC/Noa/Idle";
         [SerializeField] private float frameInterval = 0.5f;
@@ -27,10 +28,11 @@ namespace Aethoria.Stages
         [SerializeField] private float greetingDuration = 2.5f;
         [SerializeField] private float responseDuration = 2.5f;
         [SerializeField] private string greetingLine = "어서 오세요! 마음에 드는 물건이 있으면 편히 둘러보세요.";
-        [SerializeField] private string choicePrompt = "무엇을 도와드릴까요?\n[1] 상점   [2] 퀘스트   [3] 저장";
+        [SerializeField] private string choicePrompt = "무엇을 도와드릴까요?\n[1] 상점   [2] 퀘스트   [3] 일일 의뢰   [4] 저장";
         [SerializeField] private string questAcceptLine = "고마워요! 끝나면 꼭 저한테 알려주세요.";
         [SerializeField] private string questDeclineLine = "그래요, 마음이 바뀌면 다시 말 걸어주세요.";
         [SerializeField] private string noQuestLine = "지금은 부탁드릴 일이 없어요. 늘 고마워요!";
+        [SerializeField] private string noDailyQuestLine = "오늘 치 의뢰는 이미 끝내셨어요. 내일 다시 와주세요!";
         [SerializeField] private float markerHeight = 2.5f;
 
         private SpriteRenderer spriteRenderer;
@@ -43,6 +45,7 @@ namespace Aethoria.Stages
         private TextMesh promptText;
         private TextMesh questMarker;
         private QuestManager quests;
+        private DailyQuestManager dailyQuests;
         private SaveScreenUI saveScreen;
         private InventoryUI inventoryUI;
         private ShopUI shopUI;
@@ -51,7 +54,7 @@ namespace Aethoria.Stages
         private TalkState state;
         private float stateTimer;
 
-        public void Initialize(Transform playerTransform, NpcDialogueUI dialogue, QuestManager questManager, SaveScreenUI saveScreenUI, InventoryUI inventory, ShopUI shop)
+        public void Initialize(Transform playerTransform, NpcDialogueUI dialogue, QuestManager questManager, DailyQuestManager dailyQuestManager, SaveScreenUI saveScreenUI, InventoryUI inventory, ShopUI shop)
         {
             saveScreen = saveScreenUI;
             inventoryUI = inventory;
@@ -60,13 +63,16 @@ namespace Aethoria.Stages
             playerMovement = playerTransform != null ? playerTransform.GetComponent<CharacterMovement2D>() : null;
             dialogueUI = dialogue;
             quests = questManager;
+            dailyQuests = dailyQuestManager;
             if (quests != null) quests.OnChanged += RefreshQuestMarker;
+            if (dailyQuests != null) dailyQuests.OnChanged += RefreshQuestMarker;
             RefreshQuestMarker();
         }
 
         private void OnDestroy()
         {
             if (quests != null) quests.OnChanged -= RefreshQuestMarker;
+            if (dailyQuests != null) dailyQuests.OnChanged -= RefreshQuestMarker;
         }
 
         private void Awake()
@@ -107,9 +113,13 @@ namespace Aethoria.Stages
             if (questMarker == null) return;
 
             var status = quests != null ? quests.Status : QuestStatus.AllDone;
-            bool show = status == QuestStatus.Available || status == QuestStatus.ReadyToTurnIn;
-            questMarker.text = status == QuestStatus.ReadyToTurnIn ? "?" : "!";
-            questMarker.gameObject.SetActive(show);
+            var dailyStatus = dailyQuests != null ? dailyQuests.Status : DailyQuestStatus.Claimed;
+
+            bool readyToTurnIn = status == QuestStatus.ReadyToTurnIn || dailyStatus == DailyQuestStatus.ReadyToTurnIn;
+            bool available = status == QuestStatus.Available || dailyStatus == DailyQuestStatus.Available;
+
+            questMarker.text = readyToTurnIn ? "?" : "!";
+            questMarker.gameObject.SetActive(readyToTurnIn || available);
         }
 
         private void CreatePrompt()
@@ -215,6 +225,10 @@ namespace Aethoria.Stages
                     }
                     else if (keyboard != null && keyboard.digit3Key.wasPressedThisFrame)
                     {
+                        HandleDailyQuestChoice();
+                    }
+                    else if (keyboard != null && keyboard.digit4Key.wasPressedThisFrame)
+                    {
                         EndTalk();
                         if (saveScreen != null) saveScreen.Open();
                     }
@@ -224,6 +238,18 @@ namespace Aethoria.Stages
                     if (zPressed)
                     {
                         quests.Accept();
+                        EnterResponse(questAcceptLine);
+                    }
+                    else if (keyboard != null && keyboard.xKey.wasPressedThisFrame)
+                    {
+                        EnterResponse(questDeclineLine);
+                    }
+                    break;
+
+                case TalkState.DailyQuestOffer:
+                    if (zPressed)
+                    {
+                        dailyQuests.Accept();
                         EnterResponse(questAcceptLine);
                     }
                     else if (keyboard != null && keyboard.xKey.wasPressedThisFrame)
@@ -280,6 +306,37 @@ namespace Aethoria.Stages
 
                 default:
                     EnterResponse(noQuestLine);
+                    break;
+            }
+        }
+
+        private void HandleDailyQuestChoice()
+        {
+            dailyQuests?.EnsureFreshToday();
+
+            var quest = dailyQuests != null ? dailyQuests.Current : null;
+            var status = dailyQuests != null ? dailyQuests.Status : DailyQuestStatus.Claimed;
+
+            switch (status)
+            {
+                case DailyQuestStatus.Available:
+                    state = TalkState.DailyQuestOffer;
+                    stateTimer = 0f;
+                    dialogueUI?.Show("UI/Noa_Talk",
+                        $"[오늘의 의뢰] {quest.offerLine}\n<color=#F2D94E>보상: 경험치 {quest.expReward}, 골드 {quest.goldReward}</color>\n[Z] 수락   [X] 거절");
+                    break;
+
+                case DailyQuestStatus.InProgress:
+                    EnterResponse($"{quest.title}, 오늘 안에 부탁드려요! ({quest.targetMonsterName} {dailyQuests.Progress}/{quest.requiredCount})");
+                    break;
+
+                case DailyQuestStatus.ReadyToTurnIn:
+                    var finished = dailyQuests.TurnIn();
+                    EnterResponse($"{finished.completeLine}\n<color=#F2D94E>경험치 +{finished.expReward}, 골드 +{finished.goldReward}</color>");
+                    break;
+
+                default:
+                    EnterResponse(noDailyQuestLine);
                     break;
             }
         }

@@ -109,7 +109,7 @@ namespace Aethoria.Monsters
         private void DealDamage()
         {
             float damage = CombatMath.PhysicalDamage(monster.Attack, target.Stats.defense);
-            target.TakeDamage(damage);
+            target.TakeDamage(damage, transform.position);
         }
     }
 }

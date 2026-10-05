@@ -4,8 +4,8 @@ using Aethoria.Characters;
 
 namespace Aethoria.Stages
 {
-    // 맵 가장자리의 포탈. 화면에는 아무것도 보이지 않지만, 플레이어가 일정 거리 안에 들어오면
-    // 자동으로 다음(또는 이전) 스테이지(맵)로 넘어간다.
+    // 맵 가장자리의 포탈. 보라색 소용돌이 포탈 스프라이트가 반복 재생되고, 플레이어가 일정 거리 안에
+    // 들어오면 자동으로 다음(또는 이전) 스테이지(맵)로 넘어간다.
     // 되돌아가는 포탈은 입장 지점 바로 근처에 놓이는데, 플레이어가 스폰되자마자 트리거 범위 안에
     // 있으면 그대로 즉시 발동해버린다. 스폰 시점에 이미 범위 안이었다면, 한 번 벗어났다가 다시
     // 들어와야만 실제로 작동하게 해서 이 문제를 막는다.
@@ -16,6 +16,44 @@ namespace Aethoria.Stages
         private bool backward;
         private bool needsExitFirst;
         private System.Action customTrigger;
+
+        private const string FramesPath = "Art/Props/Portal";
+        private const float FrameDuration = 0.12f;
+
+        private SpriteRenderer visualRenderer;
+        private Sprite[] frames;
+        private int frameIndex;
+        private float frameTimer;
+
+        // 포탈 그림을 자식 오브젝트로 붙인다. 포탈은 맵 끝에서 0.5만큼 안쪽에 놓이므로 그림 중심을
+        // 그대로 두면 절반 가까이 화면 밖으로 잘린다. inwardOffset만큼 맵 안쪽으로 밀어서 그린다.
+        // floorOffset은 포탈 오브젝트 위치에서 바닥까지의 높이 차(스프라이트 피벗이 발판 높이에 있음).
+        public void CreateVisual(float inwardOffset, float floorOffset)
+        {
+            frames = Resources.LoadAll<Sprite>(FramesPath);
+            if (frames == null || frames.Length == 0) return;
+            System.Array.Sort(frames, (a, b) => string.CompareOrdinal(a.name, b.name));
+
+            var go = new GameObject("PortalVisual");
+            go.transform.SetParent(transform, false);
+            go.transform.localPosition = new Vector3(backward ? inwardOffset : -inwardOffset, -floorOffset, 0f);
+
+            visualRenderer = go.AddComponent<SpriteRenderer>();
+            visualRenderer.sprite = frames[0];
+            visualRenderer.sortingOrder = -5; // 배경보다 앞, 캐릭터/몬스터보다 뒤
+        }
+
+        private void Update()
+        {
+            if (visualRenderer == null || frames.Length < 2) return;
+
+            frameTimer += Time.deltaTime;
+            if (frameTimer < FrameDuration) return;
+            frameTimer -= FrameDuration;
+
+            frameIndex = (frameIndex + 1) % frames.Length;
+            visualRenderer.sprite = frames[frameIndex];
+        }
 
         public void Configure(bool isBackward, Transform playerTransform)
         {

@@ -13,7 +13,8 @@ namespace Aethoria.Combat
         private Color baseColor;
         private float timer;
 
-        public static void Create(Vector3 worldPosition, float damageAmount, Color color)
+        // sizeMultiplier: 치명타처럼 강조할 숫자는 크게 띄운다.
+        public static void Create(Vector3 worldPosition, float damageAmount, Color color, float sizeMultiplier = 1f)
         {
             Vector3 spawnPosition = worldPosition + new Vector3(Random.Range(-0.1f, 0.1f), 1f, 0f);
 
@@ -22,7 +23,7 @@ namespace Aethoria.Combat
 
             var textMesh = go.AddComponent<TextMesh>();
             textMesh.text = Mathf.RoundToInt(damageAmount).ToString();
-            textMesh.characterSize = 0.08f;
+            textMesh.characterSize = 0.08f * sizeMultiplier;
             textMesh.fontSize = 32;
             textMesh.alignment = TextAlignment.Center;
             textMesh.anchor = TextAnchor.MiddleCenter;

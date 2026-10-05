@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Aethoria.Bootstrap;
-using Aethoria.Combat;
 using Aethoria.Monsters;
 
 namespace Aethoria.Characters
@@ -173,8 +172,7 @@ namespace Aethoria.Characters
                 float multiplier = damageMultiplierPerTick;
                 if (IsBossMonster(monster)) multiplier *= bossDamageMultiplier;
 
-                float damage = CombatMath.PhysicalDamage(character.Stats.attack * multiplier, monster.Defense);
-                monster.TakeDamage(damage);
+                character.DealDamage(monster, multiplier, isSkill: true);
             }
         }
 

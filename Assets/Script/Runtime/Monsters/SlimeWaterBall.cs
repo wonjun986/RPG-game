@@ -47,7 +47,7 @@ namespace Aethoria.Monsters
                 var character = hit.GetComponent<Character>();
                 if (character == null || character.IsDead) continue;
 
-                character.TakeDamage(CombatMath.PhysicalDamage(damageAttack, character.Stats.defense));
+                character.TakeDamage(CombatMath.PhysicalDamage(damageAttack, character.Stats.defense), transform.position);
                 Destroy(gameObject);
                 return;
             }

@@ -84,7 +84,7 @@ namespace Aethoria.Monsters
             superArmorCycleRoutine = StartCoroutine(SuperArmorCycleRoutine());
         }
 
-        // 플레이어의 W(사슬 폭풍)처럼 지속적으로 경직을 노리는 스킬이 맞는 동안 계속 호출해서
+        // 플레이어의 W(악마의 손)처럼 연타로 경직을 노리는 스킬이 맞는 동안 계속 호출해서
         // 슈퍼아머 주기를 처음부터 다시 세게 만든다. 이미 슈퍼아머 상태였다면 즉시 풀어준다.
         // 이 스킬이 끝나고 호출이 멈추면, 그 시점부터 다시 정상적으로 10초 주기가 흐른다.
         public void ResetSuperArmorTimer()
@@ -330,7 +330,7 @@ namespace Aethoria.Monsters
                 if (character == null || character.IsDead) continue;
 
                 float damage = CombatMath.PhysicalDamage(monster.Attack * multiplier, character.Stats.defense);
-                character.TakeDamage(damage);
+                character.TakeDamage(damage, origin);
             }
         }
 

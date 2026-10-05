@@ -126,7 +126,7 @@ namespace Aethoria.Monsters
             if (Mathf.Abs(offset.x) > contactRange || offset.y > 2f || offset.y < -0.5f) return;
 
             contactTimer = contactInterval;
-            target.TakeDamage(CombatMath.PhysicalDamage(monster.Attack * contactDamageMultiplier, target.Stats.defense));
+            target.TakeDamage(CombatMath.PhysicalDamage(monster.Attack * contactDamageMultiplier, target.Stats.defense), transform.position);
         }
 
         private void OnDrawGizmosSelected()

@@ -1,6 +1,5 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
-using Aethoria.Combat;
 using Aethoria.Monsters;
 
 namespace Aethoria.Characters
@@ -70,8 +69,7 @@ namespace Aethoria.Characters
                 var monster = hit.GetComponent<Monster>();
                 if (monster == null || monster.IsDead) continue;
 
-                float damage = CombatMath.PhysicalDamage(character.Stats.attack, monster.Defense);
-                monster.TakeDamage(damage);
+                character.DealDamage(monster, 1f, isSkill: false);
             }
         }
 

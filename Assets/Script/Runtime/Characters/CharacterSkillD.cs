@@ -2,7 +2,6 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using Aethoria.Combat;
 using Aethoria.Monsters;
 
 namespace Aethoria.Characters
@@ -116,8 +115,7 @@ namespace Aethoria.Characters
                 if (monster == null || monster.IsDead) continue;
                 if (!alreadyHit.Add(monster)) continue;
 
-                float damage = CombatMath.PhysicalDamage(character.Stats.attack * damageMultiplier, monster.Defense);
-                monster.TakeDamage(damage);
+                character.DealDamage(monster, damageMultiplier, isSkill: true);
             }
         }
     }

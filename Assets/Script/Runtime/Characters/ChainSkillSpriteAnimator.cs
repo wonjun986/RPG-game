@@ -18,6 +18,7 @@ namespace Aethoria.Characters
 
         private SpriteRenderer spriteRenderer;
         private WalkSpriteAnimator walkAnimator;
+        private JumpSpriteAnimator jumpAnimator;
         private Sprite[] throwFrames;
         private Sprite[] finisherFrames;
 
@@ -26,6 +27,7 @@ namespace Aethoria.Characters
         private void Awake()
         {
             walkAnimator = GetComponent<WalkSpriteAnimator>();
+            jumpAnimator = GetComponent<JumpSpriteAnimator>();
 
             var visual = transform.Find("Visual");
             spriteRenderer = visual != null ? visual.GetComponent<SpriteRenderer>() : GetComponent<SpriteRenderer>();
@@ -50,6 +52,9 @@ namespace Aethoria.Characters
             if (!HasFrames) yield break;
 
             if (walkAnimator != null) walkAnimator.enabled = false;
+            // 기본 공격 등 다른 동작이 점프 애니메이터를 꺼둔 채로 이 스킬에 넘겨줄 수 있어서,
+            // 끝날 때 함께 다시 켜려면 여기서도 같이 끈다.
+            if (jumpAnimator != null) jumpAnimator.enabled = false;
             spriteRenderer.flipX = facingDirection.x < 0f;
 
             yield return PlaySequence(throwFrames, 0, throwFrames.Length - 1, duration);
@@ -79,6 +84,7 @@ namespace Aethoria.Characters
             if (!HasFrames)
             {
                 if (walkAnimator != null) walkAnimator.enabled = true;
+                if (jumpAnimator != null) jumpAnimator.enabled = true;
                 yield break;
             }
 
@@ -86,6 +92,7 @@ namespace Aethoria.Characters
 
             SkillFrameNormalizer.Reset(spriteRenderer.transform);
             if (walkAnimator != null) walkAnimator.enabled = true;
+            if (jumpAnimator != null) jumpAnimator.enabled = true;
         }
 
         private IEnumerator PlaySequence(Sprite[] frames, int startIndex, int endIndex, float duration,

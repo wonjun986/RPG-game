@@ -2,7 +2,6 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using Aethoria.Combat;
 using Aethoria.Monsters;
 
 namespace Aethoria.Characters
@@ -422,8 +421,7 @@ namespace Aethoria.Characters
 
             foreach (var monster in hitMonsters)
             {
-                float damage = CombatMath.PhysicalDamage(character.Stats.attack * pierceDamageMultiplier, monster.Defense);
-                monster.TakeDamage(damage);
+                character.DealDamage(monster, pierceDamageMultiplier, isSkill: true);
             }
         }
     }

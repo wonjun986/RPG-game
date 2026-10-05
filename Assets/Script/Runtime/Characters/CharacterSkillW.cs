@@ -1,25 +1,41 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using Aethoria.Combat;
 using Aethoria.Monsters;
 
 namespace Aethoria.Characters
 {
-    // W = 사슬 폭풍. 제자리에서 사슬을 휘둘러 주위 넓은 범위를 여러 번 연속으로 타격한다.
+    // W = 악마의 손. 바라보는 방향 앞에 포탈을 열어 악마의 손을 뻗어내, 일정 시간 동안 전방 범위의 적을 연타한다.
     [RequireComponent(typeof(Character))]
     [RequireComponent(typeof(CharacterMovement2D))]
     [RequireComponent(typeof(WSkillSpriteAnimator))]
     public class CharacterSkillW : MonoBehaviour, ISkillCooldownReset
     {
-        [SerializeField] private float initialManaCost = 20f;
-        [SerializeField] private float manaDrainPerSecond = 5f;
-        [SerializeField] private float maxHoldDuration = 5f;
-        [SerializeField] private float cooldown = 12f;
-        [SerializeField] private float radius = 2f;
-        [SerializeField] private int hitCount = 4;
-        [SerializeField] private float duration = 0.7f;
-        [SerializeField] private float damageMultiplierPerHit = 0.9f;
+        [SerializeField] private float manaCost = 20f;
+        [SerializeField] private float cooldown = 10f;
+
+        [Header("연타")]
+        // 손이 뻗어 있는 동안 hitInterval마다 한 번씩, 총 hitCount번 타격한다(지속 시간 = hitCount * hitInterval).
+        [SerializeField] private int hitCount = 16;
+        [SerializeField] private float hitInterval = 0.1f;
+        [SerializeField] private float damageMultiplierPerHit = 0.25f;
+
+        [Header("시전 타이밍")]
+        // 시전 애니메이션에서 손앞에 포탈이 열리는 프레임(3번째)에 맞춰 악마의 손 이펙트를 띄운다.
+        [SerializeField] private int handSpawnFrame = 2;
+
+        [Header("악마의 손 이펙트")]
+        [SerializeField] private string handEffectPath = "Art/Effects/DemonHand";
+        [SerializeField] private float handFrameDuration = 0.07f;
+        // 손이 가장 크게 뻗어 있는 4~6번째 프레임을 지속 시간 동안 반복한다.
+        [SerializeField] private int handLoopStart = 3;
+        [SerializeField] private int handLoopEnd = 5;
+        // 이펙트의 포탈(왼쪽 끝) 위치. 발밑 기준, x는 바라보는 방향 쪽.
+        [SerializeField] private Vector2 handOffset = new Vector2(0.9f, 0.85f);
+
+        [Header("타격 범위 (발밑 기준, x는 바라보는 방향 쪽)")]
+        [SerializeField] private Vector2 hitBoxCenter = new Vector2(1.9f, 0.9f);
+        [SerializeField] private Vector2 hitBoxSize = new Vector2(3.0f, 1.8f);
 
         private Character character;
         private CharacterMovement2D movement;
@@ -60,58 +76,58 @@ namespace Aethoria.Characters
         {
             if (character.IsCombatLocked) return;
             if (isBusy || cooldownRemaining > 0f) return;
-            if (!character.TrySpendMana(initialManaCost)) return;
+            if (!character.TrySpendMana(manaCost)) return;
 
-            StartCoroutine(StormRoutine());
+            cooldownRemaining = cooldown;
+            StartCoroutine(CastRoutine());
         }
 
-        // 처음 시전 시 initialManaCost를 소모하고, 이후 W를 누르고 있는 동안
-        // 초당 manaDrainPerSecond씩 추가로 소모하며 최대 maxHoldDuration초까지 유지된다.
-        // 키를 떼거나 마나가 바닥나거나 최대 유지 시간에 도달하면 채널링이 끝나고 쿨타임이 시작된다.
-        // 애니메이션은 사이클 단위로 끊어 재생하지 않고 채널링 내내 한 번만 시작해 계속 이어서
-        // 반복시킨다 (매 타격마다 다시 시작하면 뚝뚝 끊겨 부자연스럽다).
-        private IEnumerator StormRoutine()
+        private IEnumerator CastRoutine()
         {
             isBusy = true;
             movement.SetInputLocked(true);
-            skillAnimator.PlayLooping(movement.FacingDirection);
 
-            float interval = duration / hitCount;
-            var keyboard = Keyboard.current;
-            float elapsed = 0f;
+            Vector2 facing = movement.FacingDirection;
+            float sign = facing.x < 0f ? -1f : 1f;
+            skillAnimator.Play(facing);
 
-            while (elapsed < maxHoldDuration)
+            yield return new WaitForSeconds(skillAnimator.FrameDuration * handSpawnFrame);
+
+            Vector2 feet = transform.position;
+            var hand = DemonHandEffect.Create(handEffectPath, feet + new Vector2(sign * handOffset.x, handOffset.y), sign,
+                handFrameDuration, handLoopStart, handLoopEnd, sortingOrder: 3);
+
+            // 손이 다 뻗어나온 뒤부터 연타한다.
+            yield return new WaitForSeconds(handFrameDuration * handLoopStart);
+
+            for (int i = 0; i < hitCount; i++)
             {
-                DealDamage();
-                yield return new WaitForSeconds(interval);
-                elapsed += interval;
-
-                bool stillHeld = keyboard != null && keyboard.wKey.isPressed;
-                if (!stillHeld) break;
-                if (!character.TrySpendMana(manaDrainPerSecond * interval)) break;
+                DealDamage(sign);
+                yield return new WaitForSeconds(hitInterval);
             }
 
-            skillAnimator.Stop();
-            cooldownRemaining = cooldown;
+            if (hand != null) hand.Release();
+            skillAnimator.Release();
+            yield return new WaitForSeconds(skillAnimator.OutroDuration);
+
             movement.SetInputLocked(false);
             isBusy = false;
         }
 
-        private void DealDamage()
+        private void DealDamage(float sign)
         {
-            Vector2 origin = transform.position;
-            var hits = Physics2D.OverlapCircleAll(origin, radius);
+            Vector2 center = (Vector2)transform.position + new Vector2(sign * hitBoxCenter.x, hitBoxCenter.y);
+            var hits = Physics2D.OverlapBoxAll(center, hitBoxSize, 0f);
 
             foreach (var hit in hits)
             {
                 var monster = hit.GetComponent<Monster>();
                 if (monster == null || monster.IsDead) continue;
 
-                float damage = CombatMath.PhysicalDamage(character.Stats.attack * damageMultiplierPerHit, monster.Defense);
-                monster.TakeDamage(damage);
+                character.DealDamage(monster, damageMultiplierPerHit, isSkill: true);
 
-                // W로 계속 두들기는 동안은 보스의 슈퍼아머 주기를 계속 처음부터 다시 세게 만들어서
-                // 채널링이 끝날 때까지 경직 상태로 계속 맞게 한다.
+                // 연타가 이어지는 동안은 보스의 슈퍼아머 주기를 계속 처음부터 다시 세게 만들어서
+                // 끝날 때까지 경직 상태로 계속 맞게 한다.
                 var bossAI = hit.GetComponent<BossAI>();
                 if (bossAI != null) bossAI.ResetSuperArmorTimer();
             }
@@ -119,8 +135,11 @@ namespace Aethoria.Characters
 
         private void OnDrawGizmosSelected()
         {
+            float sign = 1f;
+            if (Application.isPlaying && movement != null && movement.FacingDirection.x < 0f) sign = -1f;
+            Vector2 center = (Vector2)transform.position + new Vector2(sign * hitBoxCenter.x, hitBoxCenter.y);
             Gizmos.color = new Color(0.6f, 0.2f, 0.8f);
-            Gizmos.DrawWireSphere(transform.position, radius);
+            Gizmos.DrawWireCube(center, hitBoxSize);
         }
     }
 }

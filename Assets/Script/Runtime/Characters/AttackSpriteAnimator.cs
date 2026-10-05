@@ -13,6 +13,7 @@ namespace Aethoria.Characters
 
         private SpriteRenderer spriteRenderer;
         private WalkSpriteAnimator walkAnimator;
+        private JumpSpriteAnimator jumpAnimator;
         private Sprite[] frames;
         private Coroutine playRoutine;
 
@@ -21,6 +22,7 @@ namespace Aethoria.Characters
         private void Awake()
         {
             walkAnimator = GetComponent<WalkSpriteAnimator>();
+            jumpAnimator = GetComponent<JumpSpriteAnimator>();
 
             var visual = transform.Find("Visual");
             spriteRenderer = visual != null ? visual.GetComponent<SpriteRenderer>() : GetComponent<SpriteRenderer>();
@@ -42,6 +44,7 @@ namespace Aethoria.Characters
         private IEnumerator PlayRoutine(Vector2 facingDirection)
         {
             if (walkAnimator != null) walkAnimator.enabled = false;
+            if (jumpAnimator != null) jumpAnimator.enabled = false; // 공중에서도 점프 스프라이트가 덮어쓰지 않게
             spriteRenderer.flipX = facingDirection.x < 0f;
 
             float frameDuration = totalDuration / frames.Length;
@@ -53,10 +56,19 @@ namespace Aethoria.Characters
                 // 스킬 애니메이터들과 같은 방식으로 프레임마다 기준 키에 맞춰 직접 정규화한다.
                 SkillFrameNormalizer.Apply(spriteRenderer.transform, frames[i]);
                 yield return new WaitForSeconds(frameDuration);
+                // 그새 다른 동작(스킬/피격 등)이 스프라이트를 가져갔으면 조용히 물러난다. 걷기/점프
+                // 애니메이터 복구와 스케일 초기화는 마지막에 가져간 쪽이 끝날 때 한다(여기서 하면
+                // 그쪽 재생 도중에 걷기 스프라이트가 덮어써서 이상하게 캔슬된 것처럼 보였다).
+                if (spriteRenderer.sprite != frames[i])
+                {
+                    playRoutine = null;
+                    yield break;
+                }
             }
 
             SkillFrameNormalizer.Reset(spriteRenderer.transform);
             if (walkAnimator != null) walkAnimator.enabled = true;
+            if (jumpAnimator != null) jumpAnimator.enabled = true;
             playRoutine = null;
         }
     }

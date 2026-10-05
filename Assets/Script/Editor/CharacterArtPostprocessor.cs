@@ -50,8 +50,14 @@ namespace Aethoria.EditorTools
             ("Art/NPC/Noa/Idle/", 400f),
             // 이시스(연습장 NPC)는 갑옷 기사라 플레이어(1.5)보다 조금 큰 약 1.8유닛(프레임 키 약 704px).
             ("Art/NPC/Isis/Idle/", 390f),
+            // 대장장이 엘리도 이시스와 비슷한 키(약 1.8유닛, 프레임 키 724px).
+            ("Art/NPC/Elly/Idle/", 400f),
             // 연습장 허수아비: 배경에 그려진 허수아비보다 작아 보이지 않게 약 2.4유닛(프레임 키 약 739px).
             ("Art/Props/Dummy/", 308f),
+            // 맵 끝 포탈: 프레임 키 678px가 약 3.4유닛(캐릭터보다 조금 크게)이 되게 한다.
+            ("Art/Props/Portal/", 200f),
+            // W스킬 악마의 손: 포탈에서 손끝까지 약 376px가 약 2.2유닛 사거리가 되게 한다.
+            ("Art/Effects/DemonHand/", 170f),
         };
 
         // 대부분의 캐릭터/이펙트 스프라이트는 바닥에 서 있는 기준(BottomCenter)이 맞지만,
@@ -60,6 +66,17 @@ namespace Aethoria.EditorTools
         private static readonly string[] LeftCenterPivotFolders =
         {
             "Art/Effects/ChainThrow/",
+            // 악마의 손도 포탈(왼쪽 끝)이 고정된 채 손이 앞쪽으로 뻗어나간다. 세로 가운데가 포탈 중심.
+            "Art/Effects/DemonHand/",
+        };
+
+        // 그 밖에 기준점을 따로 지정해야 하는 폴더.
+        // 포탈: 돌 받침대 위 룬 원판 높이(아래에서 약 20%)가 바닥에 닿게 한다.
+        // 회전 낫: 프레임을 같은 크기 캔버스 가운데에 맞춰 잘랐으므로, 예전 프레임과 비행 높이가 같도록 약간 올린다.
+        private static readonly (string subfolder, Vector2 pivot)[] CustomPivotFolders =
+        {
+            ("Art/Props/Portal/", new Vector2(0.5f, 0.2f)),
+            ("Art/Effects/ScytheSpin/", new Vector2(0.5f, 0.1f)),
         };
 
         private void OnPreprocessTexture()
@@ -87,6 +104,16 @@ namespace Aethoria.EditorTools
                 }
             }
 
+            Vector2? customPivot = null;
+            foreach (var (subfolder, pivot) in CustomPivotFolders)
+            {
+                if (normalizedPath.Contains(subfolder))
+                {
+                    customPivot = pivot;
+                    break;
+                }
+            }
+
             var importer = (TextureImporter)assetImporter;
             importer.textureType = TextureImporterType.Sprite;
             importer.spriteImportMode = SpriteImportMode.Single;
@@ -98,7 +125,12 @@ namespace Aethoria.EditorTools
 
             var settings = new TextureImporterSettings();
             importer.ReadTextureSettings(settings);
-            if (useLeftCenterPivot)
+            if (customPivot.HasValue)
+            {
+                settings.spriteAlignment = (int)SpriteAlignment.Custom;
+                settings.spritePivot = customPivot.Value;
+            }
+            else if (useLeftCenterPivot)
             {
                 settings.spriteAlignment = (int)SpriteAlignment.LeftCenter;
                 settings.spritePivot = new Vector2(0f, 0.5f);
