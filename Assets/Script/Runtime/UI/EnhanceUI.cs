@@ -10,7 +10,8 @@ namespace Aethoria.UI
 {
     // 대장장이 엘리의 장비 강화 화면(UI/Elly_Enhancement). 원본 그림(Sprite/UI/Elly_Enhancement_UI.png)에서
     // 안내 문구와 수치 자리의 "-"를 지운 배경 위에, 고른 장비의 강화 정보를 덮어 보여준다.
-    // 조작: ←/→(또는 화살표 버튼, 장비 칸 클릭)로 장비 고르기, Z/Enter(또는 [강화하기])로 강화, X/Esc(또는 [X])로 닫기.
+    // 조작: 장비 칸 클릭으로 목록을 열어 원하는 장비를 바로 선택, ←/→(화살표 버튼)로 하나씩 넘기기도 가능,
+    // Z/Enter(또는 [강화하기])로 강화, X/Esc(또는 [X])로 닫기.
     // 강화 규칙(확률/재료/능력치 상승)은 EnhanceRules에 있다. 재련 탭은 아직 준비 중이다.
     public class EnhanceUI : MonoBehaviour
     {
@@ -33,6 +34,11 @@ namespace Aethoria.UI
 
         private const float ResultMessageDuration = 2f;
 
+        // 장비 고르기 팝업: 보유한 강화 가능 장비를 격자로 보여주고 바로 클릭해서 고를 수 있게 한다.
+        private const int PickerColumns = 6;
+        private const int PickerRows = 3;
+        private const int PickerSlotCount = PickerColumns * PickerRows;
+
         private Character player;
         private CharacterMovement2D playerMovement;
         private Inventory inventory;
@@ -48,6 +54,11 @@ namespace Aethoria.UI
         private readonly Text[] materialCounts = new Text[4];
         private Text goldText;
 
+        private GameObject pickerPanel;
+        private readonly Image[] pickerSlotBgs = new Image[PickerSlotCount];
+        private readonly Image[] pickerIcons = new Image[PickerSlotCount];
+        private readonly Text[] pickerLabels = new Text[PickerSlotCount];
+
         private List<ItemData> candidates = new();
         private int selected;
         private int openedFrame = -1;
@@ -55,6 +66,7 @@ namespace Aethoria.UI
         private Coroutine popRoutine;
 
         public bool IsOpen => panel != null && panel.activeSelf;
+        public bool IsPickerOpen => pickerPanel != null && pickerPanel.activeSelf;
 
         public void Initialize(Character character, CharacterMovement2D movement)
         {
@@ -81,7 +93,7 @@ namespace Aethoria.UI
             itemIcon = CreateImage(rect, "ItemIcon", 1036f, 166f, 1172f, 292f);
             itemIcon.preserveAspect = true;
             itemFallbackLabel = CreateText(rect, "ItemName", 1036f, 166f, 1172f, 292f, 22f, TextColor, TextAnchor.MiddleCenter);
-            CreateButton(rect, "ItemSlotButton", 1022f, 152f, 1186f, 306f, null, () => ChangeSelection(1));
+            CreateButton(rect, "ItemSlotButton", 1022f, 152f, 1186f, 306f, null, OpenPicker);
             CreateButton(rect, "PrevButton", 944f, 205f, 994f, 255f, "◀", () => ChangeSelection(-1));
             CreateButton(rect, "NextButton", 1214f, 205f, 1264f, 255f, "▶", () => ChangeSelection(1));
 
@@ -113,7 +125,118 @@ namespace Aethoria.UI
             CreateButton(rect, "EnhanceTab", 1410f, 163f, 1517f, 287f, null, () => { });
             CreateButton(rect, "RefineTab", 1410f, 303f, 1517f, 427f, null, () => ShowResult("재련은 아직 준비 중이에요.", DimColor));
 
+            BuildPicker(rect); // 가장 마지막에 만들어서 다른 모든 요소 위에 덮이게 한다.
+
             panel.SetActive(false);
+        }
+
+        // 장비 고르기 팝업: 장비 칸을 클릭하면 열리고, 보유한 강화 가능 장비를 격자로 보여준다.
+        // 칸을 바로 클릭하면 그 장비가 선택되고 팝업이 닫힌다.
+        private void BuildPicker(Transform parent)
+        {
+            pickerPanel = new GameObject("EnhancePickerPanel", typeof(RectTransform), typeof(Image));
+            var dimRect = (RectTransform)pickerPanel.transform;
+            dimRect.SetParent(parent, false);
+            dimRect.anchorMin = Vector2.zero;
+            dimRect.anchorMax = Vector2.one;
+            dimRect.offsetMin = Vector2.zero;
+            dimRect.offsetMax = Vector2.zero;
+            var dim = pickerPanel.GetComponent<Image>();
+            dim.color = new Color(0f, 0f, 0f, 0.6f);
+            dim.raycastTarget = true;
+
+            const float boxX0 = 368f, boxY0 = 140f, boxX1 = 1168f, boxY1 = 884f;
+            var box = CreateImage(dimRect, "Box", boxX0, boxY0, boxX1, boxY1);
+            box.enabled = true;
+            box.raycastTarget = true;
+            box.color = new Color(0.08f, 0.05f, 0.12f, 0.97f);
+
+            var title = CreateText(dimRect, "PickerTitle", boxX0 + 32f, boxY0 + 16f, boxX1 - 32f, boxY0 + 60f, 28f, TextColor, TextAnchor.MiddleLeft);
+            title.fontStyle = FontStyle.Bold;
+            title.text = "강화할 장비 선택";
+
+            CreateButton(dimRect, "PickerClose", boxX1 - 66f, boxY0 + 12f, boxX1 - 18f, boxY0 + 60f, "X", ClosePicker);
+
+            const float gridX0 = boxX0 + 32f, gridX1 = boxX1 - 32f, gridY0 = boxY0 + 90f, gridY1 = boxY1 - 24f;
+            float cellW = (gridX1 - gridX0) / PickerColumns;
+            float cellH = (gridY1 - gridY0) / PickerRows;
+
+            for (int i = 0; i < PickerSlotCount; i++)
+            {
+                int row = i / PickerColumns;
+                int col = i % PickerColumns;
+                float cellX0 = gridX0 + col * cellW;
+                float cellX1 = cellX0 + cellW;
+                float cellY0 = gridY0 + row * cellH;
+                float cellY1 = cellY0 + cellH;
+
+                int captured = i;
+                var slotRect = CreateRect(dimRect, "PickerSlot" + i, cellX0 + 6f, cellY0 + 6f, cellX1 - 6f, cellY1 - 6f, typeof(RectTransform), typeof(Image), typeof(Button));
+                var bg = slotRect.GetComponent<Image>();
+                bg.color = new Color(1f, 1f, 1f, 0.05f);
+                slotRect.GetComponent<Button>().onClick.AddListener(() => SelectFromPicker(captured));
+                pickerSlotBgs[i] = bg;
+
+                float iconSize = Mathf.Min(cellW, cellH) - 60f;
+                float cellCx = (cellX0 + cellX1) / 2f;
+                pickerIcons[i] = CreateImage(dimRect, "PickerIcon" + i, cellCx - iconSize / 2f, cellY0 + 14f, cellCx + iconSize / 2f, cellY0 + 14f + iconSize);
+                pickerIcons[i].preserveAspect = true;
+
+                pickerLabels[i] = CreateText(dimRect, "PickerLabel" + i, cellX0 + 4f, cellY0 + 14f + iconSize + 4f, cellX1 - 4f, cellY1 - 6f, 16f, TextColor, TextAnchor.MiddleCenter);
+            }
+
+            pickerPanel.SetActive(false);
+        }
+
+        private void OpenPicker()
+        {
+            if (candidates.Count == 0) return;
+            RefreshPicker();
+            pickerPanel.SetActive(true);
+        }
+
+        private void ClosePicker()
+        {
+            pickerPanel.SetActive(false);
+        }
+
+        private void RefreshPicker()
+        {
+            for (int i = 0; i < PickerSlotCount; i++)
+            {
+                bool has = i < candidates.Count;
+                pickerSlotBgs[i].gameObject.SetActive(has);
+                if (!has)
+                {
+                    pickerIcons[i].enabled = false;
+                    pickerLabels[i].text = "";
+                    continue;
+                }
+
+                var item = candidates[i];
+                int level = inventory.GetEnhanceLevel(item);
+                bool equipped = inventory.IsEquipped(item);
+
+                var sprite = string.IsNullOrEmpty(item.iconPath) ? null : Resources.Load<Sprite>(item.iconPath);
+                pickerIcons[i].sprite = sprite;
+                pickerIcons[i].enabled = sprite != null;
+
+                pickerLabels[i].text = (equipped ? "★ " : "") + item.DisplayName(level);
+                pickerLabels[i].color = equipped ? GoldColor : TextColor;
+
+                pickerSlotBgs[i].color = i == selected
+                    ? new Color(0.55f, 0.35f, 0.75f, 0.55f)
+                    : new Color(1f, 1f, 1f, 0.05f);
+            }
+        }
+
+        private void SelectFromPicker(int index)
+        {
+            if (index < 0 || index >= candidates.Count) return;
+            selected = index;
+            resultTimer = 0f;
+            ClosePicker();
+            Refresh();
         }
 
         public void Show()
@@ -132,6 +255,7 @@ namespace Aethoria.UI
 
         public void Hide()
         {
+            ClosePicker();
             panel.SetActive(false);
             Time.timeScale = 1f;
             if (playerMovement != null) playerMovement.SetInputLocked(false);
@@ -184,7 +308,7 @@ namespace Aethoria.UI
             {
                 string status = maxed ? "최대 강화 단계예요." : $"+{level} → +{level + 1} 강화";
                 string equippedMark = inventory.IsEquipped(item) ? " (장착 중)" : "";
-                SetMessage($"{item.DisplayName(level)}{equippedMark}\n<size={Mathf.RoundToInt(18f * PxToCanvas)}>{status}   ◀ ▶ 장비 변경</size>", TextColor);
+                SetMessage($"{item.DisplayName(level)}{equippedMark}\n<size={Mathf.RoundToInt(18f * PxToCanvas)}>{status}   장비 칸 클릭으로 선택</size>", TextColor);
             }
 
             var now = item.BaseStatsAt(level);
@@ -336,6 +460,15 @@ namespace Aethoria.UI
 
             // 연 그 프레임의 입력(엘리 대화의 숫자키 등)이 같은 프레임에 다시 소비되지 않게 한다.
             if (Time.frameCount == openedFrame) return;
+
+            if (IsPickerOpen)
+            {
+                if (keyboard.xKey.wasPressedThisFrame || keyboard.escapeKey.wasPressedThisFrame)
+                {
+                    ClosePicker();
+                }
+                return;
+            }
 
             if (keyboard.xKey.wasPressedThisFrame || keyboard.escapeKey.wasPressedThisFrame)
             {

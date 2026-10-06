@@ -3,13 +3,13 @@ using UnityEngine;
 using Aethoria.Bootstrap;
 using Aethoria.Characters;
 using Aethoria.Combat;
+using Aethoria.UI;
 
 namespace Aethoria.Monsters
 {
-    // 보스 몬스터의 이동/공격 AI. 체력·방어력 등은 기존 Monster/MonsterData가 그대로 담당하고,
-    // 여기서는 "플레이어를 쫓아가다가 사거리에 들어오면 콤보 패턴을 시전한다"는 행동과
-    // 경직/슈퍼아머 상태를 담당한다.
-    // 근접 패턴 두 가지는 각각 3연타 콤보로 구성해, 적은 패턴 수로도 위협적으로 느껴지게 한다.
+    // 보스 몬스터의 이동/공격 AI. 체력·방어력 등은 기존 Monster/MonsterData가 그대로 담당한다.
+    // 근접 사거리(접촉)에 들어오면 더 이상 돌진/휩쓸기 콤보로 때리지 않고 리듬전투 화면으로 넘긴다.
+    // 원거리 점프 내려찍기는 접촉이 아니라서 그대로 실시간으로 유지한다(거리를 좁히는 수단).
     // 플레이어가 조금 떨어져 있으면 가끔 점프 내려찍기로 거리를 한 번에 좁힌다.
     [RequireComponent(typeof(Monster))]
     [RequireComponent(typeof(Rigidbody2D))]
@@ -20,22 +20,10 @@ namespace Aethoria.Monsters
         [SerializeField] private float moveSpeed = 2.5f;
         [SerializeField] private float attackRange = 1.4f;
         [SerializeField] private float gravityScale = 4f;
+        // 플레이어가 이만큼 위에 있으면(점프로 넘어가는 중) 근접 접촉으로 치지 않는다 — 싸우기 싫으면 뛰어넘어 지나갈 수 있게.
+        [SerializeField] private float jumpOverHeight = 2f;
 
-        [Header("패턴 A: 돌진 3연타 (근접, 조금씩 전진하며 베기)")]
-        [SerializeField] private int dashComboHits = 3;
-        [SerializeField] private float dashHitInterval = 0.35f;
-        [SerializeField] private float dashStepDistance = 0.4f;
-        [SerializeField] private float dashHitRadius = 1f;
-        [SerializeField] private float dashDamageMultiplier = 1f;
-
-        [Header("패턴 B: 휩쓸기 3연타 (넓은 범위, 마지막 타가 더 강함)")]
-        [SerializeField] private int sweepComboHits = 3;
-        [SerializeField] private float sweepHitInterval = 0.4f;
-        [SerializeField] private float sweepRadius = 2f;
-        [SerializeField] private float sweepDamageMultiplier = 0.9f;
-        [SerializeField] private float sweepFinisherMultiplier = 1.3f;
-
-        [Header("패턴 C: 점프 내려찍기 (중거리에서 플레이어 쪽으로 뛰어들어 넓은 충격파)")]
+        [Header("패턴: 점프 내려찍기 (중거리에서 플레이어 쪽으로 뛰어들어 넓은 충격파) - 유일하게 남은 원거리 실시간 패턴")]
         [SerializeField] private float jumpMaxRange = 6f; // 근접 사거리보다 멀고 이 거리 안이면 점프를 고려한다
         [SerializeField] private float jumpMaxDistance = 5f; // 한 번 점프로 이동하는 최대 거리
         [SerializeField] private float jumpDuration = 1.4f; // 8프레임 모션 전체 길이
@@ -56,12 +44,12 @@ namespace Aethoria.Monsters
         private SpriteRenderer spriteRenderer;
         private MonsterAttackSpriteAnimator attackAnimator;
         private Character target;
+        private RhythmBattleUI rhythmBattleUI;
         private Color normalColor;
 
         private bool isAttacking;
         private bool isStaggered;
         private bool isSuperArmor;
-        private bool nextIsDash = true;
         private float jumpCooldownTimer;
         private Coroutine patternRoutine;
         private Coroutine staggerRoutine;
@@ -79,6 +67,7 @@ namespace Aethoria.Monsters
             jumpCooldownTimer = jumpCooldown * 0.5f; // 보스전 시작하자마자 뛰어들지 않도록 약간 늦춘다
 
             target = Object.FindFirstObjectByType<Character>();
+            rhythmBattleUI = Object.FindFirstObjectByType<RhythmBattleUI>();
             monster.OnDamaged += HandleDamaged;
 
             superArmorCycleRoutine = StartCoroutine(SuperArmorCycleRoutine());
@@ -120,8 +109,8 @@ namespace Aethoria.Monsters
                 return;
             }
 
-            // 패턴이 이미 진행 중이면 사거리를 다시 확인하지 않는다. 즉, 한 번 시작된 공격은
-            // 플레이어가 도중에 사거리 밖으로 나가도 끝까지(RunNextPattern이 끝날 때까지) 재생된다.
+            // 점프 패턴이 이미 진행 중이면 사거리를 다시 확인하지 않는다. 즉, 한 번 시작된 점프는
+            // 플레이어가 도중에 사거리 밖으로 나가도 끝까지(RunJumpPattern이 끝날 때까지) 재생된다.
             // (맞아서 경직되는 것과는 별개 - 피격 중단은 HandleDamaged에서만 일어난다.)
             if (isAttacking)
             {
@@ -130,10 +119,13 @@ namespace Aethoria.Monsters
             }
 
             float distance = target.transform.position.x - transform.position.x;
-            if (Mathf.Abs(distance) <= attackRange)
+            bool playerJumpedOver = target.transform.position.y - transform.position.y > jumpOverHeight;
+
+            if (!playerJumpedOver && Mathf.Abs(distance) <= attackRange)
             {
                 body.linearVelocity = new Vector2(0f, body.linearVelocity.y);
-                patternRoutine = StartCoroutine(RunNextPattern());
+                spriteRenderer.flipX = distance < 0f;
+                if (rhythmBattleUI != null) rhythmBattleUI.TryBegin(monster, target);
             }
             else if (Mathf.Abs(distance) <= jumpMaxRange && jumpCooldownTimer <= 0f && CanJumpAttack)
             {
@@ -212,30 +204,6 @@ namespace Aethoria.Monsters
             }
         }
 
-        // 두 패턴을 번갈아 시전한다 (패턴 수는 적지만, 매번 3연타 콤보라 체감 공격 횟수는 많다).
-        private IEnumerator RunNextPattern()
-        {
-            isAttacking = true;
-            body.linearVelocity = new Vector2(0f, body.linearVelocity.y);
-
-            bool useDash = nextIsDash;
-            nextIsDash = !nextIsDash;
-
-            if (attackAnimator != null)
-            {
-                float patternDuration = useDash
-                    ? dashComboHits * dashHitInterval
-                    : sweepComboHits * sweepHitInterval;
-                attackAnimator.Play(patternDuration);
-            }
-
-            yield return useDash ? DashComboRoutine() : SweepComboRoutine();
-            yield return new WaitForSeconds(patternCooldown);
-
-            isAttacking = false;
-            patternRoutine = null;
-        }
-
         private bool CanJumpAttack => attackAnimator != null && attackAnimator.HasClip(JumpAttackClip);
 
         public const string JumpAttackClip = "JumpAttack";
@@ -284,36 +252,6 @@ namespace Aethoria.Monsters
             patternRoutine = null;
         }
 
-        private IEnumerator DashComboRoutine()
-        {
-            for (int i = 0; i < dashComboHits; i++)
-            {
-                if (monster.IsDead) yield break;
-
-                Vector2 direction = FacingToTarget();
-                spriteRenderer.flipX = direction.x < 0f;
-                body.position += direction * dashStepDistance;
-
-                DealDamageAt((Vector2)transform.position + direction * 0.6f, dashHitRadius, dashDamageMultiplier);
-
-                yield return new WaitForSeconds(dashHitInterval);
-            }
-        }
-
-        private IEnumerator SweepComboRoutine()
-        {
-            for (int i = 0; i < sweepComboHits; i++)
-            {
-                if (monster.IsDead) yield break;
-
-                bool isFinisher = i == sweepComboHits - 1;
-                float multiplier = isFinisher ? sweepFinisherMultiplier : sweepDamageMultiplier;
-                DealDamageAt(transform.position, sweepRadius, multiplier);
-
-                yield return new WaitForSeconds(sweepHitInterval);
-            }
-        }
-
         private Vector2 FacingToTarget()
         {
             if (target == null) return spriteRenderer.flipX ? Vector2.left : Vector2.right;
@@ -338,8 +276,6 @@ namespace Aethoria.Monsters
         {
             Gizmos.color = Color.red;
             Gizmos.DrawWireSphere(transform.position, attackRange);
-            Gizmos.color = new Color(1f, 0.5f, 0f);
-            Gizmos.DrawWireSphere(transform.position, sweepRadius);
             Gizmos.color = new Color(0.6f, 0.2f, 1f);
             Gizmos.DrawWireSphere(transform.position, jumpMaxRange);
         }

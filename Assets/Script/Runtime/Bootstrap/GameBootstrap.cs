@@ -403,7 +403,7 @@ namespace Aethoria.Bootstrap
             FitCamera(xMin, xMax, yMin);
 
             SpawnPlainsPlatforms(stageRoot.transform, yMin);
-            SpawnSlimes(stageRoot.transform, yMin, new[] { -14f, -8.5f, -3f, 2.5f, 7f, 11.5f });
+            SpawnSlimes(stageRoot.transform, yMin, new[] { -12f, -3f, 6f, 14f });
 
             bool isFirstPlains = plainsIndex <= 1;
             bool isLastPlains = plainsIndex >= TotalPlainsStages;
@@ -815,6 +815,10 @@ namespace Aethoria.Bootstrap
             enhanceUI = canvasGO.AddComponent<EnhanceUI>();
             enhanceUI.Initialize(player, player.GetComponent<CharacterMovement2D>());
 
+            // 몬스터가 접촉하면 실시간 전투 대신 이 화면으로 전환된다(MonsterAI/BossAI/BossSlimeAI가
+            // Awake에서 FindFirstObjectByType으로 알아서 찾아 쓰므로 별도로 넘겨줄 필요 없다).
+            canvasGO.AddComponent<RhythmBattleUI>().Initialize();
+
             questManager = canvasGO.AddComponent<QuestManager>();
             questManager.Initialize(player, QuestDatabase.CreateMainLine());
             canvasGO.AddComponent<QuestTrackerUI>().Initialize(questManager);
@@ -892,7 +896,7 @@ namespace Aethoria.Bootstrap
             var data = ScriptableObject.CreateInstance<MonsterData>();
             data.monsterName = "슬라임";
             data.level = 1;
-            data.maxHp = 50f; // 플레이어 기본 공격 한 방에 잡히는 입문용
+            data.maxHp = 200f; // 리듬전투 한 턴(4타) 정도는 버티도록(한 방에 끝나지 않게)
             data.attack = 1f;
             data.defense = 0f;
             data.expReward = 10;

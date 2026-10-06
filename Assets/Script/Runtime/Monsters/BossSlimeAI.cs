@@ -1,12 +1,13 @@
 using System.Collections;
 using UnityEngine;
 using Aethoria.Characters;
-using Aethoria.Combat;
+using Aethoria.UI;
 
 namespace Aethoria.Monsters
 {
     // 광활한 평야의 필드 보스. 플레이어가 감지 거리 안에 들어오면 폴짝폴짝 쫓아오며,
-    // 중거리에서는 주기적으로 입을 벌려 물대포를 쏘고, 붙어 있으면 몸통 접촉으로 피해를 준다.
+    // 중거리에서는 주기적으로 입을 벌려 물대포를 쏜다(원거리 공격이라 그대로 실시간 유지).
+    // 몸통에 직접 접촉하면 더 이상 실시간으로 깎지 않고 리듬전투 화면으로 넘긴다.
     // 말랑한 슬라임이라 기사 보스와 달리 경직/슈퍼아머는 없다(맞아도 공격이 끊기지 않음).
     [RequireComponent(typeof(Monster))]
     [RequireComponent(typeof(Rigidbody2D))]
@@ -32,18 +33,16 @@ namespace Aethoria.Monsters
 
         [Header("몸통 접촉")]
         [SerializeField] private float contactRange = 1.7f;
-        [SerializeField] private float contactInterval = 1f;
-        [SerializeField] private float contactDamageMultiplier = 1f;
 
         private Monster monster;
         private Rigidbody2D body;
         private SpriteRenderer spriteRenderer;
         private MonsterAttackSpriteAnimator attackAnimator;
         private Character target;
+        private RhythmBattleUI rhythmBattleUI;
 
         private bool isAttacking;
         private float cannonTimer;
-        private float contactTimer;
 
         private void Awake()
         {
@@ -55,16 +54,16 @@ namespace Aethoria.Monsters
             body.freezeRotation = true;
 
             target = Object.FindFirstObjectByType<Character>();
+            rhythmBattleUI = Object.FindFirstObjectByType<RhythmBattleUI>();
             cannonTimer = cannonCooldown * 0.5f; // 마주치자마자 바로 쏘지 않도록 조금 늦춘다
         }
 
         private void Update()
         {
             if (cannonTimer > 0f && !isAttacking) cannonTimer -= Time.deltaTime;
-            if (contactTimer > 0f) contactTimer -= Time.deltaTime;
 
             if (monster.IsDead || target == null || target.IsDead) return;
-            TryContactDamage();
+            TryContactBattle();
         }
 
         private void FixedUpdate()
@@ -117,16 +116,15 @@ namespace Aethoria.Monsters
             isAttacking = false;
         }
 
-        // 몸에 닿아 있는 동안 contactInterval마다 피해. 물대포를 쏘는 중에도 몸은 여전히 위험하다.
-        private void TryContactDamage()
+        // 몸에 닿으면 리듬전투로 전환한다(물대포를 쏘는 중에도 몸은 여전히 위험하다).
+        private void TryContactBattle()
         {
-            if (contactTimer > 0f) return;
+            if (rhythmBattleUI == null) return;
 
             Vector2 offset = target.transform.position - transform.position;
             if (Mathf.Abs(offset.x) > contactRange || offset.y > 2f || offset.y < -0.5f) return;
 
-            contactTimer = contactInterval;
-            target.TakeDamage(CombatMath.PhysicalDamage(monster.Attack * contactDamageMultiplier, target.Stats.defense), transform.position);
+            rhythmBattleUI.TryBegin(monster, target);
         }
 
         private void OnDrawGizmosSelected()

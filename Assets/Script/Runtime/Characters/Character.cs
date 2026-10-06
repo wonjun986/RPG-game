@@ -86,7 +86,9 @@ namespace Aethoria.Characters
         {
             if (postHitInvincibleRemaining > 0f)
             {
-                postHitInvincibleRemaining = Mathf.Max(0f, postHitInvincibleRemaining - Time.deltaTime);
+                // 리듬전투 등 Time.timeScale=0로 멈춰 있는 동안에도 줄어들어야 한다 — scaled deltaTime을
+                // 쓰면 멈춰 있는 동안 영원히 무적 상태로 남는다(한 번 맞은 뒤로 다신 피해를 안 받음).
+                postHitInvincibleRemaining = Mathf.Max(0f, postHitInvincibleRemaining - Time.unscaledDeltaTime);
             }
 
             if (IsDead || manaRegenPerSecond <= 0f) return;
