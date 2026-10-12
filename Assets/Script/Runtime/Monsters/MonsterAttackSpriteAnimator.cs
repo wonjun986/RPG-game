@@ -21,6 +21,8 @@ namespace Aethoria.Monsters
         private Coroutine playRoutine;
 
         public bool HasFrames => frames != null && frames.Length > 0;
+        // 리듬 전투 화면이 몬스터 공격 모션으로 그대로 가져다 쓴다(기본 클립만).
+        public Sprite[] Frames => frames;
 
         private void Awake()
         {

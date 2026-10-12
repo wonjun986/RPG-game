@@ -19,6 +19,8 @@ namespace Aethoria.Monsters
         private int currentIndex;
 
         public bool HasFrames => frames != null && frames.Length > 0;
+        // 리듬 전투 화면이 몬스터 대기 모션으로 그대로 가져다 쓴다.
+        public Sprite[] Frames => frames;
 
         private void Awake()
         {

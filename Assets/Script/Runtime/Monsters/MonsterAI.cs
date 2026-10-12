@@ -22,6 +22,7 @@ namespace Aethoria.Monsters
         private SpriteRenderer spriteRenderer;
         private Character target;
         private RhythmBattleUI rhythmBattleUI;
+        private float contactRange;
 
         private void Awake()
         {
@@ -33,6 +34,12 @@ namespace Aethoria.Monsters
 
             target = Object.FindFirstObjectByType<Character>();
             rhythmBattleUI = Object.FindFirstObjectByType<RhythmBattleUI>();
+
+            // attackRange는 기사(폭 0.6) 기준 중심 거리라, 콜로서스처럼 몸이 넓은 몬스터는 플레이어와 옆으로 맞닿아도
+            // 두 콜라이더가 서로 밀어내 중심 거리가 그보다 멀어서 전투가 시작되지 않았다. 넓어진 몸 반폭만큼 늘려 준다.
+            var box = GetComponent<BoxCollider2D>();
+            float extraHalfWidth = box != null ? Mathf.Max(0f, box.size.x * 0.5f - 0.3f) : 0f;
+            contactRange = attackRange + extraHalfWidth;
         }
 
         private void FixedUpdate()
@@ -46,7 +53,7 @@ namespace Aethoria.Monsters
             float distance = target.transform.position.x - transform.position.x;
             bool playerJumpedOver = target.transform.position.y - transform.position.y > jumpOverHeight;
 
-            if (!playerJumpedOver && Mathf.Abs(distance) <= attackRange)
+            if (!playerJumpedOver && Mathf.Abs(distance) <= contactRange)
             {
                 body.linearVelocity = new Vector2(0f, body.linearVelocity.y);
                 spriteRenderer.flipX = distance < 0f;

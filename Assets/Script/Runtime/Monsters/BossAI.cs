@@ -267,7 +267,7 @@ namespace Aethoria.Monsters
                 var character = hit.GetComponent<Character>();
                 if (character == null || character.IsDead) continue;
 
-                float damage = CombatMath.PhysicalDamage(monster.Attack * multiplier, character.Stats.defense);
+                float damage = CombatMath.Finish(CombatMath.BaseDamage(monster.Attack, character.Stats.defense) * multiplier);
                 character.TakeDamage(damage, origin);
             }
         }

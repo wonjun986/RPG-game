@@ -13,13 +13,21 @@ namespace Aethoria.Characters
         private float minX;
         private float maxX;
         private float fixedY;
+        private float floorY;
+        private float maxRise;
         private Vector3 velocity;
 
+        // 바닥에서 이 높이까지는(점프 등) 카메라가 위아래로 출렁이지 않게 그대로 둔다.
+        private const float RiseDeadZone = 1.5f;
+
         // 스테이지가 새로 지어질 때마다 GameBootstrap이 호출해 추적 대상과 맵 범위를 다시 알려준다.
-        public void Follow(Transform newTarget, float mapXMin, float mapXMax, float cameraY)
+        // maxRise > 0이면 플레이어가 바닥(mapFloorY)보다 높은 지형에 올라갔을 때 카메라도 최대 그만큼 따라 올라간다.
+        public void Follow(Transform newTarget, float mapXMin, float mapXMax, float cameraY, float mapFloorY = 0f, float newMaxRise = 0f)
         {
             target = newTarget;
             fixedY = cameraY;
+            floorY = mapFloorY;
+            maxRise = newMaxRise;
 
             var cam = GetComponent<Camera>();
             float halfWidth = cam.orthographicSize * cam.aspect;
@@ -34,7 +42,13 @@ namespace Aethoria.Characters
                 minX = maxX = mid;
             }
 
-            transform.position = new Vector3(Mathf.Clamp(target.position.x, minX, maxX), fixedY, transform.position.z);
+            transform.position = new Vector3(Mathf.Clamp(target.position.x, minX, maxX), DesiredY(), transform.position.z);
+        }
+
+        private float DesiredY()
+        {
+            if (maxRise <= 0f) return fixedY;
+            return fixedY + Mathf.Clamp(target.position.y - floorY - RiseDeadZone, 0f, maxRise);
         }
 
         private void LateUpdate()
@@ -42,7 +56,7 @@ namespace Aethoria.Characters
             if (target == null) return;
 
             float desiredX = Mathf.Clamp(target.position.x, minX, maxX);
-            Vector3 desired = new Vector3(desiredX, fixedY, transform.position.z);
+            Vector3 desired = new Vector3(desiredX, DesiredY(), transform.position.z);
             transform.position = Vector3.SmoothDamp(transform.position, desired, ref velocity, smoothTime);
         }
     }

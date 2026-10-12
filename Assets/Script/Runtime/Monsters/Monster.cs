@@ -47,12 +47,16 @@ namespace Aethoria.Monsters
 
         private static readonly Color CriticalPopupColor = new Color(1f, 0.55f, 0.15f);
 
+        // 방금 받은 피해가 치명타였는지. OnDamaged를 받는 쪽(리듬 전투의 데미지 숫자)이 치명타 숫자를 고를 때 쓴다.
+        public bool LastHitWasCritical { get; private set; }
+
         // 치명타면 데미지 숫자를 주황색으로 크게 띄운다.
         public void TakeDamage(float finalDamage, bool isCritical = false)
         {
             if (IsDead || finalDamage <= 0f) return;
 
             currentHp = Mathf.Max(0f, currentHp - finalDamage);
+            LastHitWasCritical = isCritical;
             OnDamaged?.Invoke(this, finalDamage);
             if (isCritical) DamagePopup.Create(transform.position, finalDamage, CriticalPopupColor, 1.4f);
             else DamagePopup.Create(transform.position, finalDamage, Color.white);

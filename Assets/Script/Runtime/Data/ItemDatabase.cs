@@ -1,7 +1,8 @@
 namespace Aethoria.Data
 {
     // 게임에 등장하는 아이템 목록. 새 아이템은 여기에 항목만 추가하면 된다.
-    // 능력치 기준: 캐릭터 기본 공격력 60(레벨당 +2), 치명타 확률 기본 10%, 치명타 피해 기본 150%.
+    // 능력치 기준: 캐릭터 기본 공격력 15(레벨당 +0.5), 치명타 확률 기본 10%, 치명타 피해 기본 150%.
+    // 공격력 1이 기본 데미지 0.7에 해당한다(DamageCalculation.md: (공격력 - 방어력) x 0.7 + 5).
     public static class ItemDatabase
     {
         public static readonly ItemData DevilNecklace = new ItemData
@@ -27,7 +28,7 @@ namespace Aethoria.Data
             rarity = ItemRarity.Common,
             flavorText = "소울이터의 기본 무기.",
             description = "소울이터가 처음부터 손에 쥐고 있던 낫.\n오래된 만큼 손에 잘 익었다.",
-            baseStats = new ItemStats { attack = 10f },
+            baseStats = new ItemStats { attack = 3f },
         };
 
         // 노아의 상점 - 무기 탭. 아직 전용 아이콘 아트가 없어서 iconPath를 비워 두면 ShopUI가
@@ -40,7 +41,7 @@ namespace Aethoria.Data
             rarity = ItemRarity.Common,
             flavorText = "오래 써서 날이 무딘 낫.",
             description = "노아의 상점 구석에 굴러다니던 낫.\n그래도 없는 것보다는 낫다.",
-            baseStats = new ItemStats { attack = 5f },
+            baseStats = new ItemStats { attack = 1f },
             forSale = true,
             shopPrice = 0,
         };
@@ -53,7 +54,7 @@ namespace Aethoria.Data
             rarity = ItemRarity.Uncommon,
             flavorText = "단단한 강철로 벼린 낫.",
             description = "마을 대장간에서 강철을 두드려 만든 낫.\n쉽게 이가 빠지지 않는다.",
-            baseStats = new ItemStats { attack = 18f, critChance = 3f },
+            baseStats = new ItemStats { attack = 5f, critChance = 3f },
             forSale = true,
             shopPrice = 300,
         };
@@ -66,8 +67,8 @@ namespace Aethoria.Data
             rarity = ItemRarity.Rare,
             flavorText = "날카롭게 벼려져 베기가 좋은 낫.",
             description = "숙련된 장인이 날을 몇 번이고 다시 세운 낫.\n스치기만 해도 깊게 베인다.",
-            baseStats = new ItemStats { attack = 28f, critChance = 8f, critDamage = 20f },
-            bonusStats = new ItemStats { attack = 5f },
+            baseStats = new ItemStats { attack = 7f, critChance = 8f, critDamage = 20f },
+            bonusStats = new ItemStats { attack = 1f },
             forSale = true,
             shopPrice = 1000,
         };
@@ -116,10 +117,26 @@ namespace Aethoria.Data
             description = "어둠의 기운이 응축된 광석.\n대장장이 엘리에게 가져가면 장비를 강화해 준다.",
         };
 
+        // 리듬 전투 소모품. 내 턴에 "아이템"으로 마시면 체력을 회복하고 그 턴이 끝난다(RhythmBattleUI).
+        // 새 캐릭터는 몇 개 들고 시작하고(GameBootstrap), 노아의 상점 기타 탭에서도 산다.
+        public static readonly ItemData Potion = new ItemData
+        {
+            id = "potion",
+            itemName = "회복 포션",
+            iconPath = "UI/Items/Potion",
+            category = ItemCategory.Misc,
+            rarity = ItemRarity.Common,
+            flavorText = "보랏빛 약물이 찰랑이는 회복 포션.",
+            description = "전투 중 내 턴에 \"아이템\"으로 마시면 체력을 40 회복한다.\n마시고 나면 그 턴은 끝난다.",
+            healAmount = 40f,
+            forSale = true,
+            shopPrice = 50,
+        };
+
         private static readonly ItemData[] All =
         {
             DevilNecklace, ReaperScythe, WornScythe, SteelScythe, SharpScythe, VoidCrystalArmor, GothicArmorSkirt,
-            EnhanceStone,
+            EnhanceStone, Potion,
         };
 
         public static System.Collections.Generic.IReadOnlyList<ItemData> AllItems => All;

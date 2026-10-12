@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 using Aethoria.Characters;
@@ -9,7 +10,8 @@ using Aethoria.Data;
 namespace Aethoria.UI
 {
     // 노아 대화에서 "[1] 상점"을 고르면 뜨는 구매 화면(UI/NoahsShopUI).
-    // 조작: 방향키로 칸 선택(좌우로 끝까지 가면 탭도 넘어간다), Z/Enter 구매, X/Esc 닫기.
+    // 조작: 방향키로 칸 선택(좌우로 끝까지 가면 탭도 넘어간다), Q/E 탭 전환, Z/Enter 구매, X/Esc 닫기.
+    // 마우스: 칸에 올리면 선택, 누르면 구매, 탭을 누르면 그 탭으로 바뀐다.
     public class ShopUI : MonoBehaviour
     {
         // UI/NoahsShopUI(1536x1024) 그림 속 실제 좌표를 픽셀로 재서 정규화한 값들.
@@ -23,7 +25,6 @@ namespace Aethoria.UI
         // 무기/장비/장신구/기타 탭 중심 x(정규화), 탭 줄 y(정규화, 아래 기준).
         private static readonly float[] TabCenterX = { 766.5f / 1536f, 955.5f / 1536f, 1143.5f / 1536f, 1331.5f / 1536f };
         private const float TabRowYFromBottom = 1f - 550.5f / 1024f;
-        private const float TabCursorYOffset = 0f;
 
         // 탭 하나가 어떤 카테고리들을 묶어서 보여주는지(InventoryUI의 5탭을 상점 아트의 4탭에 맞춰 합쳤다).
         private static readonly ItemCategory[][] TabFilters =
@@ -44,8 +45,6 @@ namespace Aethoria.UI
 
         private GameObject panel;
         private Text goldText;
-        private RectTransform tabCursor;
-        private RawImage tabCursorImage;
         private RectTransform gridHighlight;
         private RawImage gridHighlightImage;
         private readonly Image[] gridIcons = new Image[GridColumns * GridRows];
@@ -86,9 +85,9 @@ namespace Aethoria.UI
             panel.GetComponent<RawImage>().texture = Resources.Load<Texture2D>("UI/NoahsShopUI");
 
             BuildGoldDisplay(rect);
-            BuildTabCursor(rect);
             BuildGridHighlight(rect); // 아이콘보다 먼저 만들어서 뒤에 깔리게 한다.
             BuildGrid(rect);
+            BuildMouseTargets(rect); // 글자/아이콘보다 위에 깔려야 마우스를 받는다.
             BuildMessage(rect); // 맨 마지막에 만들어서 그리드 위에 뜨게 한다.
 
             panel.SetActive(false);
@@ -103,7 +102,9 @@ namespace Aethoria.UI
             rect.pivot = new Vector2(0.5f, 0.5f);
             rect.anchorMin = rect.anchorMax = new Vector2((GridX0 + GridX1) / 2f, (GridTopFromBottom + GridBottomFromBottom) / 2f);
             rect.sizeDelta = new Vector2(460f, 70f);
-            messagePanel.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.85f);
+            var messageImage = messagePanel.GetComponent<Image>();
+            messageImage.color = new Color(0f, 0f, 0f, 0.85f);
+            messageImage.raycastTarget = false; // 안내 문구가 떠 있어도 그 아래 칸을 계속 누를 수 있게
 
             var textGO = new GameObject("Text", typeof(RectTransform), typeof(Text));
             var textRect = (RectTransform)textGO.transform;
@@ -118,6 +119,7 @@ namespace Aethoria.UI
             messageText.fontStyle = FontStyle.Bold;
             messageText.alignment = TextAnchor.MiddleCenter;
             messageText.color = new Color(1f, 0.4f, 0.4f);
+            messageText.raycastTarget = false;
 
             messagePanel.SetActive(false);
         }
@@ -156,21 +158,6 @@ namespace Aethoria.UI
             goldText.fontStyle = FontStyle.Bold;
             goldText.alignment = TextAnchor.MiddleCenter;
             goldText.color = new Color(1f, 0.85f, 0.3f);
-        }
-
-        private void BuildTabCursor(Transform parent)
-        {
-            var go = new GameObject("TabCursor", typeof(RectTransform), typeof(RawImage));
-            tabCursor = (RectTransform)go.transform;
-            tabCursor.SetParent(parent, false);
-            tabCursor.pivot = new Vector2(0.5f, 0.5f);
-            tabCursor.sizeDelta = new Vector2(150f, 50f);
-            tabCursor.anchorMin = tabCursor.anchorMax = new Vector2(TabCenterX[0], TabRowYFromBottom);
-            tabCursor.anchoredPosition = new Vector2(0f, TabCursorYOffset);
-
-            tabCursorImage = go.GetComponent<RawImage>();
-            tabCursorImage.texture = Resources.Load<Texture2D>("UI/Select_Effect");
-            tabCursorImage.raycastTarget = false;
         }
 
         // 4x3 상품 칸. 좌표는 배경 그림을 픽셀 단위로 재서 계산했다.
@@ -237,6 +224,94 @@ namespace Aethoria.UI
             }
         }
 
+        // 마우스 입력을 받는 투명한 판들. 상품 칸은 아이콘+가격을 다 덮고, 탭은 탭 글자를 덮는다.
+        private void BuildMouseTargets(Transform parent)
+        {
+            float colWidth = (GridX1 - GridX0) / GridColumns;
+            float rowHeight = (GridTopFromBottom - GridBottomFromBottom) / GridRows;
+
+            for (int row = 0; row < GridRows; row++)
+            {
+                for (int col = 0; col < GridColumns; col++)
+                {
+                    float centerX = GridX0 + (col + 0.5f) * colWidth;
+                    float centerY = GridTopFromBottom - (row + 0.5f) * rowHeight;
+                    var target = CreateMouseTarget(parent, $"SlotTarget_{row}_{col}", new Vector2(centerX, centerY),
+                        new Vector2(colWidth * 1536f - 16f, 140f), new Vector2(0f, -6f));
+                    target.isTab = false;
+                    target.index = row * GridColumns + col;
+                }
+            }
+
+            for (int i = 0; i < TabCenterX.Length; i++)
+            {
+                var target = CreateMouseTarget(parent, "TabTarget_" + i, new Vector2(TabCenterX[i], TabRowYFromBottom),
+                    new Vector2(170f, 50f), Vector2.zero);
+                target.isTab = true;
+                target.index = i;
+            }
+        }
+
+        private MouseTarget CreateMouseTarget(Transform parent, string name, Vector2 anchor, Vector2 size, Vector2 offset)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(Image));
+            var rect = (RectTransform)go.transform;
+            rect.SetParent(parent, false);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchorMin = rect.anchorMax = anchor;
+            rect.anchoredPosition = offset;
+            rect.sizeDelta = size;
+            go.GetComponent<Image>().color = Color.clear;
+
+            var target = go.AddComponent<MouseTarget>();
+            target.owner = this;
+            return target;
+        }
+
+        // InventoryUI.SlotInteraction과 같은 이유로 OnPointerClick 대신 OnPointerDown을 쓴다.
+        private class MouseTarget : MonoBehaviour, IPointerEnterHandler, IPointerDownHandler
+        {
+            public ShopUI owner;
+            public bool isTab;
+            public int index;
+
+            public void OnPointerEnter(PointerEventData eventData)
+            {
+                if (!isTab) owner.HandleSlotHover(index);
+            }
+
+            public void OnPointerDown(PointerEventData eventData)
+            {
+                if (isTab) owner.SelectTab(index);
+                else owner.HandleSlotClick(index);
+            }
+        }
+
+        private void HandleSlotHover(int index)
+        {
+            if (index < 0 || index >= currentItems.Count) return;
+
+            selectedIndex = index;
+            RefreshSelectionHighlight();
+        }
+
+        private void HandleSlotClick(int index)
+        {
+            if (index < 0 || index >= currentItems.Count) return;
+
+            selectedIndex = index;
+            RefreshSelectionHighlight();
+            TryBuySelected();
+        }
+
+        private void SelectTab(int tab)
+        {
+            if (tab == currentTab) return;
+
+            currentTab = tab;
+            RefreshTab();
+        }
+
         private void BuildGridHighlight(Transform parent)
         {
             var go = new GameObject("GridHighlight", typeof(RectTransform), typeof(RawImage));
@@ -297,7 +372,8 @@ namespace Aethoria.UI
                     gridNameLabels[i].text = item.itemName;
                     gridNameLabels[i].enabled = !hasIcon;
 
-                    bool owned = inventory.GetCount(item.id) > 0;
+                    // 소모품(포션)은 여러 개 살 수 있으므로 "구매완료"로 막지 않는다.
+                    bool owned = !item.IsConsumable && inventory.GetCount(item.id) > 0;
                     gridPriceLabels[i].text = owned ? "구매완료" : item.shopPrice > 0 ? item.shopPrice.ToString("N0") + " G" : "무료";
                     gridPriceLabels[i].color = owned ? Color.gray : new Color(1f, 0.85f, 0.3f);
                     gridPriceLabels[i].enabled = true;
@@ -309,9 +385,6 @@ namespace Aethoria.UI
                     gridPriceLabels[i].enabled = false;
                 }
             }
-
-            tabCursor.anchorMin = tabCursor.anchorMax = new Vector2(TabCenterX[currentTab], TabRowYFromBottom);
-            tabCursor.anchoredPosition = new Vector2(0f, TabCursorYOffset);
 
             selectedIndex = currentItems.Count > 0 ? 0 : -1;
             RefreshSelectionHighlight();
@@ -335,24 +408,16 @@ namespace Aethoria.UI
             RefreshTab();
         }
 
-        // 좌우로 grid 끝을 넘어가면 Q/E 대신 이 방향키가 탭까지 넘겨준다(위아래는 같은 탭 안에서만 움직인다).
+        // 방향키는 지금 탭 안의 칸 사이만 움직인다(끝에서는 멈춤). 탭 전환은 Q/E나 마우스로만 한다.
         private void MoveSelection(int dCol, int dRow)
         {
-            if (selectedIndex < 0)
-            {
-                if (dCol != 0) ChangeTab(dCol);
-                return;
-            }
+            if (selectedIndex < 0) return;
 
             int row = selectedIndex / GridColumns;
             int col = selectedIndex % GridColumns;
             int rawCol = col + dCol;
 
-            if (rawCol < 0 || rawCol >= GridColumns)
-            {
-                ChangeTab(dCol);
-                return;
-            }
+            if (rawCol < 0 || rawCol >= GridColumns) return;
 
             int newRow = Mathf.Clamp(row + dRow, 0, GridRows - 1);
             int newIndex = newRow * GridColumns + rawCol;
@@ -367,7 +432,6 @@ namespace Aethoria.UI
         private void UpdateGlowPulse()
         {
             float pulse = 0.75f + 0.25f * Mathf.Sin(Time.unscaledTime * 4f);
-            tabCursorImage.color = new Color(1f, 1f, 1f, pulse);
             if (gridHighlight.gameObject.activeSelf)
             {
                 gridHighlightImage.color = new Color(1f, 1f, 1f, pulse);
@@ -380,7 +444,7 @@ namespace Aethoria.UI
             if (player == null || inventory == null) return;
 
             var item = currentItems[selectedIndex];
-            if (inventory.GetCount(item.id) > 0)
+            if (!item.IsConsumable && inventory.GetCount(item.id) > 0)
             {
                 ShowMessage("이미 보유한 아이템입니다.");
                 return;
@@ -395,6 +459,11 @@ namespace Aethoria.UI
 
             inventory.AddItem(item);
             RefreshGold();
+            if (item.IsConsumable)
+            {
+                ShowMessage($"{item.itemName} 구매 (보유 {inventory.GetCount(item.id)}개)");
+                return;
+            }
             gridPriceLabels[selectedIndex].text = "구매완료";
             gridPriceLabels[selectedIndex].color = Color.gray;
         }
@@ -422,6 +491,9 @@ namespace Aethoria.UI
                 Hide();
                 return;
             }
+
+            if (keyboard.qKey.wasPressedThisFrame) ChangeTab(-1);
+            else if (keyboard.eKey.wasPressedThisFrame) ChangeTab(1);
 
             if (keyboard.leftArrowKey.wasPressedThisFrame) MoveSelection(-1, 0);
             else if (keyboard.rightArrowKey.wasPressedThisFrame) MoveSelection(1, 0);

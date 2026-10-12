@@ -29,6 +29,10 @@ namespace Aethoria.Data
         // true인 아이템만 노아의 상점에 뜬다. 보스 드랍 전용 등은 false로 둔다.
         public bool forSale;
         public int shopPrice; // 0이면 무료.
+        // 0보다 크면 리듬 전투의 "아이템" 행동으로 마셔서 그만큼 체력을 회복하는 소모품이다.
+        public float healAmount;
+
+        public bool IsConsumable => healAmount > 0f;
 
         public ItemStats TotalStats => baseStats + bonusStats;
 

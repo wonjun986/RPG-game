@@ -49,6 +49,16 @@ namespace Aethoria.Quests
                     offerLine = "오늘은 기사들이 떼로 몰려다닌대요. 10마리만 처치해 주시면 큰 보상을 드릴게요.",
                     completeLine = "정말 고생하셨어요! 오늘치고는 과분한 활약이었네요.",
                 },
+                new QuestData
+                {
+                    title = "오늘의 콜로서스 토벌",
+                    targetMonsterName = "콜로서스",
+                    requiredCount = 6,
+                    expReward = 130,
+                    goldReward = 110,
+                    offerLine = "폐허의 콜로서스들이 오늘따라 쿵쿵거리며 돌아다닌대요. 6마리만 쓰러뜨려 주실래요?",
+                    completeLine = "돌거인을 여섯이나! 오늘 보상은 넉넉히 챙겨 드릴게요.",
+                },
             };
         }
     }

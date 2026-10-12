@@ -44,6 +44,15 @@ namespace Aethoria.Quests
                     offerLine = "기사들을 이끄는 우두머리가 숲 깊은 곳에 있대요. 부디 조심해서 쓰러뜨려 주세요.",
                     completeLine = "우두머리까지... 당신 덕분에 마을이 평화로워졌어요!",
                 },
+                new QuestData
+                {
+                    title = "잊혀진 폐허의 돌거인",
+                    targetMonsterName = "콜로서스",
+                    requiredCount = 5,
+                    expReward = 300,
+                    offerLine = "숲 너머 잊혀진 폐허에서 이끼 낀 돌거인, 콜로서스가 깨어났대요. 몸집이 커서 한 대 한 대가 묵직하니 조심하세요! 5마리만 잠재워 주세요.",
+                    completeLine = "그 돌거인들을 다섯이나요? 폐허 길이 다시 열리겠네요. 정말 든든해요!",
+                },
             };
         }
     }

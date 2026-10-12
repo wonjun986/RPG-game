@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using Aethoria.Characters;
@@ -33,6 +34,15 @@ namespace Aethoria.Bootstrap
         // 연습장: 마을의 이시스에게 말을 걸어 들어가는 허수아비 맵. 몬스터도 경험치도 없고 마나/체력이 계속 가득 찬다.
         private const int PracticeStage = -4;
         private const int PracticeWidth = 28;
+        // 잊혀진 폐허: 평야처럼 월드맵에서 바로 들어가는 3연속 필드(-5 → -6 → -7). 첫 맵만 폐허 입구 배경이고,
+        // 그 뒤로는 평평한 폐허 마당 배경이 이어진다. 떠 있는 발판 배치는 세 맵이 모두 다르다.
+        private const int RuinsStage1 = -5;
+        private const int RuinsStage3 = -7;
+        private const int TotalRuinsStages = 3;
+        private const int RuinsWidth = 40;
+        // 엔스룸 마을: 월드맵에서 들어가는 두 번째 안전 지역. 몬스터 없이 분수 광장을 걸어 다닐 수 있다.
+        private const int EnsroomStage = -8;
+        private const int EnsroomWidth = 32;
 
         // 마을에 들어올 때 서는 자리. Edge는 들어온 방향에 따라 왼쪽/오른쪽 끝.
         private enum VillageSpawn { Edge, Noa, Isis }
@@ -49,6 +59,7 @@ namespace Aethoria.Bootstrap
         private static NpcDialogueUI npcDialogueUI;
         private static WorldMapUI worldMapUI;
         private static InventoryUI inventoryUI;
+        private static StatusUI statusUI;
         private static ShopUI shopUI;
         private static EnhanceUI enhanceUI;
         private static QuestManager questManager;
@@ -116,6 +127,8 @@ namespace Aethoria.Bootstrap
 
             // 기본 무기: 처음 시작하는 캐릭터든 이어하기든 항상 최소 1개는 가방에 갖고 있다(장착은 직접).
             EnsureDefaultWeapon(inventory);
+            // 새로 시작하는 캐릭터는 회복 포션 몇 개를 들고 시작한다(이어하기는 저장된 개수 그대로).
+            if (save == null) inventory.AddItem(ItemDatabase.Potion, StarterPotionCount);
 
             // 자동 저장: 퀘스트 상태가 바뀔 때, 레벨업할 때, 마을에 들어올 때(BuildVillage), 게임을 끌 때(AutoSaveOnQuit).
             questManager.OnChanged += SaveGame;
@@ -199,6 +212,7 @@ namespace Aethoria.Bootstrap
             npcDialogueUI = null;
             worldMapUI = null;
             inventoryUI = null;
+            statusUI = null;
             shopUI = null;
             enhanceUI = null;
             questManager = null;
@@ -218,7 +232,16 @@ namespace Aethoria.Bootstrap
             BuildStage(enteringForward: true);
         }
 
-        // 쓰러졌을 때(DeathReturnUI), 그리고 던전 보스를 잡고 3초가 지났을 때(StageClearUI) 호출된다.
+        // 스테이지 클리어 창의 "다시하기": 체력/마나를 채우고 방금 깬 던전의 첫 맵부터 다시 들어간다.
+        private static void RetryDungeon(int firstStage)
+        {
+            player.Heal(player.MaxHp);
+            player.RestoreMana(player.MaxMana);
+            currentStage = firstStage;
+            BuildStage(enteringForward: true);
+        }
+
+        // 쓰러졌을 때(DeathReturnUI), 그리고 던전 보스를 잡고 스테이지 클리어 창에서 "마을로 돌아가기"를 골랐을 때(StageClearUI) 호출된다.
         // 체력/마나를 가득 채워준다. 기본은 던전에서 걸어 돌아온 것처럼 마을 오른쪽 끝(출구 포탈 쪽)에 세우고,
         // spawnAtNoa면 노아 바로 앞에 세운다.
         public static void ReturnToVillage(bool spawnAtNoa = false)
@@ -250,22 +273,36 @@ namespace Aethoria.Bootstrap
             BuildStage(enteringForward: true);
         }
 
-        // 평야 1번째 맵 왼쪽 끝 포탈. 평야는 마을과 바로 이어져 있어서 마을 출구 쪽(오른쪽 끝)으로 돌아간다.
-        private static void LeavePlainsToVillage()
+        // 평야/폐허 1번째 맵 왼쪽 끝 포탈. 둘 다 마을과 바로 이어져 있어서 마을 출구 쪽(오른쪽 끝)으로 돌아간다.
+        private static void LeaveFieldToVillage()
         {
             currentStage = VillageStage;
             BuildStage(enteringForward: false);
         }
 
-        // 평야 맵 사이를 오갈 때 쓴다(일반 스테이지의 EnterNextStage/EnterPreviousStage와 달리 음수
+        // 월드맵에서 "잊혀진 폐허"를 골랐을 때 호출된다. 항상 폐허 입구(1번째 맵)부터 시작한다.
+        public static void EnterRuins()
+        {
+            currentStage = RuinsStage1;
+            BuildStage(enteringForward: true);
+        }
+
+        // 월드맵에서 "엔스룸 마을"을 골랐을 때 호출된다.
+        public static void EnterEnsroom()
+        {
+            currentStage = EnsroomStage;
+            BuildStage(enteringForward: true);
+        }
+
+        // 평야/폐허 맵 사이를 오갈 때 쓴다(일반 스테이지의 EnterNextStage/EnterPreviousStage와 달리 음수
         // 번호라 그쪽 함수의 경계 체크와 맞지 않아 따로 둔다). 숫자가 작을수록(더 음수) 더 깊은 맵이다.
-        private static void EnterNextPlainsStage()
+        private static void EnterNextFieldStage()
         {
             currentStage--;
             BuildStage(enteringForward: true);
         }
 
-        private static void EnterPreviousPlainsStage()
+        private static void EnterPreviousFieldStage()
         {
             currentStage++;
             BuildStage(enteringForward: false);
@@ -295,6 +332,8 @@ namespace Aethoria.Bootstrap
             // 끊어두고, 보스 스테이지면 SpawnBoss에서 다시 Bind해서 보여준다.
             bossHealthUI.Hide();
             stageClearUI.Cancel();
+            // 던전 첫 맵에 앞으로 걸어 들어왔으면(마을/월드맵에서 출발) 스테이지 클리어 창에 보여줄 획득 기록을 새로 시작한다.
+            if (enteringForward && (currentStage == 1 || currentStage == PlainsStage1 || currentStage == RuinsStage1)) stageClearUI.BeginRun();
 
             if (currentStage == VillageStage)
             {
@@ -314,18 +353,35 @@ namespace Aethoria.Bootstrap
                 return;
             }
 
+            if (currentStage == EnsroomStage)
+            {
+                BuildEnsroom();
+                return;
+            }
+
+            if (currentStage <= RuinsStage1 && currentStage >= RuinsStage3)
+            {
+                BuildRuins(RuinsStage1 - currentStage + 1, enteringForward);
+                return;
+            }
+
             BuildMap(stageRoot.transform, MapWidth, MapHeight, out int xMin, out int xMax, out int yMin, out int yMax,
                 "Backgrounds/map", BackgroundGroundFraction);
             mapXMin = xMin; mapXMax = xMax; mapYMin = yMin; mapYMax = yMax;
 
             player.SetCombatLocked(false);
-            PlacePlayerAtSpawn(enteringForward ? xMin + 1.5f : xMax - 1.5f, yMin);
+            float playerSpawnX = enteringForward ? xMin + 1.5f : xMax - 1.5f;
+            PlacePlayerAtSpawn(playerSpawnX, yMin);
             FitCamera(xMin, xMax, yMin);
-            SpawnMonsters(stageRoot.transform, yMin);
 
+            // 보스 맵에는 보스만 나오고 일반 몬스터는 나오지 않는다.
             if (currentStage == BossStage)
             {
                 SpawnBoss(stageRoot.transform, yMin);
+            }
+            else
+            {
+                SpawnKnights(stageRoot.transform, yMin, MonsterSpawner.PickSpawnXs(KnightsPerStage, xMin, xMax, playerSpawnX));
             }
 
             // 왼쪽 끝은 항상 이전 스테이지(마을 포함)로 돌아가는 포탈, 오른쪽 끝은 마지막 스테이지가
@@ -390,8 +446,8 @@ namespace Aethoria.Bootstrap
         private const float PlainsGroundFraction = 0.82f;
 
         // plainsIndex: 1~3. 3번째 맵 끝에서만 필드 보스(슬라임)가 나온다(어둠의 숲이 BossStage에서만
-        // 보스를 추가하는 것과 같은 방식). 세 맵 모두 같은 지형/슬라임 배치를 재사용한다(어둠의 숲도
-        // 스테이지마다 같은 기사 배치를 재사용하는 것과 동일한 방식).
+        // 보스를 추가하는 것과 같은 방식). 세 맵 모두 같은 지형을 재사용하고, 슬라임은 1~2번째 맵에만
+        // 들어올 때마다 무작위 위치(MonsterSpawner)에 나온다.
         private static void BuildPlains(int plainsIndex, bool enteringForward)
         {
             BuildMap(stageRoot.transform, PlainsWidth, MapHeight, out int xMin, out int xMax, out int yMin, out int yMax,
@@ -399,27 +455,32 @@ namespace Aethoria.Bootstrap
             mapXMin = xMin; mapXMax = xMax; mapYMin = yMin; mapYMax = yMax;
 
             player.SetCombatLocked(false);
-            PlacePlayerAtSpawn(enteringForward ? xMin + 1.5f : xMax - 1.5f, yMin);
+            float playerSpawnX = enteringForward ? xMin + 1.5f : xMax - 1.5f;
+            PlacePlayerAtSpawn(playerSpawnX, yMin);
             FitCamera(xMin, xMax, yMin);
 
             SpawnPlainsPlatforms(stageRoot.transform, yMin);
-            SpawnSlimes(stageRoot.transform, yMin, new[] { -12f, -3f, 6f, 14f });
 
             bool isFirstPlains = plainsIndex <= 1;
             bool isLastPlains = plainsIndex >= TotalPlainsStages;
 
+            // 보스 맵(마지막 평야)에는 보스 슬라임만 나오고 일반 슬라임은 나오지 않는다.
             if (isLastPlains)
             {
                 SpawnBossSlime(stageRoot.transform, yMin);
             }
+            else
+            {
+                SpawnSlimes(stageRoot.transform, yMin, MonsterSpawner.PickSpawnXs(SlimesPerStage, xMin, xMax, playerSpawnX));
+            }
 
             var backPortal = SpawnPortal(stageRoot.transform, xMin + 0.5f, yMin, backward: true);
-            backPortal.SetCustomTrigger(isFirstPlains ? LeavePlainsToVillage : EnterPreviousPlainsStage);
+            backPortal.SetCustomTrigger(isFirstPlains ? LeaveFieldToVillage : EnterPreviousFieldStage);
 
             if (!isLastPlains)
             {
                 var forwardPortal = SpawnPortal(stageRoot.transform, xMax - 0.5f, yMin, backward: false);
-                forwardPortal.SetCustomTrigger(EnterNextPlainsStage);
+                forwardPortal.SetCustomTrigger(EnterNextFieldStage);
             }
 
             var stageManagerGO = new GameObject("StageManager");
@@ -460,6 +521,160 @@ namespace Aethoria.Bootstrap
             SpawnGroundProp(parent, "pillar_4", 17.8f, floorY, 20);
         }
 
+        // 엔스룸 마을: 몬스터도 StageManager도 없는 안전 지역. 왼쪽 끝 포탈로 처음 마을(출구 쪽)로 돌아간다.
+        // 배경(ensroom.png)은 원화(Ensroom Village, 2172x724) 아래쪽 돌바닥을 세로로 60px 늘여 덧붙인 것이다
+        // (맵 폭에 맞춰 깔면 바닥 아래가 1유닛 남짓밖에 안 남아 화면 맨 아래가 비었다). 벤치 바로 앞 돌바닥
+        // (원화 y 650)이 지금 그림 높이 784px 중 650px 지점이라 그 줄을 바닥으로 삼는다.
+        private const float EnsroomGroundFraction = 650f / 784f;
+
+        private static void BuildEnsroom()
+        {
+            BuildMap(stageRoot.transform, EnsroomWidth, MapHeight, out int xMin, out int xMax, out int yMin, out int yMax,
+                "Backgrounds/ensroom", EnsroomGroundFraction);
+            mapXMin = xMin; mapXMax = xMax; mapYMin = yMin; mapYMax = yMax;
+
+            player.SetCombatLocked(true);
+            // 왼쪽 끝 귀환 포탈 트리거(반경 2)에 걸리지 않을 만큼 떨어진 곳에 세운다(연습장과 같은 이유).
+            PlacePlayerAtSpawn(xMin + 4f, yMin);
+            FitCamera(xMin, xMax, yMin);
+
+            var backPortal = SpawnPortal(stageRoot.transform, xMin + 0.5f, yMin, backward: true);
+            backPortal.SetCustomTrigger(LeaveFieldToVillage);
+
+            Debug.Log("Aethoria: 엔스룸 마을 진입");
+        }
+
+        // 잊혀진 폐허: 1번째 맵은 폐허 입구(Forgotten Ruins_Entrance), 2~3번째 맵은 평평한 돌길이 이어지는
+        // 폐허 마당(Forgotten Ruins_yard). 마당 그림은 돌길 윗면이 약 81% 높이라 그 줄을 바닥으로 삼는다.
+        // 입구 그림은 왼쪽 높은 돌단 → 계단 → 가운데 돌다리 → 계단 → 오른쪽 아래 돌길로 내려가는 구조라,
+        // 가장 낮은 오른쪽 돌길(그림의 약 83.4% 높이)을 바닥으로 삼고 그 위로 길을 따라 경사 지형을 깐다.
+        // 콜로서스가 들어올 때마다 무작위 위치에 나오고, 보스는 아직 없다.
+        private const float RuinsEntranceGroundFraction = 785f / 941f;
+        private const float RuinsYardGroundFraction = 0.81f;
+
+        // 입구 지형: (월드 x, 바닥 위 높이). 배경(1672x941)이 맵 폭 40에 맞춰 깔려 1유닛 = 41.8px이므로
+        // x = 그림 x / 41.8 - 20, 높이 = (785 - 그림 y) / 41.8. 계단은 걸어서 오르내릴 수 있게 완만한 경사로 이었다.
+        private static readonly Vector2[] RuinsEntranceTerrain =
+        {
+            new Vector2(-20f, 4.43f),   // 왼쪽 높은 돌단(그림 y 600)
+            new Vector2(-9.71f, 4.43f),
+            new Vector2(-4.69f, 1.44f), // 계단을 내려와 가운데 돌다리(그림 y 725)
+            new Vector2(2.73f, 1.44f),
+            new Vector2(5.12f, 0f),     // 다시 계단을 내려와 오른쪽 돌길(바닥)
+        };
+
+        // 입구 맵에서는 높은 돌단 위에서도 화면이 잘리지 않게 카메라가 이만큼까지 따라 올라간다.
+        private const float RuinsEntranceCameraRise = 3f;
+
+        // x 위치의 지형 높이(바닥 기준). 지형이 없거나 지형 점 범위 밖(오른쪽 평지)이면 0.
+        private static float TerrainHeightAt(Vector2[] terrain, float x)
+        {
+            if (terrain == null || terrain.Length == 0) return 0f;
+            if (x <= terrain[0].x) return terrain[0].y;
+            for (int i = 1; i < terrain.Length; i++)
+            {
+                if (x <= terrain[i].x)
+                {
+                    float t = Mathf.InverseLerp(terrain[i - 1].x, terrain[i].x, x);
+                    return Mathf.Lerp(terrain[i - 1].y, terrain[i].y, t);
+                }
+            }
+            return 0f;
+        }
+
+        // 지형 윗면을 따라 이어진 선 콜라이더. 맨 왼쪽은 왼쪽 벽에, 맨 오른쪽은 바닥에 닿아 있어 아래로 빠질 틈이 없다.
+        private static void BuildTerrain(Transform parent, int floorY, Vector2[] terrain)
+        {
+            var go = new GameObject("Terrain", typeof(EdgeCollider2D));
+            go.transform.SetParent(parent);
+            go.transform.position = new Vector3(0f, floorY, 0f);
+
+            var edge = go.GetComponent<EdgeCollider2D>();
+            edge.points = terrain;
+            edge.edgeRadius = 0.05f;
+        }
+
+        private static void BuildRuins(int ruinsIndex, bool enteringForward)
+        {
+            bool isFirstRuins = ruinsIndex <= 1;
+            bool isLastRuins = ruinsIndex >= TotalRuinsStages;
+
+            BuildMap(stageRoot.transform, RuinsWidth, MapHeight, out int xMin, out int xMax, out int yMin, out int yMax,
+                isFirstRuins ? "Backgrounds/ruins_entrance" : "Backgrounds/ruins_yard",
+                isFirstRuins ? RuinsEntranceGroundFraction : RuinsYardGroundFraction);
+            mapXMin = xMin; mapXMax = xMax; mapYMin = yMin; mapYMax = yMax;
+
+            var terrain = isFirstRuins ? RuinsEntranceTerrain : null;
+            if (terrain != null) BuildTerrain(stageRoot.transform, yMin, terrain);
+
+            player.SetCombatLocked(false);
+            float playerSpawnX = enteringForward ? xMin + 1.5f : xMax - 1.5f;
+            PlacePlayerAtSpawn(playerSpawnX, yMin + TerrainHeightAt(terrain, playerSpawnX));
+            FitCamera(xMin, xMax, yMin, terrain != null ? RuinsEntranceCameraRise : 0f);
+
+            SpawnRuinsPlatforms(stageRoot.transform, yMin, ruinsIndex);
+            SpawnColossi(stageRoot.transform, x => yMin + TerrainHeightAt(terrain, x),
+                MonsterSpawner.PickSpawnXs(ColossiPerStage, xMin, xMax, playerSpawnX, minSpacing: 3.5f));
+
+            float backPortalX = xMin + 0.5f;
+            var backPortal = SpawnPortal(stageRoot.transform, backPortalX, yMin + TerrainHeightAt(terrain, backPortalX), backward: true);
+            backPortal.SetCustomTrigger(isFirstRuins ? LeaveFieldToVillage : EnterPreviousFieldStage);
+
+            if (!isLastRuins)
+            {
+                var forwardPortal = SpawnPortal(stageRoot.transform, xMax - 0.5f, yMin, backward: false);
+                forwardPortal.SetCustomTrigger(EnterNextFieldStage);
+            }
+
+            var stageManagerGO = new GameObject("StageManager");
+            stageManagerGO.transform.SetParent(stageRoot.transform);
+            stageManagerGO.AddComponent<StageManager>().Initialize(player);
+
+            Debug.Log($"Aethoria: 잊혀진 폐허 {ruinsIndex}/{TotalRuinsStages} 진입");
+        }
+
+        // 폐허 발판: Forgotten Ruins_Platform에서 잘라낸 떠 있는 돌섬들. 맵마다 다른 코스로 배치한다.
+        // 평야와 같은 규칙 — 인접 발판 높이 차는 2단 점프(약 3.2) 안, 바닥에서 바로 오르는 첫 발판은 3 이하.
+        // surfaceFromTopPx는 그림 맨 위에서 돌판 윗면(이끼 낀 밟는 면)까지의 픽셀.
+        private static void SpawnRuinsPlatforms(Transform parent, int floorY, int ruinsIndex)
+        {
+            switch (ruinsIndex)
+            {
+                case 1:
+                    // 입구: 길은 높은 돌단에서 계단 두 번을 거쳐 내려간다(RuinsEntranceTerrain). 발판은 그 길 위로
+                    // 돌단 위 돌섬 → 계단 위 돌섬들 → 긴 공중 다리로 이어지는 윗길을 만들고, 오른쪽 평지로 내려온다.
+                    SpawnPlatform(parent, "ruin_rock_3", -15.5f, floorY + 6.4f, 41, RuinsPropFolder);
+                    SpawnPlatform(parent, "ruin_rock_6", -6.8f, floorY + 5.4f, 34, RuinsPropFolder);
+                    SpawnPlatform(parent, "ruin_rock_5", -2.5f, floorY + 4.2f, 41, RuinsPropFolder);
+                    SpawnPlatform(parent, "ruin_bridge_long", 5.6f, floorY + 5.6f, 97, RuinsPropFolder);
+                    SpawnPlatform(parent, "ruin_rock_7", 13.2f, floorY + 3.0f, 20, RuinsPropFolder);
+                    SpawnPlatform(parent, "ruin_spire", 16.3f, floorY + 1.8f, 74, RuinsPropFolder);
+                    break;
+                case 2:
+                    // 마당 1: 작은 돌섬 계단으로 높은 다리까지 올라갔다가, 낮은 기둥 섬을 거쳐 다시 오르내린다.
+                    SpawnPlatform(parent, "ruin_rock_4", -15.5f, floorY + 2.4f, 34, RuinsPropFolder);
+                    SpawnPlatform(parent, "ruin_slab_4", -12.2f, floorY + 3.8f, 49, RuinsPropFolder);
+                    SpawnPlatform(parent, "ruin_bridge", -6.6f, floorY + 5.0f, 74, RuinsPropFolder);
+                    SpawnPlatform(parent, "ruin_rock_1", -1.2f, floorY + 3.6f, 55, RuinsPropFolder);
+                    SpawnPlatform(parent, "ruin_pillar_2", 3.4f, floorY + 1.4f, 137, RuinsPropFolder);
+                    SpawnPlatform(parent, "ruin_slab_3", 8.3f, floorY + 3.0f, 32, RuinsPropFolder);
+                    SpawnPlatform(parent, "ruin_rock_8", 12.5f, floorY + 4.4f, 46, RuinsPropFolder);
+                    SpawnPlatform(parent, "ruin_mound_3", 15.6f, floorY + 2.6f, 53, RuinsPropFolder);
+                    break;
+                default:
+                    // 마당 2: 탑이 솟은 성문 섬과 밧줄 다리 섬이 번갈아 나오는 높낮이 큰 코스.
+                    SpawnPlatform(parent, "ruin_pillar_1", -15.2f, floorY + 1.3f, 126, RuinsPropFolder);
+                    SpawnPlatform(parent, "ruin_mound_1", -10.6f, floorY + 2.8f, 86, RuinsPropFolder);
+                    SpawnPlatform(parent, "ruin_rock_2", -6.4f, floorY + 4.3f, 51, RuinsPropFolder);
+                    SpawnPlatform(parent, "ruin_gate_high", -1.6f, floorY + 2.0f, 178, RuinsPropFolder);
+                    SpawnPlatform(parent, "ruin_rope", 4.2f, floorY + 3.4f, 95, RuinsPropFolder);
+                    SpawnPlatform(parent, "ruin_mound_2", 8.6f, floorY + 4.8f, 61, RuinsPropFolder);
+                    SpawnPlatform(parent, "ruin_slab_1", 12.6f, floorY + 3.2f, 56, RuinsPropFolder);
+                    SpawnPlatform(parent, "ruin_pillar_4", 16.4f, floorY + 1.2f, 188, RuinsPropFolder);
+                    break;
+            }
+        }
+
         // 바닥에 세우는 조각(기둥/아치/낮은 단). 아랫단 돌무더기가 흙길에 살짝 묻히도록 조금 내려 박는다.
         private const float GroundPropSink = 0.15f;
 
@@ -471,21 +686,26 @@ namespace Aethoria.Bootstrap
             AddOneWaySurface(go, sprite, (sprite.rect.height - surfaceFromTopPx) / sprite.pixelsPerUnit);
         }
 
-        // 공중에 떠 있는 발판. surfaceY = 밟는 면의 월드 높이.
-        private static void SpawnPlatform(Transform parent, string spriteName, float x, float surfaceY, int surfaceFromTopPx)
+        // 공중에 떠 있는 발판. surfaceY = 밟는 면의 월드 높이. folder = 조각 그림이 있는 Resources 폴더.
+        private static void SpawnPlatform(Transform parent, string spriteName, float x, float surfaceY, int surfaceFromTopPx,
+            string folder = PlainsPropFolder)
         {
-            var sprite = Resources.Load<Sprite>("Art/Props/Plains/" + spriteName);
+            var sprite = Resources.Load<Sprite>(folder + spriteName);
             if (sprite == null) return;
 
             // 스프라이트 피벗은 하단 중앙이라, 밟는 면이 피벗보다 얼마나 위에 있는지 구해서 위치를 맞춘다.
             float surfaceAbovePivot = (sprite.rect.height - surfaceFromTopPx) / sprite.pixelsPerUnit;
-            var go = CreatePropSprite(parent, spriteName, new Vector3(x, surfaceY - surfaceAbovePivot, 0f), out _);
+            var go = CreatePropSprite(parent, spriteName, new Vector3(x, surfaceY - surfaceAbovePivot, 0f), out _, folder);
             AddOneWaySurface(go, sprite, surfaceAbovePivot);
         }
 
-        private static GameObject CreatePropSprite(Transform parent, string spriteName, Vector3 position, out Sprite sprite)
+        private const string PlainsPropFolder = "Art/Props/Plains/";
+        private const string RuinsPropFolder = "Art/Props/Ruins/";
+
+        private static GameObject CreatePropSprite(Transform parent, string spriteName, Vector3 position, out Sprite sprite,
+            string folder = PlainsPropFolder)
         {
-            sprite = Resources.Load<Sprite>("Art/Props/Plains/" + spriteName);
+            sprite = Resources.Load<Sprite>(folder + spriteName);
             if (sprite == null) return null;
 
             var go = new GameObject("Prop_" + spriteName, typeof(SpriteRenderer));
@@ -647,7 +867,7 @@ namespace Aethoria.Bootstrap
             data.monsterName = "허수아비";
             data.level = 1;
             data.maxHp = 1000000f; // 맞을 때마다 다시 가득 차므로 사실상 무한
-            data.attack = 0f;
+            data.attack = 0f; // 놓치면 최소 기본 데미지(5)만 들어오고, 연습장에서는 체력이 바로 다시 찬다
             data.defense = 0f;
             data.expReward = 0;
             data.goldReward = 0;
@@ -671,7 +891,7 @@ namespace Aethoria.Bootstrap
             }
         }
 
-        private static void PlacePlayerAtSpawn(float spawnX, int floorY)
+        private static void PlacePlayerAtSpawn(float spawnX, float floorY)
         {
             player.transform.position = new Vector3(spawnX, floorY, 0f);
             var body = player.GetComponent<Rigidbody2D>();
@@ -679,14 +899,14 @@ namespace Aethoria.Bootstrap
         }
 
         private static void BuildMap(Transform parent, int width, int height, out int xMin, out int xMax, out int yMin, out int yMax,
-            string backgroundResourcePath, float groundFraction)
+            string backgroundResourcePath, float groundFraction, float backgroundScale = 0f)
         {
             xMin = -width / 2;
             xMax = xMin + width - 1;
             yMin = -height / 2;
             yMax = yMin + height - 1;
 
-            BuildMapBackground(parent, xMin, xMax, yMin, backgroundResourcePath, groundFraction);
+            BuildMapBackground(parent, xMin, xMax, yMin, backgroundResourcePath, groundFraction, backgroundScale);
             BuildBoundaryWalls(parent, xMin, xMax, yMin, yMax);
         }
 
@@ -702,8 +922,10 @@ namespace Aethoria.Bootstrap
 
         // 배경 원화를 맵 폭(xMin~xMax+1)에 맞춰 가로세로 비율 그대로 깔되, 세로 커버리지가 모자라면
         // 대신 세로 기준으로 확대한다. groundFraction 지점이 정확히 바닥 높이(yMin)에 오도록 맞춘다.
+        // fixedScale > 0이면 그 배율을 그대로 쓴다(그림 속 건물이 캐릭터에 비해 너무 커 보일 때). 그러면 맵 폭을
+        // 다 못 덮을 수 있어서, 좌우 반전한 복사본을 양옆에 이어 붙여 이음매 없이 채운다.
         private static void BuildMapBackground(Transform parent, int xMin, int xMax, int yMin,
-            string backgroundResourcePath, float groundFraction)
+            string backgroundResourcePath, float groundFraction, float fixedScale = 0f)
         {
             var sprite = Resources.Load<Sprite>(backgroundResourcePath);
             if (sprite == null) return;
@@ -711,22 +933,34 @@ namespace Aethoria.Bootstrap
             float width = xMax - xMin + 1;
             float centerX = (xMin + xMax + 1) / 2f;
 
-            var go = new GameObject("MapBackground", typeof(SpriteRenderer));
-            go.transform.SetParent(parent);
-
-            var renderer = go.GetComponent<SpriteRenderer>();
-            renderer.sprite = sprite;
-            renderer.sortingOrder = -10;
-
             Vector2 nativeSize = sprite.bounds.size;
-            float scaleByWidth = width / nativeSize.x;
-            float scaleByHeight = MinBackgroundHeightAboveGround / (nativeSize.y * groundFraction);
-            float scale = Mathf.Max(scaleByWidth, scaleByHeight);
-            go.transform.localScale = new Vector3(scale, scale, 1f);
+            float scale = fixedScale;
+            if (scale <= 0f)
+            {
+                float scaleByWidth = width / nativeSize.x;
+                float scaleByHeight = MinBackgroundHeightAboveGround / (nativeSize.y * groundFraction);
+                scale = Mathf.Max(scaleByWidth, scaleByHeight);
+            }
 
+            float scaledWidth = nativeSize.x * scale;
             float scaledHeight = nativeSize.y * scale;
             float centerY = yMin + scaledHeight * (groundFraction - 0.5f);
-            go.transform.position = new Vector3(centerX, centerY, 0f);
+
+            // 가운데 한 장 + 맵 끝까지 덮는 데 필요한 만큼 양옆으로(홀수 번째는 좌우 반전).
+            int sideTiles = Mathf.Max(0, Mathf.CeilToInt((width / scaledWidth - 1f) / 2f));
+            for (int i = -sideTiles; i <= sideTiles; i++)
+            {
+                var go = new GameObject("MapBackground", typeof(SpriteRenderer));
+                go.transform.SetParent(parent);
+
+                var renderer = go.GetComponent<SpriteRenderer>();
+                renderer.sprite = sprite;
+                renderer.sortingOrder = -10;
+                renderer.flipX = (i & 1) != 0;
+
+                go.transform.localScale = new Vector3(scale, scale, 1f);
+                go.transform.position = new Vector3(centerX + i * scaledWidth, centerY, 0f);
+            }
         }
 
         private static void BuildBoundaryWalls(Transform parent, int xMin, int xMax, int yMin, int yMax)
@@ -757,7 +991,8 @@ namespace Aethoria.Bootstrap
             wall.GetComponent<BoxCollider2D>().size = size;
         }
 
-        private static void FitCamera(int xMin, int xMax, int floorY)
+        // maxRise > 0이면 플레이어가 바닥보다 높은 곳(언덕/계단 위)에 올라갔을 때 카메라도 그만큼까지 따라 올라간다.
+        private static void FitCamera(int xMin, int xMax, int floorY, float maxRise = 0f)
         {
             var mainCamera = Camera.main;
             if (mainCamera == null) return;
@@ -776,7 +1011,7 @@ namespace Aethoria.Bootstrap
             float cameraY = floorY + orthoSize * 0.6f;
             var follow = mainCamera.GetComponent<CameraFollow>();
             if (follow == null) follow = mainCamera.gameObject.AddComponent<CameraFollow>();
-            follow.Follow(player.transform, xMin, xMax, cameraY);
+            follow.Follow(player.transform, xMin, xMax, cameraY, floorY, maxRise);
         }
 
         private static void BuildHud(Character player)
@@ -809,6 +1044,9 @@ namespace Aethoria.Bootstrap
             inventoryUI = canvasGO.AddComponent<InventoryUI>();
             inventoryUI.Initialize(player, player.GetComponent<CharacterMovement2D>());
 
+            statusUI = canvasGO.AddComponent<StatusUI>();
+            statusUI.Initialize(player, player.GetComponent<CharacterMovement2D>());
+
             shopUI = canvasGO.AddComponent<ShopUI>();
             shopUI.Initialize(player, player.GetComponent<CharacterMovement2D>());
 
@@ -836,6 +1074,9 @@ namespace Aethoria.Bootstrap
             saveScreen.Initialize(player.GetComponent<CharacterMovement2D>());
             canvasGO.AddComponent<AutoSaveOnQuit>().Initialize(SaveGame);
 
+            // 필드에서 Esc → 타이틀로 돌아가기 확인 창.
+            canvasGO.AddComponent<TitleReturnUI>().Initialize(player, player.GetComponent<CharacterMovement2D>());
+
             // 다른 HUD 요소 위에 그려지도록 가장 마지막에 추가한다(같은 캔버스에서 나중 자식이 위에 그려짐).
             tutorialUI = canvasGO.AddComponent<TutorialUI>();
             tutorialUI.Initialize(player.GetComponent<CharacterMovement2D>());
@@ -847,8 +1088,9 @@ namespace Aethoria.Bootstrap
             data.characterName = "소울이터";
             data.minLevel = 1;
             data.maxLevel = 50;
-            data.baseStats = new StatBlock { attack = 60, magic = 70, hp = 150, agility = 30, defense = 60, mana = 120 };
-            data.growthPerLevel = new StatBlock { attack = 2, magic = 2, hp = 5, agility = 0, defense = 2, mana = 2 };
+            // 데미지 계산식(DamageCalculation.md) 규모: 1레벨 공격력 15 / 방어력 1. 레벨당 +0.5씩 오른다.
+            data.baseStats = new StatBlock { attack = 15, magic = 18, hp = 150, agility = 30, defense = 1, mana = 120 };
+            data.growthPerLevel = new StatBlock { attack = 0.5f, magic = 0.5f, hp = 5, agility = 0, defense = 0.5f, mana = 2 };
 
             var go = new GameObject("PlayerCharacter");
             go.AddComponent<Rigidbody2D>();
@@ -871,36 +1113,31 @@ namespace Aethoria.Bootstrap
             character.AssignData(data);
             go.AddComponent<HitReactSpriteAnimator>();
             go.AddComponent<Inventory>();
-            go.AddComponent<CharacterAttack2D>();
+            // 전투는 몬스터와 닿으면 시작되는 리듬 전투(RhythmBattleUI)로만 진행하므로,
+            // 필드에서 쓰던 기본 공격/스킬(CharacterAttack2D, CharacterSkill*)은 붙이지 않는다.
+            // 대시만 몹을 피해 지나가는 회피기로 남긴다(피해 없음).
             go.AddComponent<CharacterSkillDash>();
-            go.AddComponent<CharacterSkillX>();
-            go.AddComponent<CharacterSkillQ>();
-            go.AddComponent<CharacterSkillA>();
-            go.AddComponent<CharacterSkillS>();
-            go.AddComponent<CharacterSkillD>();
-            go.AddComponent<CharacterSkillW>();
-            go.AddComponent<CharacterSkillE>();
-            go.AddComponent<CharacterSkillR>();
 
             return character;
         }
 
-        // 어둠의 숲(1~3스테이지)에는 기사만 나온다. 슬라임은 광활한 평야(BuildPlains)에서만 나온다.
-        private static void SpawnMonsters(Transform parent, int floorY)
-        {
-            SpawnKnights(parent, floorY);
-        }
+        // 일반 몬스터 수. 위치는 맵에 들어올 때마다 MonsterSpawner가 무작위로 고른다.
+        // 어둠의 숲(1~2스테이지)에는 기사만, 광활한 평야(1~2번째 맵)에는 슬라임만 나온다. 보스 맵에는 일반 몬스터가 없다.
+        private const int KnightsPerStage = 3;
+        private const int SlimesPerStage = 4;
+        private const int ColossiPerStage = 3;
 
-        private static void SpawnSlimes(Transform parent, int floorY, float[] xOffsets)
+        private static void SpawnSlimes(Transform parent, int floorY, IEnumerable<float> xOffsets)
         {
             var data = ScriptableObject.CreateInstance<MonsterData>();
             data.monsterName = "슬라임";
             data.level = 1;
-            data.maxHp = 200f; // 리듬전투 한 턴(4타) 정도는 버티도록(한 방에 끝나지 않게)
-            data.attack = 1f;
-            data.defense = 0f;
+            // 플레이어(공격력 15) 노드 한 타 약 15, 일반 채보(약 9노드) 전부 Perfect면 약 160 — 한두 턴에 잡힌다.
+            data.maxHp = 150f;
+            data.attack = 3f; // 놓친 노드마다 (3-1) x 0.7 + 5 = 약 6
+            data.defense = 1f;
             data.expReward = 10;
-            data.goldReward = 5;
+            data.goldReward = 8;
 
             foreach (var x in xOffsets)
             {
@@ -928,11 +1165,12 @@ namespace Aethoria.Bootstrap
             var data = ScriptableObject.CreateInstance<MonsterData>();
             data.monsterName = "보스 슬라임";
             data.level = 6;
-            data.maxHp = 1200f;
-            data.attack = 66f; // 플레이어 방어력(60) 기준 몸통 접촉 약 6, 물대포(x1.5) 약 40
-            data.defense = 10f;
+            // 보스 채보(약 17노드) 한 턴 전부 Perfect면 약 265 — 서너 턴은 버틴다.
+            data.maxHp = 800f;
+            data.attack = 10f; // 놓친 노드마다 (10-1) x 0.7 + 5 = 약 11
+            data.defense = 4f;
             data.expReward = 300;
-            data.goldReward = 150;
+            data.goldReward = 200;
 
             var go = new GameObject("Boss_Slime");
             go.transform.position = new Vector3(16f, floorY, 0f);
@@ -953,21 +1191,56 @@ namespace Aethoria.Bootstrap
             go.AddComponent<MonsterHealthBar>().Configure(newWidth: 2.4f, newVerticalOffset: 0.15f);
 
             bossHealthUI.Bind(monster, data.monsterName);
-            monster.OnDied += _ => stageClearUI.Show();
+            monster.OnDied += _ => stageClearUI.Show(() => RetryDungeon(PlainsStage1));
         }
 
-        private static void SpawnKnights(Transform parent, int floorY)
+        // 잊혀진 폐허의 기본 몬스터. 이끼 낀 돌 거인이라 기사보다 크고(약 2.2유닛) 단단하다.
+        // groundYAt: x 위치의 지면 높이(입구처럼 경사 지형이 있는 맵에서 땅 속에 박히지 않게).
+        private static void SpawnColossi(Transform parent, System.Func<float, float> groundYAt, IEnumerable<float> xOffsets)
+        {
+            var data = ScriptableObject.CreateInstance<MonsterData>();
+            data.monsterName = "콜로서스";
+            data.level = 4;
+            // 플레이어 노드 한 타 약 12(방어력 5), 일반 채보 전부 Perfect면 약 130 — 두세 턴은 버틴다.
+            data.maxHp = 300f;
+            data.attack = 8f; // 놓친 노드마다 (8-1) x 0.7 + 5 = 약 10
+            data.defense = 5f;
+            data.expReward = 35;
+            data.goldReward = 26;
+
+            foreach (var x in xOffsets)
+            {
+                var go = new GameObject("Colossus");
+                go.transform.position = new Vector3(x, groundYAt(x), 0f);
+                go.transform.SetParent(parent);
+                go.AddComponent<SpriteRenderer>();
+                go.AddComponent<CharacterPlaceholderVisual>().Configure(new Color(0.6f, 0.6f, 0.55f), 40, 44);
+
+                var collider = go.AddComponent<BoxCollider2D>();
+                collider.size = new Vector2(1.3f, 2f);
+                collider.offset = new Vector2(0f, 1f);
+
+                go.AddComponent<Rigidbody2D>();
+                go.AddComponent<MonsterWalkSpriteAnimator>().Configure("Art/Monsters/Colossus/Walk");
+                go.AddComponent<MonsterAttackSpriteAnimator>().Configure("Art/Monsters/Colossus/Attack", 0.9f);
+                go.AddComponent<Monster>().AssignData(data);
+                go.AddComponent<MonsterAI>();
+                go.AddComponent<MonsterHealthBar>().Configure(newWidth: 1.4f, newVerticalOffset: 0.15f);
+            }
+        }
+
+        private static void SpawnKnights(Transform parent, int floorY, IEnumerable<float> xOffsets)
         {
             var data = ScriptableObject.CreateInstance<MonsterData>();
             data.monsterName = "기사";
             data.level = 1;
-            data.maxHp = 80f; // 플레이어 기본 공격(약 60 데미지) 한 방에 죽지 않고 2대는 맞아야 죽을 정도로
-            data.attack = 2f;
-            data.defense = 0f;
+            // 플레이어 노드 한 타 약 13(방어력 3), 일반 채보 전부 Perfect면 약 145 — 슬라임보다 조금 질기다.
+            data.maxHp = 170f;
+            data.attack = 5f; // 놓친 노드마다 (5-1) x 0.7 + 5 = 약 8
+            data.defense = 3f;
             data.expReward = 20; // 보스 전 일반 스테이지가 줄어든 만큼(4→2) 마리당 경험치를 2배로 올려 보정
-            data.goldReward = 10;
+            data.goldReward = 15;
 
-            float[] xOffsets = { 3f, -3f, 6f };
             foreach (var x in xOffsets)
             {
                 var go = new GameObject("Knight");
@@ -994,11 +1267,12 @@ namespace Aethoria.Bootstrap
             var data = ScriptableObject.CreateInstance<MonsterData>();
             data.monsterName = "보스 기사";
             data.level = 10;
-            data.maxHp = 2500f;
-            data.attack = 70f; // 플레이어 방어력(60) 기준 콤보 전체가 체력의 20~27% 정도 나가는 수준
-            data.defense = 20f;
+            // 최종 보스. 보스 채보 한 턴 전부 Perfect면 약 245(방어력 5) — 1레벨 기준 일곱 턴 남짓.
+            data.maxHp = 1800f;
+            data.attack = 15f; // 놓친 노드마다 (15-1) x 0.7 + 5 = 약 15
+            data.defense = 5f;
             data.expReward = 600;
-            data.goldReward = 300;
+            data.goldReward = 400;
 
             var go = new GameObject("Boss_Knight");
             go.transform.position = new Vector3(5f, floorY, 0f);
@@ -1020,13 +1294,14 @@ namespace Aethoria.Bootstrap
             go.AddComponent<MonsterHealthBar>().Configure(newWidth: 1.4f, newVerticalOffset: 0.15f);
 
             bossHealthUI.Bind(monster, data.monsterName);
-            monster.OnDied += _ => stageClearUI.Show(); // 보스를 잡으면 3초 후 마을(노아 앞)로
+            monster.OnDied += _ => stageClearUI.Show(() => RetryDungeon(1)); // 보스를 잡으면 스테이지 클리어 창
             monster.OnDied += _ => TryDropDevilNecklace();
         }
 
         // 강화석 드랍: 일반 몬스터는 25% 확률로 1개, 보스(기사/슬라임)는 항상 3개.
         private const float EnhanceStoneDropChance = 0.25f;
         private const int BossEnhanceStoneDrop = 3;
+        private const int StarterPotionCount = 3;
 
         private static void HandleMonsterDiedForDrops(Monster monster)
         {
@@ -1061,7 +1336,7 @@ namespace Aethoria.Bootstrap
         // 지정한 x 위치에 포탈을 놓는다. 포탈 그림이 반복 재생되고, 플레이어가 일정 거리 안에 들어오면
         // 자동으로 다음(또는 backward=true면 이전) 스테이지로 넘어간다. 반환값은 호출부에서
         // SetCustomTrigger로 기본 동작을 다른 걸로 바꿔치기하고 싶을 때(월드맵 등) 쓴다.
-        private static Portal SpawnPortal(Transform parent, float x, int floorY, bool backward)
+        private static Portal SpawnPortal(Transform parent, float x, float floorY, bool backward)
         {
             var go = new GameObject(backward ? "Portal_Back" : "Portal_Forward");
             go.transform.position = new Vector3(x, floorY + PortalHeightAboveFloor, 0f);

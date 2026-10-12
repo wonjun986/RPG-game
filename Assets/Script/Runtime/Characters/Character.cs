@@ -176,17 +176,19 @@ namespace Aethoria.Characters
             equipmentStats = stats;
         }
 
-        // 플레이어가 몬스터를 때릴 때의 공통 피해 처리. 공격력 x 배율로 기본 피해를 굴리고,
-        // 스킬이면 스킬 피해 증가를 곱한 뒤, 치명타 확률에 걸리면 치명타 피해 배율을 곱한다.
+        // 플레이어가 몬스터를 때릴 때의 공통 피해 처리(DamageCalculation.md).
+        // 기본 데미지((공격력 - 방어력) x 0.7 + 5)에 배율(리듬 판정 x 스킬 배수)을 곱하고,
+        // 스킬이면 장비의 스킬 피해 증가를, 치명타 확률에 걸리면 치명타 피해 배율을 곱한 뒤 랜덤 -1~+1을 더한다.
         public float DealDamage(Monster target, float attackMultiplier, bool isSkill)
         {
             if (target == null || target.IsDead) return 0f;
 
-            float damage = CombatMath.PhysicalDamage(Stats.attack * attackMultiplier, target.Defense);
+            float damage = CombatMath.BaseDamage(Stats.attack, target.Defense) * attackMultiplier;
             if (isSkill) damage *= 1f + SkillDamagePercent / 100f;
 
             bool isCritical = UnityEngine.Random.value * 100f < CritChancePercent;
             if (isCritical) damage *= CritDamagePercent / 100f;
+            damage = CombatMath.Finish(damage);
 
             target.TakeDamage(damage, isCritical);
             return damage;
@@ -216,9 +218,13 @@ namespace Aethoria.Characters
 
         // sourcePosition: 공격이 날아온 위치(몬스터/투사체 위치 등). 넉백 방향을 거기서 멀어지는
         // 쪽으로 잡는 데 쓴다. 모르면 null로 두면 바라보는 반대 방향으로 밀려난다.
-        public void TakeDamage(float finalDamage, Vector2? sourcePosition = null)
+        // hitReaction=false면 피격 직후 무적/넉백을 걸지도, 그 무적에 막히지도 않는다 — 리듬전투처럼
+        // 0.5초 안에 노드가 여러 개 연달아 오는 곳에서 연속 피격이 무적에 묻히지 않게 할 때 쓴다.
+        // (스킬로 거는 무적은 그대로 존중한다.)
+        public void TakeDamage(float finalDamage, Vector2? sourcePosition = null, bool hitReaction = true)
         {
-            if (IsDead || IsInvincible || finalDamage <= 0f) return;
+            bool blocked = hitReaction ? IsInvincible : isInvincible;
+            if (IsDead || blocked || finalDamage <= 0f) return;
 
             currentHp = Mathf.Max(0f, currentHp - finalDamage);
             OnDamaged?.Invoke(this, finalDamage);
@@ -230,6 +236,7 @@ namespace Aethoria.Characters
                 return;
             }
 
+            if (!hitReaction) return;
             postHitInvincibleRemaining = postHitInvincibleDuration;
             ApplyKnockback(sourcePosition);
         }
