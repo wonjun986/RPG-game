@@ -28,9 +28,10 @@ namespace Aethoria.Stages
         // 포탈 그림을 자식 오브젝트로 붙인다. 포탈은 맵 끝에서 0.5만큼 안쪽에 놓이므로 그림 중심을
         // 그대로 두면 절반 가까이 화면 밖으로 잘린다. inwardOffset만큼 맵 안쪽으로 밀어서 그린다.
         // floorOffset은 포탈 오브젝트 위치에서 바닥까지의 높이 차(스프라이트 피벗이 발판 높이에 있음).
-        public void CreateVisual(float inwardOffset, float floorOffset)
+        // framesPath: 지역마다 다른 포탈 그림을 쓰고 싶으면 넘긴다(예: 엔스룸 전용 금빛 포탈). 안 주면 기본 포탈.
+        public void CreateVisual(float inwardOffset, float floorOffset, string framesPath = FramesPath)
         {
-            frames = Resources.LoadAll<Sprite>(FramesPath);
+            frames = Resources.LoadAll<Sprite>(framesPath);
             if (frames == null || frames.Length == 0) return;
             System.Array.Sort(frames, (a, b) => string.CompareOrdinal(a.name, b.name));
 
@@ -43,9 +44,48 @@ namespace Aethoria.Stages
             visualRenderer.sortingOrder = -5; // 배경보다 앞, 캐릭터/몬스터보다 뒤
         }
 
+        // 테두리(조각/덩굴)는 고정이고 안쪽 거울만 소용돌이치는 포탈용. 장식 전체를 매번 통째로
+        // 갈아 끼우면 프레임마다 테두리 그림이 미세하게 달라서 전체가 흔들려 보였다(엔스룸 포탈에서 발견).
+        // basePath의 그림 한 장은 고정으로 깔고, overlayFramesPath의 그림들(테두리와 같은 캔버스 크기,
+        // 거울 부분만 그려져 있고 나머지는 투명)만 애니메이션으로 그 위에 겹친다. 두 그림이 같은 크기/
+        // 피벗이면 좌표 계산 없이 같은 자리에 겹치기만 해도 딱 맞는다.
+        // 거울 프레임마다 임포트 트리밍/피벗이 미세하게(혹은 어떨 땐 크게) 어긋나는 문제를 몇 번
+        // 다르게 고쳐 봤는데도 계속 밀리거나 아예 위치가 틀어졌다. 이 프로젝트에서 임포트 설정이
+        // 믿을 수 없게 바뀌는 걸 반복해서 겪어서, 더 이상 여러 프레임을 갈아 끼우지 않고 한 장만
+        // 고정해서 쓴다 — 애니메이션은 포기하지만 적어도 움직이거나 어긋나 보이지 않는다.
+        public void CreateLayeredVisual(float inwardOffset, float floorOffset, string basePath, string overlayFramesPath)
+        {
+            var baseSprite = Resources.Load<Sprite>(basePath);
+            if (baseSprite == null) return;
+
+            var go = new GameObject("PortalVisual");
+            go.transform.SetParent(transform, false);
+            go.transform.localPosition = new Vector3(backward ? inwardOffset : -inwardOffset, -floorOffset, 0f);
+
+            var overlayFrames = Resources.LoadAll<Sprite>(overlayFramesPath);
+            if (overlayFrames != null && overlayFrames.Length > 0)
+            {
+                System.Array.Sort(overlayFrames, (a, b) => string.CompareOrdinal(a.name, b.name));
+
+                var overlayGO = new GameObject("Swirl");
+                overlayGO.transform.SetParent(go.transform, false);
+                var overlayRenderer = overlayGO.AddComponent<SpriteRenderer>();
+                overlayRenderer.sprite = overlayFrames[overlayFrames.Length / 2];
+                overlayRenderer.sortingOrder = -5;
+            }
+
+            // 테두리는 거울보다 앞에 그린다(테두리 안쪽 타원은 이미 투명하게 뚫려 있어서 거울이
+            // 정상적으로 비쳐 보인다).
+            var baseGO = new GameObject("Base");
+            baseGO.transform.SetParent(go.transform, false);
+            var baseRenderer = baseGO.AddComponent<SpriteRenderer>();
+            baseRenderer.sprite = baseSprite;
+            baseRenderer.sortingOrder = -4;
+        }
+
         private void Update()
         {
-            if (visualRenderer == null || frames.Length < 2) return;
+            if (visualRenderer == null || frames == null || frames.Length < 2) return;
 
             frameTimer += Time.deltaTime;
             if (frameTimer < FrameDuration) return;

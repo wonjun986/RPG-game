@@ -43,6 +43,14 @@ namespace Aethoria.Bootstrap
         // 엔스룸 마을: 월드맵에서 들어가는 두 번째 안전 지역. 몬스터 없이 분수 광장을 걸어 다닐 수 있다.
         private const int EnsroomStage = -8;
         private const int EnsroomWidth = 32;
+        // 이리아의 성소: 천상으로 향하는 계단의 성소 건물(겉모습)로 들어가면 나오는 작은 실내 맵. 막다른
+        // 방이라 돌아가는 포탈 하나만 있다.
+        private const int SanctuaryStage = -9;
+        private const int SanctuaryWidth = 20;
+        // 천상으로 향하는 계단: 월드맵에서 들어가는 세 번째 안전 지역. 원래 엔스룸 분수 앞에 있던 성소
+        // 건물이 여기로 옮겨 왔고, 엔스룸은 다시 건물 없는 빈 광장으로 되돌아갔다.
+        private const int TempleStage = -10;
+        private const int TempleWidth = 32;
 
         // 마을에 들어올 때 서는 자리. Edge는 들어온 방향에 따라 왼쪽/오른쪽 끝.
         private enum VillageSpawn { Edge, Noa, Isis }
@@ -62,6 +70,7 @@ namespace Aethoria.Bootstrap
         private static StatusUI statusUI;
         private static ShopUI shopUI;
         private static EnhanceUI enhanceUI;
+        private static BlessingUI blessingUI;
         private static QuestManager questManager;
         private static DailyQuestManager dailyQuestManager;
         private static SaveToastUI saveToast;
@@ -116,6 +125,7 @@ namespace Aethoria.Bootstrap
                 inventory.RestoreItems(save.items);
                 inventory.RestoreEquipped(save.equipped);
                 inventory.RestoreEnhanceLevels(save.enhanceLevels);
+                player.RestoreBlessingLevel(save.blessingLevel);
             }
 
             BuildHud(player);
@@ -179,6 +189,7 @@ namespace Aethoria.Bootstrap
                 items = player.GetComponent<Inventory>().ToSaveEntries(),
                 equipped = player.GetComponent<Inventory>().ToEquipSaveEntries(),
                 enhanceLevels = player.GetComponent<Inventory>().ToEnhanceSaveEntries(),
+                blessingLevel = player.BlessingLevel,
                 questIndex = questManager.QuestIndex,
                 questStatus = (int)questManager.Status,
                 questProgress = questManager.Progress,
@@ -215,6 +226,7 @@ namespace Aethoria.Bootstrap
             statusUI = null;
             shopUI = null;
             enhanceUI = null;
+            blessingUI = null;
             questManager = null;
             dailyQuestManager = null;
             saveToast = null;
@@ -294,6 +306,26 @@ namespace Aethoria.Bootstrap
             BuildStage(enteringForward: true);
         }
 
+        // 엔스룸 분수 앞 성소 입구(SanctuaryEntrance)에서 [Z]를 누르면 호출된다.
+        private static void EnterSanctuary()
+        {
+            currentStage = SanctuaryStage;
+            BuildStage(enteringForward: true);
+        }
+
+        // 성소 안의 돌아가는 포탈. 엔스룸 분수 앞(성소 입구)으로 돌아간다. 엔스룸은 포탈이 하나뿐이라
+        // BuildEnsroom이 늘 왼쪽 끝(마을 포탈 쪽)에 스폰시키는데, 성소에서 나올 때는 그러면 방금 나온
+        // 입구에서 저 멀리 가로질러 걸어야 해서 어색하다. 플래그를 하나 세워서 이번 한 번만 성소
+        // 입구 자리에 세우게 한다.
+        private static bool ensroomSpawnAtSanctuary;
+
+        private static void LeaveSanctuary()
+        {
+            currentStage = EnsroomStage;
+            ensroomSpawnAtSanctuary = true;
+            BuildStage(enteringForward: false);
+        }
+
         // 평야/폐허 맵 사이를 오갈 때 쓴다(일반 스테이지의 EnterNextStage/EnterPreviousStage와 달리 음수
         // 번호라 그쪽 함수의 경계 체크와 맞지 않아 따로 둔다). 숫자가 작을수록(더 음수) 더 깊은 맵이다.
         private static void EnterNextFieldStage()
@@ -359,6 +391,12 @@ namespace Aethoria.Bootstrap
                 return;
             }
 
+            if (currentStage == SanctuaryStage)
+            {
+                BuildSanctuary();
+                return;
+            }
+
             if (currentStage <= RuinsStage1 && currentStage >= RuinsStage3)
             {
                 BuildRuins(RuinsStage1 - currentStage + 1, enteringForward);
@@ -374,6 +412,8 @@ namespace Aethoria.Bootstrap
             PlacePlayerAtSpawn(playerSpawnX, yMin);
             FitCamera(xMin, xMax, yMin);
 
+            SpawnForestPlatforms(stageRoot.transform, yMin, currentStage);
+
             // 보스 맵에는 보스만 나오고 일반 몬스터는 나오지 않는다.
             if (currentStage == BossStage)
             {
@@ -381,7 +421,10 @@ namespace Aethoria.Bootstrap
             }
             else
             {
-                SpawnKnights(stageRoot.transform, yMin, MonsterSpawner.PickSpawnXs(KnightsPerStage, xMin, xMax, playerSpawnX));
+                // 기본 간격(2.5)은 맵이 좁아지니 기사 세 마리가 한데 뭉쳐 나와 피할 틈이 없었다.
+                // 서로 최소 4.5 떨어뜨려서 최소 한쪽은 지나갈 길이 남게 한다.
+                SpawnKnights(stageRoot.transform, yMin,
+                    MonsterSpawner.PickSpawnXs(KnightsPerStage, xMin, xMax, playerSpawnX, minSpacing: 4.5f));
             }
 
             // 왼쪽 끝은 항상 이전 스테이지(마을 포함)로 돌아가는 포탈, 오른쪽 끝은 마지막 스테이지가
@@ -398,6 +441,55 @@ namespace Aethoria.Bootstrap
 
             Debug.Log($"Aethoria: 맵 {currentStage}/{TotalStages} 진입");
         }
+
+        // 어둠의 숲 발판: 원화(DrakForest_scattfolding) 속 이끼 낀 바위섬/구름다리를 조각내 전용
+        // 스프라이트(Art/Props/Forest)로 만들고 실제로 밟을 수 있게 올려준다.
+        // 평야/폐허와 달리 바닥이 끊김 없이 쭉 이어진 평지라, 플레이어가 아무 발판 바로 밑까지
+        // 걸어가서 제자리에서 2단 점프로 올라탈 수 있어야 한다. 2단 점프 최고 높이는
+        // jumpForce(11.3)/gravityScale(4)로 계산하면 약 3.25유닛이라 바닥 기준 2.7을 넘기지 않는다.
+        // 또한 MonsterAI.jumpOverHeight(2)보다 높이 있어야 발판 위에 서 있는 동안 바로 아래를
+        // 지나가는 기사와 부딪히지 않고 피할 수 있다 — 그래서 전부 바닥 기준 2.1~2.7 사이로 맞췄다
+        // (기사 세 마리가 한데 뭉쳐 나와도 발판으로 피해 지나갈 길을 주기 위함, SpawnKnights 쪽
+        // minSpacing도 같이 넓혔다). 가로 폭 20유닛 맵에 8개(보스 맵은 7개)를 촘촘히 깔아 거의 끊김
+        // 없이 발판을 타고 넘어갈 수 있게 했다. 보스 맵은 보스가 서는 x=5 바닥 자리 위로는 큰 발판만
+        // 높이 띄워 지나가고, 나머지는 양옆에 둔다.
+        private static void SpawnForestPlatforms(Transform parent, int floorY, int stageIndex)
+        {
+            switch (stageIndex)
+            {
+                case 1:
+                    SpawnPlatform(parent, "forest_platform_9", -7.5f, floorY + 2.1f, 58, ForestPropFolder);
+                    SpawnPlatform(parent, "forest_platform_7", -5.7f, floorY + 2.4f, 40, ForestPropFolder);
+                    SpawnPlatform(parent, "forest_platform_8", -3.9f, floorY + 2.6f, 29, ForestPropFolder);
+                    SpawnPlatform(parent, "forest_platform_5", -2.0f, floorY + 2.2f, 53, ForestPropFolder);
+                    SpawnPlatform(parent, "forest_platform_6", 0.1f, floorY + 2.7f, 47, ForestPropFolder);
+                    SpawnPlatform(parent, "forest_platform_4", 2.1f, floorY + 2.3f, 72, ForestPropFolder);
+                    SpawnPlatform(parent, "forest_platform_3", 4.3f, floorY + 2.5f, 50, ForestPropFolder);
+                    SpawnPlatform(parent, "forest_platform_2", 6.6f, floorY + 2.1f, 44, ForestPropFolder);
+                    break;
+                case 2:
+                    SpawnPlatform(parent, "forest_platform_7", -7.6f, floorY + 2.2f, 40, ForestPropFolder);
+                    SpawnPlatform(parent, "forest_platform_9", -5.8f, floorY + 2.6f, 58, ForestPropFolder);
+                    SpawnPlatform(parent, "forest_platform_5", -4.0f, floorY + 2.1f, 53, ForestPropFolder);
+                    SpawnPlatform(parent, "forest_platform_8", -2.1f, floorY + 2.5f, 29, ForestPropFolder);
+                    SpawnPlatform(parent, "forest_platform_4", 0.0f, floorY + 2.3f, 72, ForestPropFolder);
+                    SpawnPlatform(parent, "forest_bridge", 2.3f, floorY + 2.7f, 99, ForestPropFolder);
+                    SpawnPlatform(parent, "forest_platform_1", 4.9f, floorY + 2.2f, 79, ForestPropFolder);
+                    SpawnPlatform(parent, "forest_platform_6", 7.2f, floorY + 2.4f, 47, ForestPropFolder);
+                    break;
+                default:
+                    SpawnPlatform(parent, "forest_platform_7", -7.6f, floorY + 2.2f, 40, ForestPropFolder);
+                    SpawnPlatform(parent, "forest_platform_9", -5.8f, floorY + 2.5f, 58, ForestPropFolder);
+                    SpawnPlatform(parent, "forest_platform_8", -3.9f, floorY + 2.1f, 29, ForestPropFolder);
+                    SpawnPlatform(parent, "forest_platform_5", -1.8f, floorY + 2.6f, 53, ForestPropFolder);
+                    SpawnPlatform(parent, "forest_platform_6", 0.3f, floorY + 2.3f, 47, ForestPropFolder);
+                    SpawnPlatform(parent, "forest_platform_3", 2.6f, floorY + 2.4f, 50, ForestPropFolder);
+                    SpawnPlatform(parent, "forest_platform_wide", 7.0f, floorY + 2.6f, 82, ForestPropFolder);
+                    break;
+            }
+        }
+
+        private const string ForestPropFolder = "Art/Props/Forest/";
 
         // 마을: 몬스터도 StageManager도 없는 안전 지역. 포탈까지 걸어가면 1스테이지로 들어간다.
         // 캐릭터가 떠 보인다는 피드백에 따라 바닥 기준점을 그림 더 아래쪽(가장 앞쪽 보도블록)으로 내림.
@@ -526,6 +618,10 @@ namespace Aethoria.Bootstrap
         // (맵 폭에 맞춰 깔면 바닥 아래가 1유닛 남짓밖에 안 남아 화면 맨 아래가 비었다). 벤치 바로 앞 돌바닥
         // (원화 y 650)이 지금 그림 높이 784px 중 650px 지점이라 그 줄을 바닥으로 삼는다.
         private const float EnsroomGroundFraction = 650f / 784f;
+        // 테두리(조각/덩굴)는 ensroom_portal_base 한 장으로 고정하고, 안쪽 거울만 Swirl 폴더의
+        // 6프레임으로 애니메이션한다(통째로 갈아 끼우면 테두리까지 떨려 보였다).
+        private const string EnsroomPortalBase = "Art/Props/EnsroomPortal/ensroom_portal_base";
+        private const string EnsroomPortalSwirlFolder = "Art/Props/EnsroomPortal/Swirl";
 
         private static void BuildEnsroom()
         {
@@ -534,14 +630,96 @@ namespace Aethoria.Bootstrap
             mapXMin = xMin; mapXMax = xMax; mapYMin = yMin; mapYMax = yMax;
 
             player.SetCombatLocked(true);
-            // 왼쪽 끝 귀환 포탈 트리거(반경 2)에 걸리지 않을 만큼 떨어진 곳에 세운다(연습장과 같은 이유).
+            if (ensroomSpawnAtSanctuary)
+            {
+                // 성소에서 막 나왔으면 입구 바로 앞에 세운다(입구 자체는 포탈이 아니라 트리거라 거리 제약이 없다).
+                ensroomSpawnAtSanctuary = false;
+                PlacePlayerAtSpawn(SanctuaryX, yMin);
+            }
+            else
+            {
+                // 왼쪽 끝 귀환 포탈 트리거(반경 2)에 걸리지 않을 만큼 떨어진 곳에 세운다(연습장과 같은 이유).
+                PlacePlayerAtSpawn(xMin + 4f, yMin);
+            }
+            FitCamera(xMin, xMax, yMin);
+
+            var backPortal = SpawnPortal(stageRoot.transform, xMin + 0.5f, yMin, backward: true, EnsroomPortalBase, EnsroomPortalSwirlFolder);
+            backPortal.SetCustomTrigger(LeaveFieldToVillage);
+
+            SpawnSanctuaryBuilding(stageRoot.transform, yMin);
+
+            Debug.Log("Aethoria: 엔스룸 마을 진입");
+        }
+
+        // 분수 중심이 배경(ensroom.png) 속에서 그림 폭의 약 54% 지점(기둥 꼭대기 분수대 기준)이라,
+        // 맵 폭(32)에 맞춰 깔리는 배경 공식(centerX + (fx-0.5)*scaledWidth, scaledWidth=32)으로 바꾸면 x=1.3.
+        // 성소 건물을 분수 바로 앞 그 자리에 놓는다(이리아는 더 이상 여기 서 있지 않고 안에 있다).
+        private const float SanctuaryX = 1.3f;
+        // 처음엔 9로 뒀더니 원경 성/폭포보다 성소가 훨씬 커 보여서 바로 눈앞(카메라 쪽)에 붙어 있는
+        // 것처럼 괴리감이 들었다. 다른 마을 건물(연습장/대장간, 폭 7)보다도 작게 줄여서 광장 안에이는 한
+        // 구조물처럼 보이게 했다.
+        private const float SanctuaryWidthOnMap = 5.5f;
+        // 원화(1536x1024) 속에서 떠 있는 발판의 평평한 바닥면(계단이 시작되는 줄)이 위에서부터 약 85% 지점.
+        // 그 아래로 늘어진 얼음 조각들은 바닥 아래로 살짝 묻히게 둔다.
+        private const float SanctuaryBaseFraction = 0.85f;
+
+        private static void SpawnSanctuaryBuilding(Transform parent, int floorY)
+        {
+            var sprite = Resources.Load<Sprite>("Backgrounds/IriaSanctuary");
+            if (sprite != null)
+            {
+                var go = new GameObject("IriaSanctuary", typeof(SpriteRenderer));
+                go.transform.SetParent(parent);
+
+                var renderer = go.GetComponent<SpriteRenderer>();
+                renderer.sprite = sprite;
+                renderer.sortingOrder = -5;
+
+                float scale = SanctuaryWidthOnMap / sprite.bounds.size.x;
+                go.transform.localScale = new Vector3(scale, scale, 1f);
+
+                var bounds = sprite.bounds;
+                float baseAbovePivot = (bounds.max.y - bounds.size.y * SanctuaryBaseFraction) * scale;
+                go.transform.position = new Vector3(SanctuaryX - bounds.center.x * scale, floorY - baseAbovePivot, 0f);
+            }
+
+            var entranceGO = new GameObject("SanctuaryEntrance");
+            entranceGO.transform.SetParent(parent);
+            entranceGO.transform.position = new Vector3(SanctuaryX, floorY, 0f);
+            entranceGO.AddComponent<SanctuaryEntrance>().Initialize(player.transform, EnterSanctuary);
+        }
+
+        // 성소 안쪽, 제단 바로 앞에 선 이리아.
+        private const float SanctuaryIriaX = 0f;
+
+        private static void SpawnIria(Transform parent, int floorY, float x)
+        {
+            var iriaGO = new GameObject("Iria", typeof(SpriteRenderer));
+            iriaGO.transform.SetParent(parent);
+            iriaGO.transform.position = new Vector3(x, floorY, 0f);
+            iriaGO.AddComponent<IriaNpc>().Initialize(player.transform, npcDialogueUI, blessingUI);
+        }
+
+        // 배경(Interior of Iria's Sanctuary, 1672x941) 속 대리석 바닥이 위에서부터 약 84% 지점이라 그 줄을 바닥으로 삼는다.
+        private const float SanctuaryInteriorGroundFraction = 0.84f;
+
+        private static void BuildSanctuary()
+        {
+            BuildMap(stageRoot.transform, SanctuaryWidth, MapHeight, out int xMin, out int xMax, out int yMin, out int yMax,
+                "Backgrounds/IriaSanctuaryInterior", SanctuaryInteriorGroundFraction);
+            mapXMin = xMin; mapXMax = xMax; mapYMin = yMin; mapYMax = yMax;
+
+            player.SetCombatLocked(true);
+            // 왼쪽 끝 귀환 포탈 트리거(반경 2)에 걸리지 않을 만큼 떨어진 곳에 세운다(엔스룸/연습장과 같은 이유).
             PlacePlayerAtSpawn(xMin + 4f, yMin);
             FitCamera(xMin, xMax, yMin);
 
             var backPortal = SpawnPortal(stageRoot.transform, xMin + 0.5f, yMin, backward: true);
-            backPortal.SetCustomTrigger(LeaveFieldToVillage);
+            backPortal.SetCustomTrigger(LeaveSanctuary);
 
-            Debug.Log("Aethoria: 엔스룸 마을 진입");
+            SpawnIria(stageRoot.transform, yMin, SanctuaryIriaX);
+
+            Debug.Log("Aethoria: 이리아의 성소 진입");
         }
 
         // 잊혀진 폐허: 1번째 맵은 폐허 입구(Forgotten Ruins_Entrance), 2~3번째 맵은 평평한 돌길이 이어지는
@@ -1053,6 +1231,9 @@ namespace Aethoria.Bootstrap
             enhanceUI = canvasGO.AddComponent<EnhanceUI>();
             enhanceUI.Initialize(player, player.GetComponent<CharacterMovement2D>());
 
+            blessingUI = canvasGO.AddComponent<BlessingUI>();
+            blessingUI.Initialize(player, player.GetComponent<CharacterMovement2D>());
+
             // 몬스터가 접촉하면 실시간 전투 대신 이 화면으로 전환된다(MonsterAI/BossAI/BossSlimeAI가
             // Awake에서 FindFirstObjectByType으로 알아서 찾아 쓰므로 별도로 넘겨줄 필요 없다).
             canvasGO.AddComponent<RhythmBattleUI>().Initialize();
@@ -1336,7 +1517,12 @@ namespace Aethoria.Bootstrap
         // 지정한 x 위치에 포탈을 놓는다. 포탈 그림이 반복 재생되고, 플레이어가 일정 거리 안에 들어오면
         // 자동으로 다음(또는 backward=true면 이전) 스테이지로 넘어간다. 반환값은 호출부에서
         // SetCustomTrigger로 기본 동작을 다른 걸로 바꿔치기하고 싶을 때(월드맵 등) 쓴다.
-        private static Portal SpawnPortal(Transform parent, float x, float floorY, bool backward)
+        // framesPath: 지역 전용 포탈 그림이 있으면 넘긴다(예: 엔스룸은 금빛 포탈). 안 주면 기본 포탈.
+        // overlayFramesPath까지 주면 framesPath는 고정 테두리 한 장, overlayFramesPath는 그 위에서
+        // 애니메이션되는 안쪽 거울로 따로 그린다(엔스룸 포탈처럼 테두리가 커서 통째로 갈아 끼우면
+        // 떨려 보이는 경우에 쓴다).
+        private static Portal SpawnPortal(Transform parent, float x, float floorY, bool backward,
+            string framesPath = null, string overlayFramesPath = null)
         {
             var go = new GameObject(backward ? "Portal_Back" : "Portal_Forward");
             go.transform.position = new Vector3(x, floorY + PortalHeightAboveFloor, 0f);
@@ -1348,7 +1534,9 @@ namespace Aethoria.Bootstrap
 
             var portal = go.AddComponent<Portal>();
             portal.Configure(backward, player.transform);
-            portal.CreateVisual(PortalVisualInwardOffset, PortalHeightAboveFloor);
+            if (overlayFramesPath != null) portal.CreateLayeredVisual(PortalVisualInwardOffset, PortalHeightAboveFloor, framesPath, overlayFramesPath);
+            else if (framesPath != null) portal.CreateVisual(PortalVisualInwardOffset, PortalHeightAboveFloor, framesPath);
+            else portal.CreateVisual(PortalVisualInwardOffset, PortalHeightAboveFloor);
             return portal;
         }
     }

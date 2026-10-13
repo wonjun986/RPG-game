@@ -34,6 +34,8 @@ namespace Aethoria.Save
         public List<EquipSaveEntry> equipped = new();
         // 장비 강화 단계(itemId + count 자리에 강화 단계). 예전 저장 파일에는 없어서 비어 있으면 전부 0강.
         public List<ItemSaveEntry> enhanceLevels = new();
+        // 이리아의 축복 단계. 예전 저장 파일에는 없어서 기본값 0(축복 없음).
+        public int blessingLevel;
         public int questIndex;
         public int questStatus;
         public int questProgress;

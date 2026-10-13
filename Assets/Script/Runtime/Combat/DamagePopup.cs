@@ -39,8 +39,11 @@ namespace Aethoria.Combat
 
         private void Update()
         {
-            transform.position += Vector3.up * MoveSpeed * Time.deltaTime;
-            timer += Time.deltaTime;
+            // 리듬전투 중에는 Time.timeScale=0이라, scaled deltaTime을 쓰면 타이머가 전혀 흐르지
+            // 않아 Destroy가 호출되지 않고 팝업이 계속 쌓인다(Character.cs의 무적 타이머와 같은 문제).
+            float deltaTime = Time.unscaledDeltaTime;
+            transform.position += Vector3.up * MoveSpeed * deltaTime;
+            timer += deltaTime;
 
             if (timer >= Lifetime * FadeStartRatio)
             {

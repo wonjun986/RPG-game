@@ -74,8 +74,9 @@ namespace Aethoria.UI
             public readonly string EffectPath;    // 마무리 연출 동안 몬스터 위에서 반복 재생할 이펙트.
             public readonly string CastPath;      // 마무리 연출 때 왼쪽 네크로시아가 한 번 재생하는 시전 모션.
             public readonly float FinisherDuration; // 마무리 연출 길이(초). 이 시간에 걸쳐 연타가 들어간다.
+            public readonly bool IsUltimate;      // 궁극기만 시전 모션 전에 눈을 번쩍 뜨는 연출(EyeFlash)이 먼저 재생된다.
             public BattleSkill(string key, string name, float gaugeCost, float power, string chart, string effectPath,
-                string castPath, float finisherDuration)
+                string castPath, float finisherDuration, bool isUltimate = false)
             {
                 Key = key;
                 Name = name;
@@ -85,6 +86,7 @@ namespace Aethoria.UI
                 EffectPath = effectPath;
                 CastPath = castPath;
                 FinisherDuration = finisherDuration;
+                IsUltimate = isUltimate;
             }
         }
 
@@ -104,9 +106,12 @@ namespace Aethoria.UI
                 "Art/Necrosia/ESkill", 1.4f),
             // 궁극기 — 길고 화려하다. 월드 R은 캐릭터가 사라지는 연출이라, 낫 회전 베기(A) 모션으로 대신한다.
             new BattleSkill("R", "죽음의 소용돌이", 100f, 4.0f, "UUU-DDD-UDUD----UUUU-DDDD-UDU-DUD-UUDD-UUDD--UUUUDDDD-------", "Art/Effects/DeathVortex",
-                "Art/Necrosia/ASkill", 1.8f),
+                "Art/Necrosia/ASkill", 1.8f, isUltimate: true),
         };
         private readonly Sprite[][] skillCastFrames = new Sprite[Skills.Length][];
+        // 궁극기 전용: 채보를 다 친 뒤 시전 모션이 나오기 직전에 한 번 재생되는, 눈을 번쩍 뜨는 연출.
+        private const string EyeFlashPath = "Art/Necrosia/EyeFlash";
+        private Sprite[] eyeFlashFrames;
         // 마무리 연출: 시전 모션이 시작되고 이만큼 뒤에 이펙트가 뜨고 첫 타가 들어간다. 마지막 타 뒤 잠깐 여운을 둔다.
         private const float SkillFinisherLeadIn = 0.2f;
         private const float SkillFinisherTail = 0.35f;
@@ -199,6 +204,11 @@ namespace Aethoria.UI
         private GameObject contentRoot; // 프레임/체력바/초상화/레인 — 암전+BATTLE 연출이 끝난 뒤에 드러난다.
         private Image battleSplashImage;
         private Sprite[] battleSplashFrames = System.Array.Empty<Sprite>();
+        // 궁극기 각성 연출(암전 → 눈 뜨며 깜빡임) 동안 화면 전체를 덮는 검은 판. contentRoot의 맨 위라
+        // 체력바/초상화/레인까지 다 가린다.
+        private Image ultimateFlashOverlay;
+        // 같은 연출 동안 EyeFlash 프레임을 화면 가득 보여주는 이미지(암전 판 바로 위에 그려진다).
+        private Image ultimateEyeFullscreenImage;
         private Image playerPortrait;
         private Image monsterPortrait;
         private Image monsterHpFill;
@@ -208,6 +218,14 @@ namespace Aethoria.UI
         private Text playerHpText;
         private Text phaseBannerText;
         private Text resultText;
+
+        // 턴이 바뀔 때 잠깐 뜨는 "My Turn"/"Enemy Turn" 로고 배너. 예전엔 phaseBannerText에
+        // "나의 턴!"/"적의 턴!" 글자를 그냥 띄웠는데, 글자 상자가 작아 Overflow 모드 때문에
+        // 긴 글자가 상자 밖으로 삐져나와 보였다. 전용 그림(UI/MyTurnBanner, UI/EnemyTurnBanner)이
+        // 생긴 뒤로는 그 자리에 그림을 띄운다 — 그림 자체에 글자가 그려져 있어 더 이상 넘칠 일이 없다.
+        private Image turnBannerImage;
+        private Sprite myTurnBannerSprite;
+        private Sprite enemyTurnBannerSprite;
 
         // 판정 로고(UI/Node_LoGo에서 잘라낸 GOOD/PERFECT/EXELLENT/MISS). resultText와 같은 자리에 뜬다.
         private const float JudgmentDuration = 0.5f;
@@ -407,6 +425,9 @@ namespace Aethoria.UI
                 skillCastFrames[i] = Resources.LoadAll<Sprite>(Skills[i].CastPath);
                 System.Array.Sort(skillCastFrames[i], (a, b) => string.CompareOrdinal(a.name, b.name));
             }
+
+            eyeFlashFrames = Resources.LoadAll<Sprite>(EyeFlashPath);
+            System.Array.Sort(eyeFlashFrames, (a, b) => string.CompareOrdinal(a.name, b.name));
 
             BuildPanel();
         }
@@ -845,12 +866,18 @@ namespace Aethoria.UI
 
         private bool BattleEnded() => !IsOpen || monster == null || monster.IsDead || player == null || player.IsDead;
 
+        // 턴 시작마다 그 턴의 로고 배너를 잠깐 띄웠다 지운다.
+        private IEnumerator ShowTurnBanner(Sprite sprite)
+        {
+            turnBannerImage.sprite = sprite;
+            turnBannerImage.gameObject.SetActive(sprite != null);
+            yield return new WaitForSecondsRealtime(PhaseBannerDuration);
+            turnBannerImage.gameObject.SetActive(false);
+        }
+
         private IEnumerator EnemyTurn()
         {
-            phaseBannerText.color = MissColor;
-            phaseBannerText.text = "적의 턴!";
-            yield return new WaitForSecondsRealtime(PhaseBannerDuration);
-            phaseBannerText.text = "";
+            yield return ShowTurnBanner(enemyTurnBannerSprite);
 
             if (BattleEnded()) yield break;
 
@@ -920,10 +947,7 @@ namespace Aethoria.UI
 
         private IEnumerator PlayerTurn()
         {
-            phaseBannerText.color = PlayerNoteColor;
-            phaseBannerText.text = "나의 턴!";
-            yield return new WaitForSecondsRealtime(PhaseBannerDuration);
-            phaseBannerText.text = "";
+            yield return ShowTurnBanner(myTurnBannerSprite);
 
             if (BattleEnded()) yield break;
             if (isPractice)
@@ -1062,6 +1086,11 @@ namespace Aethoria.UI
                 yield break;
             }
 
+            // 궁극기는 채보를 다 친 뒤, 시전 모션이 나오기 전에 화면이 암전됐다가 눈을 번쩍 뜨며
+            // 깜빡이는 연출을 한 번 먼저 보여준다.
+            if (skill.IsUltimate) yield return PlayUltimateAwakening();
+            if (BattleEnded()) yield break;
+
             // 마무리 연출
             phaseBannerText.text = $"{skill.Name}! ({hitMultipliers.Count}/{notes.Count})";
             PlayPlayerOneShot(skillCastFrames[skillIndex], skill.FinisherDuration, Color.white);
@@ -1107,7 +1136,7 @@ namespace Aethoria.UI
             actionSelectIndex = ActionAttack;
             actionMessageText.text = "";
             RefreshActionCursor();
-            myTurnTitleText.text = "나의 턴";
+            myTurnTitleText.text = "";
             myTurnFrame.SetActive(true);
             actionSelectPanel.SetActive(true);
 
@@ -1149,7 +1178,7 @@ namespace Aethoria.UI
                             else
                             {
                                 actionMessageText.text = "";
-                                myTurnTitleText.text = "나의 턴";
+                                myTurnTitleText.text = "";
                                 actionSelectPanel.SetActive(true);
                             }
                         }
@@ -1328,6 +1357,57 @@ namespace Aethoria.UI
             isPlayingAttackAnim = false;
             idleFrameTimer = 0f; // 애니메이션이 끝나면 바로 다음 프레임부터 대기 애니메이션이 매끈하게 이어진다.
             attackAnimRoutine = null;
+        }
+
+        // 궁극기 각성: 화면이 검게 암전된 뒤, EyeFlash 프레임을 화면 가득 보여주며 몇 번 깜빡인다
+        // (검은 화면 ↔ 눈 뜨는 그림이 번갈아 뜨고, 깜빡일 때마다 더 떠진 눈이 드러나게). 마지막엔 다 뜬 눈을
+        // 화면 가득 잠깐 붙잡아 보여준 뒤, 암전을 걷으며 원래 전투 화면(작은 초상화)으로 돌아간다.
+        private const float UltimateBlackoutDuration = 0.2f;
+        private const int UltimateFlickerPulses = 4;
+        private const float UltimateFlickerPulseDuration = 0.1f;
+        private const float UltimateAwakeningHold = 0.4f;
+
+        private IEnumerator PlayUltimateAwakening()
+        {
+            yield return FadeUltimateOverlay(0f, 1f, UltimateBlackoutDuration);
+
+            ultimateEyeFullscreenImage.sprite = eyeFlashFrames[0];
+            ultimateEyeFullscreenImage.gameObject.SetActive(true);
+
+            for (int i = 1; i <= UltimateFlickerPulses; i++)
+            {
+                int frameIndex = Mathf.Min(eyeFlashFrames.Length - 1, i * eyeFlashFrames.Length / UltimateFlickerPulses);
+                ultimateEyeFullscreenImage.sprite = eyeFlashFrames[frameIndex];
+                ultimateEyeFullscreenImage.gameObject.SetActive(true);
+                yield return new WaitForSecondsRealtime(UltimateFlickerPulseDuration * 0.5f);
+                if (i < UltimateFlickerPulses)
+                {
+                    ultimateEyeFullscreenImage.gameObject.SetActive(false);
+                    yield return new WaitForSecondsRealtime(UltimateFlickerPulseDuration * 0.5f);
+                }
+            }
+
+            yield return new WaitForSecondsRealtime(UltimateAwakeningHold);
+
+            // 작은 초상화도 눈을 다 뜬 프레임으로 맞춰 둬서, 화면 가득 찬 그림을 치우고 이어지는
+            // 시전 모션으로 넘어갈 때 눈이 도로 감긴 것처럼 보이지 않게 한다.
+            ultimateEyeFullscreenImage.gameObject.SetActive(false);
+            playerPortrait.color = Color.white;
+            playerPortrait.sprite = eyeFlashFrames[eyeFlashFrames.Length - 1];
+
+            yield return FadeUltimateOverlay(1f, 0f, UltimateBlackoutDuration);
+        }
+
+        private IEnumerator FadeUltimateOverlay(float from, float to, float duration)
+        {
+            float t = 0f;
+            while (t < duration)
+            {
+                t += Time.unscaledDeltaTime;
+                ultimateFlashOverlay.color = new Color(0f, 0f, 0f, Mathf.Lerp(from, to, Mathf.Clamp01(t / duration)));
+                yield return null;
+            }
+            ultimateFlashOverlay.color = new Color(0f, 0f, 0f, to);
         }
 
         // 채보 하나를 처음부터 끝까지 재생한다. 각 노드는 자기 HitTime보다 telegraphDuration 먼저
@@ -1644,6 +1724,14 @@ namespace Aethoria.UI
             phaseBannerText = CreateText(contentRect, "PhaseBanner", 600f, 160f, 1070f, 230f, 42f, Color.white, TextAnchor.MiddleCenter);
             phaseBannerText.fontStyle = FontStyle.Bold;
 
+            // 그림마다 가로세로 비율이 달라(My Turn 2171x724, Enemy Turn 1862x845) 상자를 넉넉히 잡고
+            // preserveAspect로 안쪽에 맞춰 띄운다 — 어느 쪽이 떠도 찌그러지거나 잘리지 않는다.
+            turnBannerImage = CreateImage(contentRect, "TurnBanner", 336f, 77f, 1336f, 443f);
+            turnBannerImage.preserveAspect = true;
+            turnBannerImage.gameObject.SetActive(false);
+            myTurnBannerSprite = Resources.Load<Sprite>("UI/MyTurnBanner");
+            enemyTurnBannerSprite = Resources.Load<Sprite>("UI/EnemyTurnBanner");
+
             resultText = CreateText(contentRect, "ResultText", 550f, 380f, 1120f, 460f, 40f, Color.white, TextAnchor.MiddleCenter);
             resultText.fontStyle = FontStyle.Bold;
 
@@ -1681,6 +1769,33 @@ namespace Aethoria.UI
             battleSplashImage = CreateImage(rect, "BattleSplash", 656f, 150f, 1016f, 750f);
             battleSplashImage.preserveAspect = true;
             battleSplashImage.gameObject.SetActive(false);
+
+            // 궁극기 각성용 암전 판. 맨 마지막에 만들어 다른 모든 요소 위에 그려지고, 평소엔 완전히 투명.
+            var flashGO = new GameObject("UltimateFlash", typeof(RectTransform), typeof(Image));
+            var flashRect = (RectTransform)flashGO.transform;
+            flashRect.SetParent(rect, false);
+            flashRect.anchorMin = Vector2.zero;
+            flashRect.anchorMax = Vector2.one;
+            flashRect.offsetMin = Vector2.zero;
+            flashRect.offsetMax = Vector2.zero;
+            ultimateFlashOverlay = flashGO.GetComponent<Image>();
+            ultimateFlashOverlay.color = new Color(0f, 0f, 0f, 0f);
+            ultimateFlashOverlay.raycastTarget = false;
+
+            // 궁극기 각성 때 EyeFlash 프레임을 화면 가득 보여줄 전용 이미지. 암전 판 바로 위라 암전된
+            // 검은 배경 위에서 깜빡인다. 세로가 긴 그림이라 preserveAspect로 두면 화면보다 좁아 양옆에
+            // 여백이 남는데, 그 여백도 뒤의 암전 판 덕분에 검게 메워져 자연스럽게 화면을 꽉 채운 것처럼 보인다.
+            var eyeFullGO = new GameObject("UltimateEyeFullscreen", typeof(RectTransform), typeof(Image));
+            var eyeFullRect = (RectTransform)eyeFullGO.transform;
+            eyeFullRect.SetParent(rect, false);
+            eyeFullRect.anchorMin = Vector2.zero;
+            eyeFullRect.anchorMax = Vector2.one;
+            eyeFullRect.offsetMin = Vector2.zero;
+            eyeFullRect.offsetMax = Vector2.zero;
+            ultimateEyeFullscreenImage = eyeFullGO.GetComponent<Image>();
+            ultimateEyeFullscreenImage.preserveAspect = true;
+            ultimateEyeFullscreenImage.raycastTarget = false;
+            ultimateEyeFullscreenImage.gameObject.SetActive(false);
 
             panel.SetActive(false);
         }

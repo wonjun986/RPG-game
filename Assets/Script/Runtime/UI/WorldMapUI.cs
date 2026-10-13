@@ -9,8 +9,9 @@ using Aethoria.Stages;
 namespace Aethoria.UI
 {
     // 마을 출구 포탈을 밟으면 뜨는 월드맵(UI/All_Area_Map). 지금 실제로 갈 수 있는 지역은
-    // 어둠의 숲(기존 1~3스테이지+보스), 광활한 평야, 잊혀진 폐허, 엔스룸 마을뿐이라, 그 칸들만 갈 수 있고 나머지는 어둡게 덮어서
-    // 아직 갈 수 없다는 것만 보여준다. SD 캐릭터(UI/SD)가 커서 역할을 하며 방향키로 지역
+    // 어둠의 숲(기존 1~3스테이지+보스), 광활한 평야, 잊혀진 폐허, 엔스룸 마을, 천상으로 향하는 계단뿐이라,
+    // 그 칸들만 갈 수 있고 나머지는 어둡게 덮어서 아직 갈 수 없다는 것만 보여준다. SD 캐릭터(UI/SD)가
+    // 커서 역할을 하며 방향키로 지역
     // 사이를 옮겨 다니고, Enter/Z로 선택한다. "마을"을 선택하거나 Esc를 누르면 "마을로
     // 이동하시겠습니까?" 확인 창이 뜨고, 예를 골라야 실제로 창을 닫는다.
     public class WorldMapUI : MonoBehaviour
@@ -73,6 +74,7 @@ namespace Aethoria.UI
                 new MapNode { Name = "광활한 평야", AnchorMin = new Vector2(0.17f, 0.42f), AnchorMax = new Vector2(0.33f, 0.52f), Locked = false, OnSelect = HandleEnterPlains },
                 new MapNode { Name = "엔스룸 마을", AnchorMin = new Vector2(0.39f, 0.27f), AnchorMax = new Vector2(0.54f, 0.36f), Locked = false, OnSelect = HandleEnterEnsroom },
                 new MapNode { Name = "푸른 바다", AnchorMin = new Vector2(0.73f, 0.35f), AnchorMax = new Vector2(0.88f, 0.44f), Locked = true },
+                new MapNode { Name = "천상으로 향하는 계단", AnchorMin = new Vector2(0.433f, 0.082f), AnchorMax = new Vector2(0.531f, 0.121f), Locked = false, OnSelect = HandleEnterTemple },
             };
 
             villageNode = nodes[0];
@@ -401,6 +403,12 @@ namespace Aethoria.UI
         {
             Hide();
             GameBootstrap.EnterEnsroom();
+        }
+
+        private void HandleEnterTemple()
+        {
+            Hide();
+            GameBootstrap.EnterTemple();
         }
 
         private void HandleCancel()

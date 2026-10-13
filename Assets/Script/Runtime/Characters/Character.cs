@@ -31,6 +31,8 @@ namespace Aethoria.Characters
         private StatBlock currentStats;
         // 장착 중인 장비들의 능력치 합. Inventory가 장착이 바뀔 때마다 다시 계산해서 넣어준다.
         private ItemStats equipmentStats;
+        // 이리아의 축복 단계. 장비와 별개로 공격력/방어력/치명타/스킬 피해를 전부 조금씩 올려준다.
+        private int blessingLevel;
         private float currentHp;
         private float currentMana;
         private int currentExp;
@@ -41,21 +43,23 @@ namespace Aethoria.Characters
 
         public CharacterData Data => data;
         public int Level => level;
-        // 레벨 능력치 + 장비 공격력. 스킬/공격 피해 계산은 모두 이 값을 쓴다.
+        public int BlessingLevel => blessingLevel;
+        // 레벨 능력치 + 장비 공격력 + 축복 공격력/방어력. 스킬/공격 피해 계산은 모두 이 값을 쓴다.
         public StatBlock Stats
         {
             get
             {
                 var stats = currentStats;
-                stats.attack += equipmentStats.attack;
+                stats.attack += equipmentStats.attack + BlessingRules.AttackBonus(blessingLevel);
+                stats.defense += BlessingRules.DefenseBonus(blessingLevel);
                 return stats;
             }
         }
         public ItemStats EquipmentStats => equipmentStats;
-        // 치명타 확률(기본 10%), 치명타 피해(기본 150%), 스킬 피해 증가(%). 기본값 위로는 장비로만 올라간다.
-        public float CritChancePercent => BaseCritChancePercent + equipmentStats.critChance;
-        public float CritDamagePercent => BaseCritDamagePercent + equipmentStats.critDamage;
-        public float SkillDamagePercent => equipmentStats.skillDamage;
+        // 치명타 확률(기본 10%), 치명타 피해(기본 150%), 스킬 피해 증가(%). 기본값 위로는 장비와 축복으로 올라간다.
+        public float CritChancePercent => BaseCritChancePercent + equipmentStats.critChance + BlessingRules.CritChanceBonus(blessingLevel);
+        public float CritDamagePercent => BaseCritDamagePercent + equipmentStats.critDamage + BlessingRules.CritDamageBonus(blessingLevel);
+        public float SkillDamagePercent => equipmentStats.skillDamage + BlessingRules.SkillDamageBonus(blessingLevel);
         public float CurrentHp => currentHp;
         public float MaxHp => currentStats.hp;
         public float CurrentMana => currentMana;
@@ -142,6 +146,18 @@ namespace Aethoria.Characters
             currentExp = Mathf.Max(0, savedExp);
             gold = Mathf.Max(0, savedGold);
             OnGoldChanged?.Invoke(gold);
+        }
+
+        // 저장 파일에서 축복 단계를 되돌린다. 예전 저장 파일에는 없는 값이라 기본 0(축복 없음)이다.
+        public void RestoreBlessingLevel(int savedBlessingLevel)
+        {
+            blessingLevel = Mathf.Clamp(savedBlessingLevel, 0, BlessingRules.MaxLevel);
+        }
+
+        // 축복 한 단계 올리기. 성공/실패가 없어서(골드만 내면 바로 적용) bool 반환 없이 바로 올린다.
+        public void RaiseBlessingLevel()
+        {
+            blessingLevel = Mathf.Clamp(blessingLevel + 1, 0, BlessingRules.MaxLevel);
         }
 
         public void LevelUp()
