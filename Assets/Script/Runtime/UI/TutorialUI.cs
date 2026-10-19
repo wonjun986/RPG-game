@@ -19,6 +19,13 @@ namespace Aethoria.UI
             public Page(string title, string body) { Title = title; Body = body; }
         }
 
+        // 숲에서 눈을 뜬 직후, 이동 연습을 시작하기 전에 보여준다.
+        public static readonly Page[] ControlPages =
+        {
+            new Page("조작법",
+                "← →  이동\n↑  점프 (공중에서 한 번 더 누르면 이단 점프)\nShift  대시 (대시 중에는 무적)\nZ  대화 · 확인     X  취소\n\n몬스터를 뛰어넘거나 대시로 지나가면 싸우지 않아요"),
+        };
+
         // 숲에서 정령이 나타났을 때 — 첫 전투 직전에 보여준다.
         public static readonly Page[] BattlePages =
         {
@@ -84,19 +91,42 @@ namespace Aethoria.UI
             rect.offsetMax = Vector2.zero;
             panel.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.8f);
 
-            var boxGO = new GameObject("Box", typeof(RectTransform), typeof(Image));
+            // 안내창 틀(UI/TutorialPanel, Sprite/UI/Tutorial UI 1983x793): 왼쪽에 네크로시아 초상화, 위쪽 작은 칸에 제목,
+            // 오른쪽 큰 어두운 칸에 본문을 쓴다. 틀 그림이 없으면 예전처럼 어두운 판에 글자만 쓴다.
+            var frameTexture = Resources.Load<Texture2D>(PanelFramePath);
+            var boxGO = new GameObject("Box", typeof(RectTransform), typeof(RawImage));
             var boxRect = (RectTransform)boxGO.transform;
             boxRect.SetParent(rect, false);
             boxRect.anchorMin = new Vector2(0.5f, 0.5f);
             boxRect.anchorMax = new Vector2(0.5f, 0.5f);
             boxRect.pivot = new Vector2(0.5f, 0.5f);
-            boxRect.sizeDelta = new Vector2(760f, 420f);
-            boxGO.GetComponent<Image>().color = new Color(0.06f, 0.04f, 0.09f, 0.97f);
+            var box = boxGO.GetComponent<RawImage>();
+            box.raycastTarget = false;
 
-            titleText = BuildText(boxRect, "Title", new Vector2(0f, 0.82f), new Vector2(1f, 1f), 30, GuideColor, FontStyle.Bold, TextAnchor.MiddleCenter);
-            bodyText = BuildText(boxRect, "Body", new Vector2(0f, 0.22f), new Vector2(1f, 0.8f), 24, Color.white, FontStyle.Normal, TextAnchor.MiddleLeft);
-            pageText = BuildText(boxRect, "PageIndex", new Vector2(0f, 0.1f), new Vector2(1f, 0.2f), 18, new Color(0.7f, 0.65f, 0.8f), FontStyle.Normal, TextAnchor.MiddleCenter);
-            hintText = BuildText(boxRect, "Hint", new Vector2(0f, 0f), new Vector2(1f, 0.12f), 20, new Color(0.8f, 0.8f, 0.8f), FontStyle.Bold, TextAnchor.MiddleCenter);
+            if (frameTexture != null)
+            {
+                boxRect.sizeDelta = new Vector2(PanelWidth, PanelWidth * PanelImageHeight / PanelImageWidth);
+                box.texture = frameTexture;
+                titleText = BuildText(boxRect, "Title", PanelAnchor(655f, 222f), PanelAnchor(900f, 152f), 26, GuideColor, FontStyle.Bold, TextAnchor.MiddleCenter, 8f);
+                titleText.resizeTextForBestFit = true;
+                titleText.resizeTextMinSize = 12;
+                titleText.resizeTextMaxSize = 26;
+                bodyText = BuildText(boxRect, "Body", PanelAnchor(650f, 520f), PanelAnchor(1800f, 240f), 22, Color.white, FontStyle.Normal, TextAnchor.MiddleLeft, 0f);
+                bodyText.resizeTextForBestFit = true;
+                bodyText.resizeTextMinSize = 12;
+                bodyText.resizeTextMaxSize = 22;
+                pageText = BuildText(boxRect, "PageIndex", PanelAnchor(650f, 585f), PanelAnchor(1000f, 530f), 16, new Color(0.7f, 0.65f, 0.8f), FontStyle.Normal, TextAnchor.MiddleLeft, 0f);
+                hintText = BuildText(boxRect, "Hint", PanelAnchor(1100f, 585f), PanelAnchor(1800f, 530f), 18, new Color(0.85f, 0.8f, 0.9f), FontStyle.Bold, TextAnchor.MiddleRight, 0f);
+            }
+            else
+            {
+                boxRect.sizeDelta = new Vector2(760f, 420f);
+                box.color = new Color(0.06f, 0.04f, 0.09f, 0.97f);
+                titleText = BuildText(boxRect, "Title", new Vector2(0f, 0.82f), new Vector2(1f, 1f), 30, GuideColor, FontStyle.Bold, TextAnchor.MiddleCenter);
+                bodyText = BuildText(boxRect, "Body", new Vector2(0f, 0.22f), new Vector2(1f, 0.8f), 24, Color.white, FontStyle.Normal, TextAnchor.MiddleLeft);
+                pageText = BuildText(boxRect, "PageIndex", new Vector2(0f, 0.1f), new Vector2(1f, 0.2f), 18, new Color(0.7f, 0.65f, 0.8f), FontStyle.Normal, TextAnchor.MiddleCenter);
+                hintText = BuildText(boxRect, "Hint", new Vector2(0f, 0f), new Vector2(1f, 0.12f), 20, new Color(0.8f, 0.8f, 0.8f), FontStyle.Bold, TextAnchor.MiddleCenter);
+            }
 
             panel.SetActive(false);
         }
@@ -142,15 +172,22 @@ namespace Aethoria.UI
             return rect;
         }
 
-        private static Text BuildText(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax, int fontSize, Color color, FontStyle style, TextAnchor anchor)
+        private const string PanelFramePath = "UI/TutorialPanel";
+        private const float PanelImageWidth = 1983f, PanelImageHeight = 793f;
+        private const float PanelWidth = 1120f; // 캔버스(1280x720) 기준 안내창 폭
+
+        // 안내창 틀 그림 픽셀 좌표(왼쪽 위 원점) → 앵커.
+        private static Vector2 PanelAnchor(float x, float y) => new Vector2(x / PanelImageWidth, 1f - y / PanelImageHeight);
+
+        private static Text BuildText(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax, int fontSize, Color color, FontStyle style, TextAnchor anchor, float sidePadding = 32f)
         {
             var go = new GameObject(name, typeof(RectTransform), typeof(Text));
             var rect = (RectTransform)go.transform;
             rect.SetParent(parent, false);
             rect.anchorMin = anchorMin;
             rect.anchorMax = anchorMax;
-            rect.offsetMin = new Vector2(32f, 0f);
-            rect.offsetMax = new Vector2(-32f, 0f);
+            rect.offsetMin = new Vector2(sidePadding, 0f);
+            rect.offsetMax = new Vector2(-sidePadding, 0f);
 
             var text = go.GetComponent<Text>();
             text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");

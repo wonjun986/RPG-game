@@ -116,6 +116,11 @@ namespace Aethoria.Stages
             yield return tutorialUI.OpenEyes();
             yield return Monologue(WakeLines);
 
+            // 조작법 안내창(UI/TutorialPanel 틀)을 한 번 보여준 뒤 이동 연습을 시작한다.
+            bool controlsClosed = false;
+            tutorialUI.Show(TutorialUI.ControlPages, () => controlsClosed = true);
+            while (!controlsClosed) yield return null;
+
             // ---- 이동 ----
             SetInputLocked(false);
             tutorialUI.ShowGuide("← → 키로 걸어 보자");

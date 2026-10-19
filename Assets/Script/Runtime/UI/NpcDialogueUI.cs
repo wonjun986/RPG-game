@@ -38,7 +38,32 @@ namespace Aethoria.UI
         private const float LunabelTextBottom = 1f - 632f / ImageHeight;
         private const float LunabelPlateX0 = 810f, LunabelPlateY0 = 405f, LunabelPlateX1 = 1070f, LunabelPlateY1 = 465f;
 
+        // 대화창 그림마다 캔버스(2172x724) 안에서 어두운 대사 칸이 차지하는 크기/자리가 달라서(노아·이리아처럼 그림을 꽉
+        // 채운 것도, 네크로시아처럼 작게 그린 것도 있다) 그대로 그리면 말하는 사람이 바뀔 때마다 창 크기가 들쑥날쑥했다.
+        // 그림별로 대사 칸의 왼쪽/오른쪽/아랫변(그림 픽셀)을 적어 두고, 창을 열 때 대사 칸이 기준 칸(네크로시아 창)과
+        // 같은 폭·같은 자리에 오도록 창 전체의 크기와 위치를 맞춘다. 대사/이름판 좌표는 창 기준 비율이라 그대로 따라온다.
+        private readonly struct FrameBox
+        {
+            public readonly float Left, Right, Bottom;
+            public FrameBox(float left, float right, float bottom) { Left = left; Right = right; Bottom = bottom; }
+        }
+
+        private static readonly FrameBox ReferenceBox = new FrameBox(709f, 1839f, 629f); // UI/Player_Talk
+        private static readonly System.Collections.Generic.Dictionary<string, FrameBox> FrameBoxes =
+            new System.Collections.Generic.Dictionary<string, FrameBox>
+            {
+                { "UI/Player_Talk", ReferenceBox },
+                { "UI/Lunabel_Talk", new FrameBox(636f, 1795f, 679f) },
+                { "UI/Noa_Talk", new FrameBox(570f, 1991f, 594f) },
+                { "UI/Elly_Talk", new FrameBox(670f, 2003f, 592f) },
+                { "UI/Isis_Talk", new FrameBox(754f, 2035f, 632f) },
+                { "UI/Iria_Talk", new FrameBox(498f, 2052f, 545f) },
+                { "UI/BossKnight_Talk", new FrameBox(557f, 1940f, 677f) },
+            };
+        private const float BoxBottomMargin = 30f;
+
         private GameObject box;
+        private RectTransform boxRect;
         private RawImage frameImage;
         private Image plainBox;
         private Text nameText;
@@ -56,7 +81,8 @@ namespace Aethoria.UI
             rect.anchorMax = new Vector2(0.5f, 0f);
             rect.pivot = new Vector2(0.5f, 0f);
             rect.sizeDelta = new Vector2(BoxWidth, BoxHeight);
-            rect.anchoredPosition = new Vector2(0f, 30f);
+            rect.anchoredPosition = new Vector2(0f, BoxBottomMargin);
+            boxRect = rect;
 
             var frameGO = new GameObject("Frame", typeof(RectTransform), typeof(RawImage));
             var frameRect = (RectTransform)frameGO.transform;
@@ -147,6 +173,7 @@ namespace Aethoria.UI
             }
             bool hasFrame = frameImage.texture != null;
             frameImage.enabled = hasFrame;
+            FitBoxToFrame(hasFrame ? resourcePath : null);
             plainBox.gameObject.SetActive(!hasFrame);
             textRect.anchorMin = new Vector2(hasFrame ? textLeft : PlainTextLeft, hasFrame ? textBottom : DefaultTextBottom);
 
@@ -160,6 +187,29 @@ namespace Aethoria.UI
             dialogueText.text = line;
             dialogueText.color = textColor ?? Color.white;
             box.SetActive(true);
+        }
+
+        // 그림의 대사 칸이 기준 칸(ReferenceBox, 기본 크기 창 기준)과 같은 폭/왼쪽 끝/아랫변에 오도록 창 크기와 위치를 맞춘다.
+        // 표에 없는 그림(또는 그림 없는 기본 판)은 기본 크기/자리 그대로 둔다.
+        private void FitBoxToFrame(string resourcePath)
+        {
+            if (resourcePath == null || !FrameBoxes.TryGetValue(resourcePath, out var frameBox))
+            {
+                boxRect.sizeDelta = new Vector2(BoxWidth, BoxHeight);
+                boxRect.anchoredPosition = new Vector2(0f, BoxBottomMargin);
+                return;
+            }
+
+            float scale = (ReferenceBox.Right - ReferenceBox.Left) / (frameBox.Right - frameBox.Left);
+            float width = BoxWidth * scale;
+            float height = BoxHeight * scale;
+            // 기준 창에서 대사 칸 왼쪽 끝/아랫변이 놓이는 화면 위치(피벗: 창 아래 가운데).
+            float targetLeft = -BoxWidth / 2f + ReferenceBox.Left / ImageWidth * BoxWidth;
+            float targetBottom = BoxBottomMargin + (1f - ReferenceBox.Bottom / ImageHeight) * BoxHeight;
+            float x = targetLeft + width / 2f - frameBox.Left / ImageWidth * width;
+            float y = targetBottom - (1f - frameBox.Bottom / ImageHeight) * height;
+            boxRect.sizeDelta = new Vector2(width, height);
+            boxRect.anchoredPosition = new Vector2(x, y);
         }
 
         // 네크로시아(플레이어) 대사. 이름을 첫 줄에 붙여 네크로시아 대화창에 띄운다.

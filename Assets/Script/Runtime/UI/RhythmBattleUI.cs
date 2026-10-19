@@ -414,6 +414,26 @@ namespace Aethoria.UI
         private RawImage battleBackground;
         private const string LunabelBattleBackgroundPath = "Backgrounds/HillOfDespair";
         private static readonly Color BattleBackgroundTint = new Color(0.55f, 0.5f, 0.5f, 1f);
+        // 레인 뒤 어두운 띠: 배경 그림(1672x941) 픽셀 좌표. 위 레인 판정줄(y 633~665)부터 아래 레인(y 773~806)까지 넉넉히 덮는다.
+        private const float LaneBackdropX0 = 330f, LaneBackdropY0 = 585f, LaneBackdropX1 = 1470f, LaneBackdropY1 = 885f;
+        private const float LaneBackdropAlpha = 0.7f;
+        private RawImage laneBackdrop;
+        private static readonly Color NoteOutlineColor = new Color(0f, 0f, 0f, 0.85f);
+
+        // 가운데는 검고 위아래 끝 15%에서 투명해지는 세로 그라데이션(1x64).
+        private static Texture2D CreateLaneBackdropTexture()
+        {
+            const int height = 64;
+            var texture = new Texture2D(1, height, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+            for (int y = 0; y < height; y++)
+            {
+                float v = y / (height - 1f);
+                float edge = Mathf.Min(v, 1f - v) / 0.15f;
+                texture.SetPixel(0, y, new Color(0f, 0f, 0f, Mathf.Clamp01(edge)));
+            }
+            texture.Apply();
+            return texture;
+        }
         private Image battleSplashImage;
         private Sprite[] battleSplashFrames = System.Array.Empty<Sprite>();
         // 루나벨전 전용 BATTLE 연출(Final_Battle 8프레임): 핏빛 글자에서 피가 점점 흘러내린다. 글자가 가로로 넓어서
@@ -734,6 +754,7 @@ namespace Aethoria.UI
                 || monster.GetComponent<FinalBossAI>() != null;
             isLunabelBattle = monster.GetComponent<FinalBossAI>() != null;
             battleBackground.gameObject.SetActive(isLunabelBattle && battleBackground.texture != null);
+            laneBackdrop.gameObject.SetActive(battleBackground.gameObject.activeSelf);
             fleeLocked = isLunabelBattle;
             fleeLockAnimated = false;
             lunabelPhaseOneTurns = 0;
@@ -3482,6 +3503,13 @@ namespace Aethoria.UI
                 bgFitter.aspectRatio = (float)battleBackground.texture.width / battleBackground.texture.height;
             bgGO.SetActive(false);
 
+            // 배경 위, 두 레인 뒤에 까는 어두운 띠. 붉은 배경(특히 아래 레인 뒤의 용암 절벽)에 노드가 묻히지 않게 한다.
+            // 위아래 가장자리는 부드럽게 흐려지는 세로 그라데이션이라 띠 경계가 줄무늬처럼 보이지 않는다.
+            laneBackdrop = CreateRawImage(contentRect, "LaneBackdrop", LaneBackdropX0, LaneBackdropY0, LaneBackdropX1, LaneBackdropY1);
+            laneBackdrop.texture = CreateLaneBackdropTexture();
+            laneBackdrop.color = new Color(1f, 1f, 1f, LaneBackdropAlpha);
+            laneBackdrop.gameObject.SetActive(false);
+
             var frame = new GameObject("Frame", typeof(RectTransform), typeof(RawImage));
             var frameRect = (RectTransform)frame.transform;
             frameRect.SetParent(contentRect, false);
@@ -3571,6 +3599,10 @@ namespace Aethoria.UI
             {
                 var note = CreateMovableImage(contentRect, "Note" + i, NoteSize);
                 note.sprite = nodeSprite;
+                // 배경이 깔리는 전투(루나벨전)에서 붉은 노드가 붉은 배경에 묻히지 않게 어두운 테두리를 두른다.
+                var outline = note.gameObject.AddComponent<Outline>();
+                outline.effectColor = NoteOutlineColor;
+                outline.effectDistance = new Vector2(3f, -3f);
                 note.gameObject.SetActive(false);
                 notePool[i] = note;
             }
@@ -3885,6 +3917,13 @@ namespace Aethoria.UI
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
             return rect;
+        }
+
+        private static RawImage CreateRawImage(Transform parent, string name, float x0, float y0, float x1, float y1)
+        {
+            var image = CreateRect(parent, name, x0, y0, x1, y1, typeof(RectTransform), typeof(RawImage)).GetComponent<RawImage>();
+            image.raycastTarget = false;
+            return image;
         }
 
         private static Image CreateImage(Transform parent, string name, float x0, float y0, float x1, float y1)
