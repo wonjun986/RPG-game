@@ -26,8 +26,8 @@ namespace Aethoria.Data
             iconPath = "UI/Items/DevilScythe",
             category = ItemCategory.Weapon,
             rarity = ItemRarity.Common,
-            flavorText = "소울이터의 기본 무기.",
-            description = "소울이터가 처음부터 손에 쥐고 있던 낫.\n오래된 만큼 손에 잘 익었다.",
+            flavorText = "네크로시아의 기본 무기.",
+            description = "네크로시아가 처음부터 손에 쥐고 있던 낫.\n오래된 만큼 손에 잘 익었다.",
             baseStats = new ItemStats { attack = 3f },
         };
 
@@ -117,6 +117,19 @@ namespace Aethoria.Data
             description = "어둠의 기운이 응축된 광석.\n대장장이 엘리에게 가져가면 장비를 강화해 준다.",
         };
 
+        // 보스(기사/슬라임)를 잡을 때마다 몇 개씩 얻는 희귀 재료(GameBootstrap.HandleMonsterDiedForDrops).
+        // 아직 쓰는 곳은 없다. 아이콘은 Sprite/Items/Crystal District.png를 300x300으로 줄인 것이다.
+        public static readonly ItemData CrystalOrb = new ItemData
+        {
+            id = "crystal_orb",
+            itemName = "수정구",
+            iconPath = "UI/Items/CrystalOrb",
+            category = ItemCategory.Materials,
+            rarity = ItemRarity.Rare,
+            flavorText = "황금 테두리에 감싸인 채 빛나는 수정구.",
+            description = "강한 적이 쓰러지며 남긴 기운이 굳어 생긴 수정구.\n깎인 면마다 보랏빛 광채가 일렁인다.",
+        };
+
         // 리듬 전투 소모품. 내 턴에 "아이템"으로 마시면 체력을 회복하고 그 턴이 끝난다(RhythmBattleUI).
         // 새 캐릭터는 몇 개 들고 시작하고(GameBootstrap), 노아의 상점 기타 탭에서도 산다.
         public static readonly ItemData Potion = new ItemData
@@ -136,7 +149,7 @@ namespace Aethoria.Data
         private static readonly ItemData[] All =
         {
             DevilNecklace, ReaperScythe, WornScythe, SteelScythe, SharpScythe, VoidCrystalArmor, GothicArmorSkirt,
-            EnhanceStone, Potion,
+            EnhanceStone, CrystalOrb, Potion,
         };
 
         public static System.Collections.Generic.IReadOnlyList<ItemData> AllItems => All;

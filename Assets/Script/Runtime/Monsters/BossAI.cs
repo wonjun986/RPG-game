@@ -48,6 +48,31 @@ namespace Aethoria.Monsters
         private Color normalColor;
 
         private bool isAttacking;
+
+        // 필살기(리듬전투의 적 턴에서 발동): 체력이 각 문턱(50%, 20%) 이하로 처음 내려간 뒤의 적 턴에 한 번씩 쓴다.
+        // 검을 들어올리고(SpecialRaise) → 기운을 모으다가(SpecialCharge 반복) → 기본 공격 모션과 함께 검기(Effects/BossSwordWave)를 날린다.
+        private static readonly float[] SpecialMoveHealthFractions = { 0.5f, 0.2f };
+        public const string SpecialRaisePath = "Art/Monsters/BossKnight/SpecialRaise";
+        public const string SpecialChargePath = "Art/Monsters/BossKnight/SpecialCharge";
+        public const string SwordWavePath = "Art/Effects/BossSwordWave";
+        // 지금까지 쓴 필살기 횟수(0부터). 두 번째 필살기는 더 어려운 채보로 나온다.
+        public int SpecialMovesUsed { get; private set; }
+        public bool ShouldUseSpecialMove => !monster.IsDead && SpecialMovesUsed < CrossedSpecialThresholds();
+
+        // 한 방에 두 문턱을 함께 넘었으면 필살기는 한 번만 쓰고 지나간다(연달아 두 번 쓰지 않게).
+        public void MarkSpecialMoveUsed() => SpecialMovesUsed = CrossedSpecialThresholds();
+
+        private int CrossedSpecialThresholds()
+        {
+            int crossed = 0;
+            foreach (float fraction in SpecialMoveHealthFractions)
+            {
+                if (monster.CurrentHp <= monster.MaxHp * fraction) crossed++;
+            }
+            return crossed;
+        }
+        // 보스방 등장 연출(BossIntroCutscene) 동안은 아무 행동도 하지 않고 제자리에서 대기 모션만 한다.
+        private bool isHoldingForIntro;
         private bool isStaggered;
         private bool isSuperArmor;
         private float jumpCooldownTimer;
@@ -96,6 +121,33 @@ namespace Aethoria.Monsters
             if (monster != null) monster.OnDamaged -= HandleDamaged;
         }
 
+        // 등장 연출이 시작될 때 호출한다. 슈퍼아머 주기도 전투가 시작될 때까지 멈춰 둔다(대화 중에 몸이 번쩍이지 않게).
+        public void HoldForIntro()
+        {
+            isHoldingForIntro = true;
+            if (superArmorCycleRoutine != null)
+            {
+                StopCoroutine(superArmorCycleRoutine);
+                superArmorCycleRoutine = null;
+            }
+        }
+
+        // 등장 대사가 끝나면 호출한다. 맵 반대편에 있는 플레이어에게 거리 제한 없이 점프 내려찍기로 뛰어든 뒤
+        // 평소 AI로 돌아간다. 내려찍기 피해는 주지 않고, 플레이어 바로 앞에 닿는 순간(착지) 곧바로 리듬전투를 연다.
+        // onLanded는 리듬전투를 열기 직전에 호출된다.
+        public void BeginFightWithJump(float duration, System.Action onLanded)
+        {
+            isHoldingForIntro = false;
+            if (superArmorCycleRoutine == null) superArmorCycleRoutine = StartCoroutine(SuperArmorCycleRoutine());
+            if (!CanJumpAttack)
+            {
+                onLanded?.Invoke();
+                return;
+            }
+            body.linearVelocity = new Vector2(0f, body.linearVelocity.y);
+            patternRoutine = StartCoroutine(RunJumpPattern(float.MaxValue, duration, onLanded, introJump: true));
+        }
+
         private void Update()
         {
             if (jumpCooldownTimer > 0f && !isAttacking) jumpCooldownTimer -= Time.deltaTime;
@@ -103,7 +155,7 @@ namespace Aethoria.Monsters
 
         private void FixedUpdate()
         {
-            if (monster.IsDead || isStaggered || monster.IsImmobilized || target == null || target.IsDead)
+            if (isHoldingForIntro || monster.IsDead || isStaggered || monster.IsImmobilized || target == null || target.IsDead)
             {
                 body.linearVelocity = new Vector2(0f, body.linearVelocity.y);
                 return;
@@ -130,7 +182,7 @@ namespace Aethoria.Monsters
             else if (Mathf.Abs(distance) <= jumpMaxRange && jumpCooldownTimer <= 0f && CanJumpAttack)
             {
                 body.linearVelocity = new Vector2(0f, body.linearVelocity.y);
-                patternRoutine = StartCoroutine(RunJumpPattern());
+                patternRoutine = StartCoroutine(RunJumpPattern(jumpMaxDistance, jumpDuration, null));
             }
             else
             {
@@ -213,7 +265,11 @@ namespace Aethoria.Monsters
         private const float JumpTakeoffFraction = 1f / 8f;
         private const float JumpImpactFraction = 5f / 8f;
 
-        private IEnumerator RunJumpPattern()
+        // 등장 점프는 플레이어 몸 위에 겹쳐 떨어지지 않고 바로 앞(근접 사거리 안)에 내려선다.
+        private const float IntroLandingGap = 1f;
+
+        // introJump면 플레이어 위치가 아니라 IntroLandingGap만큼 보스 쪽으로 떨어진 자리에 착지하고, 피해 대신 바로 리듬전투로 넘어간다.
+        private IEnumerator RunJumpPattern(float maxDistance, float duration, System.Action onLanded, bool introJump = false)
         {
             isAttacking = true;
             jumpCooldownTimer = jumpCooldown;
@@ -224,15 +280,16 @@ namespace Aethoria.Monsters
             // 도약하는 순간의 플레이어 위치로 착지 지점을 정한다(공중에서 따라가지 않음 → 피할 여지가 있다).
             float startX = body.position.x;
             float targetX = target != null ? target.transform.position.x : startX;
-            float landingX = Mathf.Clamp(targetX, startX - jumpMaxDistance, startX + jumpMaxDistance);
+            if (introJump) targetX += Mathf.Sign(startX - targetX) * IntroLandingGap;
+            float landingX = Mathf.Clamp(targetX, startX - maxDistance, startX + maxDistance);
             Rect bounds = GameBootstrap.CurrentMapBounds;
             landingX = Mathf.Clamp(landingX, bounds.xMin + 1f, bounds.xMax - 1f);
 
-            attackAnimator.PlayClip(JumpAttackClip, jumpDuration);
+            attackAnimator.PlayClip(JumpAttackClip, duration);
 
-            yield return new WaitForSeconds(jumpDuration * JumpTakeoffFraction);
+            yield return new WaitForSeconds(duration * JumpTakeoffFraction);
 
-            float airTime = jumpDuration * (JumpImpactFraction - JumpTakeoffFraction);
+            float airTime = duration * (JumpImpactFraction - JumpTakeoffFraction);
             float elapsed = 0f;
             while (elapsed < airTime)
             {
@@ -243,9 +300,21 @@ namespace Aethoria.Monsters
             }
 
             if (monster.IsDead) yield break;
+
+            if (introJump)
+            {
+                // 착지 모션(7~8프레임)과 패턴 쿨다운을 기다리지 않고, 닿자마자 전투를 시작한다.
+                attackAnimator.Stop();
+                isAttacking = false;
+                patternRoutine = null;
+                onLanded?.Invoke();
+                if (rhythmBattleUI != null && target != null) rhythmBattleUI.TryBegin(monster, target);
+                yield break;
+            }
+
             DealDamageAt(transform.position, jumpSlamRadius, jumpDamageMultiplier);
 
-            yield return new WaitForSeconds(jumpDuration * (1f - JumpImpactFraction));
+            yield return new WaitForSeconds(duration * (1f - JumpImpactFraction));
             yield return new WaitForSeconds(patternCooldown);
 
             isAttacking = false;

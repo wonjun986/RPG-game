@@ -43,6 +43,15 @@ namespace Aethoria.Save
         public int dailyQuestStatus;
         public int dailyQuestProgress;
         public string dailyQuestResetDate;
+        // 보스 기사 등장 연출을 한 번이라도 봤는지. 본 뒤로는 등장 대사를 Esc로 건너뛸 수 있다.
+        public bool bossIntroSeen;
+        // 루나벨(절망의 언덕) 등장 연출을 본 적 있는지. 본 뒤로는 등장 대사를 Esc로 건너뛸 수 있다.
+        public bool lunabelIntroSeen;
+        // 노아와의 첫 만남(스토리 대사)이 아직 남았는지. 새 게임에서만 true로 시작한다 — 이 값이 없던 예전 세이브는
+        // false로 읽혀서, 이미 노아를 만난 캐릭터에게 첫 만남 대사가 다시 나오지 않는다.
+        public bool noaFirstMeetingPending;
+        // 이시스와의 첫 만남 대사가 아직 남았는지(노아와 같은 방식).
+        public bool isisFirstMeetingPending;
         public string savedAt;
     }
 

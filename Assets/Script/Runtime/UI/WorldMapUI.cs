@@ -70,7 +70,7 @@ namespace Aethoria.UI
                 new MapNode { Name = "마을", AnchorMin = new Vector2(0.11f, 0.69f), AnchorMax = new Vector2(0.25f, 0.81f), Locked = false },
                 new MapNode { Name = "어둠의 숲", AnchorMin = new Vector2(0.34f, 0.67f), AnchorMax = new Vector2(0.48f, 0.78f), Locked = false, OnSelect = HandleEnterDarkForest },
                 new MapNode { Name = "잊혀진 폐허", AnchorMin = new Vector2(0.59f, 0.68f), AnchorMax = new Vector2(0.73f, 0.79f), Locked = false, OnSelect = HandleEnterRuins },
-                new MapNode { Name = "절망의 언덕", AnchorMin = new Vector2(0.78f, 0.74f), AnchorMax = new Vector2(0.92f, 0.84f), Locked = true },
+                new MapNode { Name = "절망의 언덕", AnchorMin = new Vector2(0.78f, 0.74f), AnchorMax = new Vector2(0.92f, 0.84f), Locked = false, OnSelect = HandleEnterHill },
                 new MapNode { Name = "광활한 평야", AnchorMin = new Vector2(0.17f, 0.42f), AnchorMax = new Vector2(0.33f, 0.52f), Locked = false, OnSelect = HandleEnterPlains },
                 new MapNode { Name = "엔스룸 마을", AnchorMin = new Vector2(0.39f, 0.27f), AnchorMax = new Vector2(0.54f, 0.36f), Locked = false, OnSelect = HandleEnterEnsroom },
                 new MapNode { Name = "푸른 바다", AnchorMin = new Vector2(0.73f, 0.35f), AnchorMax = new Vector2(0.88f, 0.44f), Locked = true },
@@ -409,6 +409,12 @@ namespace Aethoria.UI
         {
             Hide();
             GameBootstrap.EnterTemple();
+        }
+
+        private void HandleEnterHill()
+        {
+            Hide();
+            GameBootstrap.EnterHill();
         }
 
         private void HandleCancel()

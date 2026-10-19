@@ -4,6 +4,7 @@ using UnityEngine;
 namespace Aethoria.Characters
 {
     // 공중에 떠 있는 동안 점프 프레임을, 2단 점프 순간에는 낫 플립 연출을 재생한다.
+    // 착지하면 착지 프레임 없이 곧바로 걷기/대기 모션으로 돌아간다.
     // WalkSpriteAnimator와 스프라이트를 두고 다투지 않도록, 공중에 있는 동안은 그쪽을 꺼둔다.
     [RequireComponent(typeof(CharacterMovement2D))]
     public class JumpSpriteAnimator : MonoBehaviour
@@ -11,7 +12,6 @@ namespace Aethoria.Characters
         [SerializeField] private string jumpResourcesPath = "Art/Necrosia/Jump";
         [SerializeField] private string doubleJumpResourcesPath = "Art/Necrosia/DoubleJump";
         [SerializeField] private float doubleJumpDuration = 0.4f;
-        [SerializeField] private float landingFrameHold = 0.08f;
 
         private CharacterMovement2D movement;
         private WalkSpriteAnimator walkAnimator;
@@ -19,7 +19,6 @@ namespace Aethoria.Characters
         private Sprite[] jumpFrames;
         private Sprite[] doubleJumpFrames;
         private Coroutine doubleJumpRoutine;
-        private Coroutine landRoutine;
         private bool wasGrounded;
 
         private void Awake()
@@ -69,11 +68,6 @@ namespace Aethoria.Characters
                 StopCoroutine(doubleJumpRoutine);
                 doubleJumpRoutine = null;
             }
-            if (landRoutine != null)
-            {
-                StopCoroutine(landRoutine);
-                landRoutine = null;
-            }
         }
 
         private void Update()
@@ -105,11 +99,6 @@ namespace Aethoria.Characters
         {
             if (doubleJumpFrames == null || doubleJumpFrames.Length == 0) return;
 
-            if (landRoutine != null)
-            {
-                StopCoroutine(landRoutine);
-                landRoutine = null;
-            }
             if (doubleJumpRoutine != null) StopCoroutine(doubleJumpRoutine);
             doubleJumpRoutine = StartCoroutine(PlayDoubleJumpRoutine());
         }
@@ -136,15 +125,7 @@ namespace Aethoria.Characters
                 doubleJumpRoutine = null;
             }
 
-            if (jumpFrames != null && jumpFrames.Length > 0)
-            {
-                SetFrame(jumpFrames[jumpFrames.Length - 1]); // 착지 프레임
-                landRoutine = StartCoroutine(ReturnToWalkAfterLanding());
-            }
-            else if (walkAnimator != null)
-            {
-                walkAnimator.enabled = true;
-            }
+            if (walkAnimator != null) walkAnimator.enabled = true;
         }
 
         // 걷기 애니메이터와 같은 기준 키로 매 프레임 보정한다. 점프/더블점프 시트도 프레임마다
@@ -154,13 +135,6 @@ namespace Aethoria.Characters
         {
             spriteRenderer.sprite = frame;
             SkillFrameNormalizer.Apply(spriteRenderer.transform, frame);
-        }
-
-        private IEnumerator ReturnToWalkAfterLanding()
-        {
-            yield return new WaitForSeconds(landingFrameHold);
-            if (walkAnimator != null) walkAnimator.enabled = true;
-            landRoutine = null;
         }
     }
 }

@@ -16,6 +16,7 @@ namespace Aethoria.Characters
         private float floorY;
         private float maxRise;
         private Vector3 velocity;
+        private float defaultSmoothTime = -1f;
 
         // 바닥에서 이 높이까지는(점프 등) 카메라가 위아래로 출렁이지 않게 그대로 둔다.
         private const float RiseDeadZone = 1.5f;
@@ -43,6 +44,20 @@ namespace Aethoria.Characters
             }
 
             transform.position = new Vector3(Mathf.Clamp(target.position.x, minX, maxX), DesiredY(), transform.position.z);
+        }
+
+        // 보스 등장 연출처럼 잠깐 다른 대상을 비출 때 쓴다. 맵 범위/높이는 그대로 두고 따라갈 대상과
+        // 따라가는 속도만 바꾼다(newSmoothTime이 크면 천천히 미끄러지듯 이동). ResetSmoothTime으로 되돌린다.
+        public void SetTarget(Transform newTarget, float newSmoothTime)
+        {
+            if (defaultSmoothTime < 0f) defaultSmoothTime = smoothTime;
+            target = newTarget;
+            smoothTime = newSmoothTime;
+        }
+
+        public void ResetSmoothTime()
+        {
+            if (defaultSmoothTime >= 0f) smoothTime = defaultSmoothTime;
         }
 
         private float DesiredY()

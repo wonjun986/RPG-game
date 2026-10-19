@@ -5,6 +5,7 @@ using UnityEngine.Events;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
+using Aethoria.Monsters;
 using Aethoria.Save;
 
 namespace Aethoria.UI
@@ -13,7 +14,7 @@ namespace Aethoria.UI
     // 가장 최근에 저장된 슬롯에서 이어하기, EXIT는 게임 종료. 슬롯 5칸이 모두 차 있는데 GAME START를 누르면
     // 가장 오래된 슬롯을 덮어쓸지 한 번 더 묻는다.
     // 저장이 없으면 CONTINUE 글자를 어둡게 덮고, 눌러도 안내만 띄운다.
-    // EXTRAS는 작은 창을 띄워 네크로시아의 죽음 연출(DeathCinematic)을 다시 볼 수 있게 한다.
+    // EXTRAS는 작은 창을 띄워 네크로시아의 죽음 연출(DeathCinematic)을 다시 보거나, 루나벨의 모션을 하나씩 돌려 볼 수 있게 한다(MotionGalleryUI).
     // SETTINGS는 아직 뒷받침하는 시스템이 없어 이미지에 장식으로만 그려져 있다(클릭 불가).
     public class TitleScreenUI : MonoBehaviour
     {
@@ -36,7 +37,9 @@ namespace Aethoria.UI
 
         private GameObject extrasPanel;
         private Button deathMotionButton;
+        private Button lunabelMotionButton;
         private DeathCinematic deathCinematic;
+        private MotionGalleryUI lunabelGallery;
 
         // onContinue: 불러오기 화면에서 고른 슬롯 번호(1~5)를 넘겨받는다.
         public void Initialize(UnityAction onGameStart, UnityAction<int> onContinue)
@@ -92,6 +95,11 @@ namespace Aethoria.UI
             BuildConfirmDialog(canvasGO.transform, startNew);
             BuildExtrasDialog(canvasGO.transform);
             deathCinematic = DeathCinematic.Create(canvasGO.transform, "[Z] 돌아가기");
+            lunabelGallery = MotionGalleryUI.Create(canvasGO.transform, "루나벨 모션", BuildLunabelClips());
+            lunabelGallery.Closed += () =>
+            {
+                if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(lunabelMotionButton.gameObject);
+            };
 
             // CONTINUE를 누르면 노아의 저장 화면과 같은 슬롯 창을 불러오기 모드로 띄운다.
             loadScreen = canvasGO.AddComponent<SaveScreenUI>();
@@ -109,7 +117,7 @@ namespace Aethoria.UI
             loadScreen.Open();
         }
 
-        // EXTRAS: 다시 볼 수 있는 연출 목록 창. 지금은 데스 모션 하나뿐이다. Esc/X 또는 "닫기"로 닫는다.
+        // EXTRAS: 다시 볼 수 있는 연출 목록 창(데스 모션, 루나벨 모션). Esc/X 또는 "닫기"로 닫는다.
         private void BuildExtrasDialog(Transform parent)
         {
             extrasPanel = new GameObject("ExtrasDialog", typeof(RectTransform), typeof(Image));
@@ -127,13 +135,13 @@ namespace Aethoria.UI
             boxRect.anchorMin = new Vector2(0.5f, 0.5f);
             boxRect.anchorMax = new Vector2(0.5f, 0.5f);
             boxRect.pivot = new Vector2(0.5f, 0.5f);
-            boxRect.sizeDelta = new Vector2(420f, 280f);
+            boxRect.sizeDelta = new Vector2(420f, 360f);
             boxGO.GetComponent<Image>().color = new Color(0.06f, 0.04f, 0.09f, 0.97f);
 
             var titleGO = new GameObject("Title", typeof(RectTransform), typeof(Text));
             var titleRect = (RectTransform)titleGO.transform;
             titleRect.SetParent(boxRect, false);
-            titleRect.anchorMin = new Vector2(0f, 0.72f);
+            titleRect.anchorMin = new Vector2(0f, 0.78f);
             titleRect.anchorMax = new Vector2(1f, 0.95f);
             titleRect.offsetMin = Vector2.zero;
             titleRect.offsetMax = Vector2.zero;
@@ -145,9 +153,11 @@ namespace Aethoria.UI
             titleText.color = new Color(0.85f, 0.7f, 1f);
             titleText.text = "EXTRAS";
 
-            WorldMapUI.BuildDialogButton(boxRect, "DeathMotionButton", "데스 모션 보기", new Vector2(0.12f, 0.42f), new Vector2(0.88f, 0.64f), PlayDeathMotion);
-            WorldMapUI.BuildDialogButton(boxRect, "CloseButton", "닫기", new Vector2(0.12f, 0.1f), new Vector2(0.88f, 0.32f), CloseExtras);
+            WorldMapUI.BuildDialogButton(boxRect, "DeathMotionButton", "데스 모션 보기", new Vector2(0.12f, 0.56f), new Vector2(0.88f, 0.73f), PlayDeathMotion);
+            WorldMapUI.BuildDialogButton(boxRect, "LunabelMotionButton", "루나벨 모션 보기", new Vector2(0.12f, 0.33f), new Vector2(0.88f, 0.5f), OpenLunabelGallery);
+            WorldMapUI.BuildDialogButton(boxRect, "CloseButton", "닫기", new Vector2(0.12f, 0.08f), new Vector2(0.88f, 0.25f), CloseExtras);
             deathMotionButton = boxRect.Find("DeathMotionButton").GetComponent<Button>();
+            lunabelMotionButton = boxRect.Find("LunabelMotionButton").GetComponent<Button>();
 
             extrasPanel.SetActive(false);
         }
@@ -180,6 +190,39 @@ namespace Aethoria.UI
             deathCinematic.Hide();
             yield return null;
             if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(deathMotionButton.gameObject);
+        }
+
+        private void OpenLunabelGallery()
+        {
+            if (lunabelGallery.IsShowing) return;
+            // 창이 떠 있는 동안 Enter가 뒤쪽 EXTRAS 버튼을 다시 누르지 않도록 선택을 비운다.
+            if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(null);
+            lunabelGallery.Show();
+        }
+
+        // 루나벨이 게임에서 쓰는 모션/이펙트. 캐릭터 모션은 게임처럼 왼쪽(플레이어 쪽)을 보게 뒤집는다.
+        private static MotionGalleryUI.Clip[] BuildLunabelClips()
+        {
+            const string root = "Art/Monsters/FinalBoss/";
+            return new[]
+            {
+                new MotionGalleryUI.Clip("1페이즈 대기", 1f / 6f, true, false, true, root + "Idle"),
+                new MotionGalleryUI.Clip("피의 손 뻗기 (공격)", 0.125f, false, false, true, root + "Attack"),
+                new MotionGalleryUI.Clip("피격", 0.1f, false, false, true, FinalBossAI.HitPath),
+                new MotionGalleryUI.Clip("혈류 흡수", 0.15f, false, false, true, FinalBossAI.AbsorbPath),
+                new MotionGalleryUI.Clip("2페이즈 변신", 0.15f, false, false, true, FinalBossAI.PhaseTwoPath),
+                new MotionGalleryUI.Clip("2페이즈 대기", 1f / 6f, true, false, true, FinalBossAI.PhaseTwoIdlePath),
+                new MotionGalleryUI.Clip("2페이즈 공격", 1f / 6f, false, false, true, FinalBossAI.PhaseTwoAttackPath),
+                new MotionGalleryUI.Clip("필살기 - 하늘로 손 뻗기", 0.14f, false, false, true, FinalBossAI.SpecialPath),
+                new MotionGalleryUI.Clip("필살기 - 구체 모으기", 0.1f, true, false, true, FinalBossAI.SpecialChargePath),
+                new MotionGalleryUI.Clip("필살기 - 구체 던지기", 0.1f, false, false, true, FinalBossAI.ThrowPath),
+                new MotionGalleryUI.Clip("필살기 - 전체 모션", 0.1f, false, false, true,
+                    FinalBossAI.SpecialPath, FinalBossAI.SpecialChargePath, FinalBossAI.SpecialChargePath, FinalBossAI.ThrowPath),
+                new MotionGalleryUI.Clip("이펙트 - 피의 손", 0.06f, true, true, true, BloodHandProjectile.FramesPath),
+                new MotionGalleryUI.Clip("이펙트 - 핏빛 구체", 0.1f, true, true, false, FinalBossAI.BloodOrbPath),
+                new MotionGalleryUI.Clip("이펙트 - 피의 기둥", 0.07f, false, true, false,
+                    FinalBossAI.BloodPillarRisePath, FinalBossAI.BloodPillarTornadoPath, FinalBossAI.BloodPillarTornadoPath, FinalBossAI.BloodPillarTornadoPath),
+            };
         }
 
         // 저장이 없을 때 CONTINUE 글자 위를 반투명하게 덮어 비활성처럼 보이게 한다(클릭은 버튼이 받는다).
@@ -346,7 +389,8 @@ namespace Aethoria.UI
             if (menuButtons == null) return;
 
             bool extrasOpen = extrasPanel != null && extrasPanel.activeSelf;
-            bool cinematicPlaying = deathCinematic != null && deathCinematic.IsShowing;
+            bool cinematicPlaying = (deathCinematic != null && deathCinematic.IsShowing)
+                || (lunabelGallery != null && (lunabelGallery.IsShowing || lunabelGallery.ClosedThisFrame));
             var keyboard = Keyboard.current;
             if (extrasOpen && !cinematicPlaying && keyboard != null && (keyboard.escapeKey.wasPressedThisFrame || keyboard.xKey.wasPressedThisFrame))
             {

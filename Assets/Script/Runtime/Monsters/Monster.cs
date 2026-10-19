@@ -24,6 +24,13 @@ namespace Aethoria.Monsters
         public bool IsImmobilized { get; private set; }
         public void SetImmobilized(bool immobilized) => IsImmobilized = immobilized;
 
+        // false면 쓰러져도 오브젝트를 바로 지우지 않는다(보스 기사처럼 쓰러진 뒤 월드에서 유언/사망 모션을 보여 줄 때).
+        // 그 경우 연출을 맡은 쪽(BossDeathCutscene)이 끝난 뒤 직접 지운다.
+        public bool DestroyOnDeath { get; set; } = true;
+
+        // true면 쓰러질 만큼의 피해를 받아도 체력 1로 버틴다(루나벨이 1페이즈에서 한 방에 죽지 않고 2페이즈로 넘어가게).
+        public bool SurviveLethalHit { get; set; }
+
         public event Action<Monster> OnDied;
         // 어느 몬스터든 죽으면 발생한다. 퀘스트처럼 스테이지와 상관없이 처치 수를 세야 하는 쪽에서 구독한다.
         public static event Action<Monster> AnyDied;
@@ -55,7 +62,7 @@ namespace Aethoria.Monsters
         {
             if (IsDead || finalDamage <= 0f) return;
 
-            currentHp = Mathf.Max(0f, currentHp - finalDamage);
+            currentHp = Mathf.Max(SurviveLethalHit ? Mathf.Min(1f, currentHp) : 0f, currentHp - finalDamage);
             LastHitWasCritical = isCritical;
             OnDamaged?.Invoke(this, finalDamage);
             if (isCritical) DamagePopup.Create(transform.position, finalDamage, CriticalPopupColor, 1.4f);
@@ -65,7 +72,7 @@ namespace Aethoria.Monsters
             {
                 OnDied?.Invoke(this);
                 AnyDied?.Invoke(this);
-                Destroy(gameObject);
+                if (DestroyOnDeath) Destroy(gameObject);
             }
         }
 
@@ -74,6 +81,13 @@ namespace Aethoria.Monsters
         public void RestoreFullHp()
         {
             currentHp = MaxHp;
+        }
+
+        // 보스의 흡혈 패턴처럼 체력을 일부 되찾는다(최대 체력을 넘지 않음).
+        public void Heal(float amount)
+        {
+            if (IsDead || amount <= 0f) return;
+            currentHp = Mathf.Min(MaxHp, currentHp + amount);
         }
 
         [ContextMenu("Test/Take 5 Damage")]

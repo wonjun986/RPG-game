@@ -11,12 +11,14 @@ namespace Aethoria.UI
     // 스킬 피해량이 한 번에 조금씩 같이 오른다. 조작: Z/Enter(또는 [기도하기])로 축복, X/Esc로 닫기.
     public class BlessingUI : MonoBehaviour
     {
-        private const float ImageWidth = 1672f;
-        private const float ImageHeight = 941f;
+        // 원화(Sprite/UI/iria's blessing, 1536x1024)는 3:2라 화면(16:9)에 늘이면 찌그러져서, 위아래를 80px씩
+        // 잘라 1536x864로 맞췄다. 수치 칸/강화 비용 칸에 그려져 있던 "–" 표시도 지워서 그 위에 글자를 쓴다.
+        private const float ImageWidth = 1536f;
+        private const float ImageHeight = 864f;
         private const float PxToCanvas = 720f / ImageHeight;
 
         // 5개 스탯 줄(공격력/방어력/치명타 확률/치명타 피해량/스킬 피해량)의 세로 중심. 그림 속 순서 그대로다.
-        private static readonly float[] StatRowY = { 270f, 340f, 410f, 480f, 550f };
+        private static readonly float[] StatRowY = { 250f, 310f, 370f, 429f, 489f };
 
         private static readonly Color TextColor = new Color(0.3f, 0.22f, 0.15f);
         private static readonly Color DimColor = new Color(0.6f, 0.55f, 0.5f);
@@ -55,14 +57,14 @@ namespace Aethoria.UI
 
             for (int i = 0; i < StatRowY.Length; i++)
             {
-                statValues[i] = CreateText(rect, "Stat" + i, 1245f, StatRowY[i] - 22f, 1440f, StatRowY[i] + 22f, 24f, TextColor, TextAnchor.MiddleCenter);
+                statValues[i] = CreateText(rect, "Stat" + i, 1058f, StatRowY[i] - 18f, 1210f, StatRowY[i] + 18f, 22f, TextColor, TextAnchor.MiddleCenter);
                 statValues[i].fontStyle = FontStyle.Bold;
             }
 
-            costText = CreateText(rect, "Cost", 1000f, 668f, 1370f, 712f, 26f, TextColor, TextAnchor.MiddleCenter);
+            costText = CreateText(rect, "Cost", 1000f, 603f, 1180f, 647f, 26f, TextColor, TextAnchor.MiddleCenter);
             costText.fontStyle = FontStyle.Bold;
 
-            CreateButton(rect, "PrayButton", 895f, 790f, 1450f, 865f, TryBless);
+            CreateButton(rect, "PrayButton", 810f, 695f, 1225f, 780f, TryBless);
 
             panel.SetActive(false);
         }

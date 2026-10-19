@@ -47,10 +47,19 @@ namespace Aethoria.Bootstrap
         // 방이라 돌아가는 포탈 하나만 있다.
         private const int SanctuaryStage = -9;
         private const int SanctuaryWidth = 20;
-        // 천상으로 향하는 계단: 월드맵에서 들어가는 세 번째 안전 지역. 원래 엔스룸 분수 앞에 있던 성소
-        // 건물이 여기로 옮겨 왔고, 엔스룸은 다시 건물 없는 빈 광장으로 되돌아갔다.
-        private const int TempleStage = -10;
+        // 천상으로 향하는 계단: 월드맵에서 들어가는 세 번째 안전 지역. 길게 이어진 대리석 회랑(계단)을
+        // 오른쪽 끝까지 걸어가면 포탈로 천상의 신전(-11)에 들어간다. 원래 엔스룸 분수 앞에 있던 성소
+        // 건물은 신전으로 옮겨 왔고, 엔스룸은 다시 건물 없는 빈 광장으로 되돌아갔다.
+        private const int StairsStage = -10;
+        private const int StairsWidth = 40;
+        private const int TempleStage = -11;
         private const int TempleWidth = 32;
+        // 절망의 언덕: 월드맵에서 들어가는 최종보스 맵. 일반 몬스터 없이 언덕 끝에 루나벨만 서 있다.
+        private const int HillStage = -12;
+        private const int HillWidth = 32;
+        // 튜토리얼 숲: 새 게임을 시작하면 도입 스토리 뒤에 눈을 뜨는 어둠의 숲 맵. 이동/전투를 배우고(ForestTutorial)
+        // 오른쪽 끝 포탈로 마을에 들어간다. 이어하기로는 다시 오지 않는다.
+        private const int TutorialStage = -13;
 
         // 마을에 들어올 때 서는 자리. Edge는 들어온 방향에 따라 왼쪽/오른쪽 끝.
         private enum VillageSpawn { Edge, Noa, Isis }
@@ -76,6 +85,13 @@ namespace Aethoria.Bootstrap
         private static SaveToastUI saveToast;
         private static SaveScreenUI saveScreen;
         private static TutorialUI tutorialUI;
+        private static StoryIntroUI storyIntroUI;
+        // 보스 기사 등장 연출을 이미 봤는지(세이브에 저장). 두 번째 만남부터는 등장 대사를 Esc로 건너뛸 수 있다.
+        private static bool bossIntroSeen;
+        private static bool lunabelIntroSeen;
+        // 노아와의 첫 만남 대사가 아직 남았는지(새 게임에서만 true, 한 번 보면 false로 저장된다).
+        private static bool noaFirstMeetingPending;
+        private static bool isisFirstMeetingPending;
         // 자동 저장이 기록되는 슬롯. 이어하기면 불러온 슬롯, 새 게임이면 빈 슬롯(없으면 가장 오래된 슬롯),
         // 노아의 저장 화면에서 다른 슬롯에 저장하면 그 슬롯으로 바뀐다.
         private static int activeSlot = 1;
@@ -119,6 +135,10 @@ namespace Aethoria.Bootstrap
             Monster.AnyDied -= HandleMonsterDiedForDrops; // 다시 시작할 때 중복 구독되지 않게
             Monster.AnyDied += HandleMonsterDiedForDrops;
             var inventory = player.GetComponent<Inventory>();
+            bossIntroSeen = save != null && save.bossIntroSeen;
+            lunabelIntroSeen = save != null && save.lunabelIntroSeen;
+            noaFirstMeetingPending = save == null || save.noaFirstMeetingPending;
+            isisFirstMeetingPending = save == null || save.isisFirstMeetingPending;
             if (save != null)
             {
                 player.RestoreProgress(save.level, save.exp, save.gold);
@@ -145,11 +165,10 @@ namespace Aethoria.Bootstrap
             dailyQuestManager.OnChanged += SaveGame;
             player.OnLevelUp += _ => SaveGame();
 
-            currentStage = VillageStage;
+            // 새 게임은 도입 스토리를 본 뒤 튜토리얼 숲에서 눈을 뜬다(숲은 스토리 뒤에 미리 지어 둔다). 이어하기는 늘 마을에서 시작한다.
+            currentStage = save == null ? TutorialStage : VillageStage;
             BuildStage(enteringForward: true);
-
-            // 조작법 안내창은 새 게임을 처음 시작했을 때만 뜬다(이어하기는 건너뜀).
-            if (save == null) tutorialUI.Show();
+            if (save == null) storyIntroUI.Play();
         }
 
         // 기본 무기는 가방에 넣어주기만 하고 장착은 하지 않는다. 장비 칸은 플레이어가 직접 장착하기 전까지 비워 둔다.
@@ -197,6 +216,10 @@ namespace Aethoria.Bootstrap
                 dailyQuestStatus = (int)dailyQuestManager.Status,
                 dailyQuestProgress = dailyQuestManager.Progress,
                 dailyQuestResetDate = dailyQuestManager.ResetDate,
+                bossIntroSeen = bossIntroSeen,
+                lunabelIntroSeen = lunabelIntroSeen,
+                noaFirstMeetingPending = noaFirstMeetingPending,
+                isisFirstMeetingPending = isisFirstMeetingPending,
             });
             saveToast?.Show();
             return true;
@@ -232,6 +255,7 @@ namespace Aethoria.Bootstrap
             saveToast = null;
             saveScreen = null;
             tutorialUI = null;
+            storyIntroUI = null;
             Time.timeScale = 1f;
         }
 
@@ -262,6 +286,15 @@ namespace Aethoria.Bootstrap
             player.RestoreMana(player.MaxMana);
             currentStage = VillageStage;
             BuildStage(enteringForward: false, spawnAtNoa ? VillageSpawn.Noa : VillageSpawn.Edge);
+        }
+
+        // 쓰러진 뒤 "재도전"을 골랐을 때(DeathReturnUI) 호출된다. 체력/마나를 채우고 쓰러진 그 맵을 처음 들어올 때처럼
+        // 다시 짓는다 — 보스 맵이면 보스와 등장 연출부터(이미 본 연출은 Esc로 건너뛸 수 있다), 튜토리얼 숲이면 숲에서 다시 눈을 뜬다.
+        public static void RetryCurrentStage()
+        {
+            player.Heal(player.MaxHp);
+            player.RestoreMana(player.MaxMana);
+            BuildStage(enteringForward: true);
         }
 
         // 마을의 이시스에게서 "연습장 입장"을 골랐을 때 호출된다.
@@ -306,23 +339,37 @@ namespace Aethoria.Bootstrap
             BuildStage(enteringForward: true);
         }
 
-        // 엔스룸 분수 앞 성소 입구(SanctuaryEntrance)에서 [Z]를 누르면 호출된다.
+        // 월드맵에서 "천상으로 향하는 계단"을 골랐을 때 호출된다. 항상 계단 입구(왼쪽 끝)부터 시작한다.
+        public static void EnterTemple()
+        {
+            currentStage = StairsStage;
+            BuildStage(enteringForward: true);
+        }
+
+        // 월드맵에서 "절망의 언덕"을 골랐을 때 호출된다.
+        public static void EnterHill()
+        {
+            currentStage = HillStage;
+            BuildStage(enteringForward: true);
+        }
+
+        // 천상의 신전의 성소 입구(SanctuaryEntrance)에서 [Z]를 누르면 호출된다.
         private static void EnterSanctuary()
         {
             currentStage = SanctuaryStage;
             BuildStage(enteringForward: true);
         }
 
-        // 성소 안의 돌아가는 포탈. 엔스룸 분수 앞(성소 입구)으로 돌아간다. 엔스룸은 포탈이 하나뿐이라
-        // BuildEnsroom이 늘 왼쪽 끝(마을 포탈 쪽)에 스폰시키는데, 성소에서 나올 때는 그러면 방금 나온
+        // 성소 안의 돌아가는 포탈. 천상의 신전의 성소 입구 앞으로 돌아간다. 신전에 그냥 들어오면
+        // BuildTemple이 늘 왼쪽 끝(계단으로 돌아가는 포탈 쪽)에 스폰시키는데, 성소에서 나올 때는 그러면 방금 나온
         // 입구에서 저 멀리 가로질러 걸어야 해서 어색하다. 플래그를 하나 세워서 이번 한 번만 성소
         // 입구 자리에 세우게 한다.
-        private static bool ensroomSpawnAtSanctuary;
+        private static bool templeSpawnAtSanctuary;
 
         private static void LeaveSanctuary()
         {
-            currentStage = EnsroomStage;
-            ensroomSpawnAtSanctuary = true;
+            currentStage = TempleStage;
+            templeSpawnAtSanctuary = true;
             BuildStage(enteringForward: false);
         }
 
@@ -365,11 +412,17 @@ namespace Aethoria.Bootstrap
             bossHealthUI.Hide();
             stageClearUI.Cancel();
             // 던전 첫 맵에 앞으로 걸어 들어왔으면(마을/월드맵에서 출발) 스테이지 클리어 창에 보여줄 획득 기록을 새로 시작한다.
-            if (enteringForward && (currentStage == 1 || currentStage == PlainsStage1 || currentStage == RuinsStage1)) stageClearUI.BeginRun();
+            if (enteringForward && (currentStage == 1 || currentStage == PlainsStage1 || currentStage == RuinsStage1 || currentStage == HillStage)) stageClearUI.BeginRun();
 
             if (currentStage == VillageStage)
             {
                 BuildVillage(enteringForward, villageSpawn);
+                return;
+            }
+
+            if (currentStage == TutorialStage)
+            {
+                BuildTutorialForest();
                 return;
             }
 
@@ -391,9 +444,27 @@ namespace Aethoria.Bootstrap
                 return;
             }
 
+            if (currentStage == StairsStage)
+            {
+                BuildStairs(enteringForward);
+                return;
+            }
+
+            if (currentStage == TempleStage)
+            {
+                BuildTemple();
+                return;
+            }
+
             if (currentStage == SanctuaryStage)
             {
                 BuildSanctuary();
+                return;
+            }
+
+            if (currentStage == HillStage)
+            {
+                BuildHill();
                 return;
             }
 
@@ -417,7 +488,7 @@ namespace Aethoria.Bootstrap
             // 보스 맵에는 보스만 나오고 일반 몬스터는 나오지 않는다.
             if (currentStage == BossStage)
             {
-                SpawnBoss(stageRoot.transform, yMin);
+                SpawnBoss(stageRoot.transform, yMin, xMax);
             }
             else
             {
@@ -427,9 +498,10 @@ namespace Aethoria.Bootstrap
                     MonsterSpawner.PickSpawnXs(KnightsPerStage, xMin, xMax, playerSpawnX, minSpacing: 4.5f));
             }
 
-            // 왼쪽 끝은 항상 이전 스테이지(마을 포함)로 돌아가는 포탈, 오른쪽 끝은 마지막 스테이지가
-            // 아닐 때만 다음 스테이지로 가는 포탈.
-            SpawnPortal(stageRoot.transform, xMin + 0.5f, yMin, backward: true);
+            // 왼쪽 끝은 이전 스테이지(마을 포함)로 돌아가는 포탈, 오른쪽 끝은 마지막 스테이지가
+            // 아닐 때만 다음 스테이지로 가는 포탈. 보스방은 들어오면 보스와 싸울 수밖에 없어서 포탈을 두지 않는다
+            // (이기면 스테이지 클리어 창, 지면 마을로 돌아간다).
+            if (currentStage != BossStage) SpawnPortal(stageRoot.transform, xMin + 0.5f, yMin, backward: true);
             if (currentStage < TotalStages)
             {
                 SpawnPortal(stageRoot.transform, xMax - 0.5f, yMin, backward: false);
@@ -532,6 +604,82 @@ namespace Aethoria.Bootstrap
             Debug.Log("Aethoria: 마을 진입");
         }
 
+        // 튜토리얼 숲: 전용 배경(Tutorial_Map)의 평평한 숲길을 걷는 맵. 처음엔 몬스터가 없다. 진행은 ForestTutorial이 맡고,
+        // 숲의 정령(튜토리얼 몬스터)은 이동 연습이 끝난 뒤에 한 마리만 나오며, 그걸 잡아야 출구 포탈이 열린다.
+        // 배경(2172x724) 속 흙길 윗면이 위에서부터 약 605px 지점이라 그 줄을 바닥으로 삼는다.
+        private const float TutorialGroundFraction = 605f / 724f;
+        private const int TutorialWidth = 32;
+        // 세로를 다 덮게 자동으로 맞추면 배율이 약 1.49라 나무/성이 거대해서 네크로시아가 너무 작아 보였다. 1.1로 고정하고
+        // 모자란 폭은 좌우 반전한 복사본으로 채운다. 화면 맨 아래가 조금 비지만 그림 아래쪽이 카메라 배경색과 거의 같은 검보라라 티가 안 난다.
+        private const float TutorialBackgroundScale = 1.1f;
+
+        private static void BuildTutorialForest()
+        {
+            BuildMap(stageRoot.transform, TutorialWidth, MapHeight, out int xMin, out int xMax, out int yMin, out int yMax,
+                "Backgrounds/TutorialForest", TutorialGroundFraction, TutorialBackgroundScale);
+            mapXMin = xMin; mapXMax = xMax; mapYMin = yMin; mapYMax = yMax;
+
+            player.SetCombatLocked(false);
+            PlacePlayerAtSpawn(xMin + 2f, yMin);
+            FitCamera(xMin, xMax, yMin);
+
+            var root = stageRoot.transform;
+            var tutorial = stageRoot.AddComponent<ForestTutorial>();
+            tutorial.Initialize(player, npcDialogueUI, tutorialUI, storyIntroUI, xMin, xMax,
+                x => SpawnForestSpirit(root, yMin, x),
+                () =>
+                {
+                    var exit = SpawnPortal(root, xMax - 0.5f, yMin, backward: false);
+                    exit.SetCustomTrigger(LeaveTutorialForest);
+                });
+
+            Debug.Log("Aethoria: 튜토리얼 숲 진입");
+        }
+
+        // 튜토리얼 몬스터(Tutorial_Monster_Move, 6프레임 걷기). 첫 전투라 평야 슬라임보다 약하게:
+        // 일반 공격 한 턴이면 거의 잡히고, 놓쳐도 아프지 않다.
+        private const string ForestSpiritWalkPath = "Art/Monsters/ForestSpirit/Walk";
+
+        private static Monster SpawnForestSpirit(Transform parent, int floorY, float x)
+        {
+            var data = ScriptableObject.CreateInstance<MonsterData>();
+            data.monsterName = "숲의 정령";
+            data.level = 1;
+            data.maxHp = 100f;
+            data.attack = 1f;
+            data.defense = 0f;
+            data.expReward = 10;
+            data.goldReward = 8;
+
+            var go = new GameObject("ForestSpirit");
+            go.transform.position = new Vector3(x, floorY, 0f);
+            go.transform.SetParent(parent);
+            go.AddComponent<SpriteRenderer>();
+            go.AddComponent<CharacterPlaceholderVisual>().Configure(new Color(0.55f, 0.3f, 0.75f), 24, 32);
+
+            var collider = go.AddComponent<BoxCollider2D>();
+            collider.size = new Vector2(0.8f, 1.5f);
+            collider.offset = new Vector2(0f, 0.75f);
+
+            go.AddComponent<Rigidbody2D>();
+            go.AddComponent<MonsterWalkSpriteAnimator>().Configure(ForestSpiritWalkPath);
+            var monster = go.AddComponent<Monster>();
+            monster.AssignData(data);
+            // 일반 공격으로는 체력 1에서 버티고, 스킬로만 쓰러진다(스킬 사용법을 직접 해 보게).
+            go.AddComponent<TutorialSkillFinish>();
+            go.AddComponent<MonsterAI>();
+            go.AddComponent<MonsterHealthBar>();
+            return monster;
+        }
+
+        // 튜토리얼 숲의 출구 포탈. 마을 왼쪽 끝으로 들어가고, 마을에서 알아 둘 것들을 안내창으로 보여준다.
+        private static void LeaveTutorialForest()
+        {
+            currentStage = VillageStage;
+            BuildStage(enteringForward: true);
+            tutorialUI.Show(TutorialUI.VillagePages);
+        }
+
         // 마을 중간쯤에 노아의 상점과 노아를 놓는다. 상점은 배경보다 앞, 캐릭터보다는 뒤에 그려진다.
         // 광활한 평야: 넓은 들판(40유닛)에 슬라임이 흩어져 있고, 기둥/아치/떠 있는 발판을 밟고 올라갈 수 있다.
         // 배경(YardMap) 속 흙길이 그림 위에서 약 82% 높이라 그 줄을 바닥으로 삼는다.
@@ -630,10 +778,92 @@ namespace Aethoria.Bootstrap
             mapXMin = xMin; mapXMax = xMax; mapYMin = yMin; mapYMax = yMax;
 
             player.SetCombatLocked(true);
-            if (ensroomSpawnAtSanctuary)
+            // 왼쪽 끝 귀환 포탈 트리거(반경 2)에 걸리지 않을 만큼 떨어진 곳에 세운다(연습장과 같은 이유).
+            PlacePlayerAtSpawn(xMin + 4f, yMin);
+            FitCamera(xMin, xMax, yMin);
+
+            var backPortal = SpawnPortal(stageRoot.transform, xMin + 0.5f, yMin, backward: true, EnsroomPortalBase, EnsroomPortalSwirlFolder);
+            backPortal.SetCustomTrigger(LeaveFieldToVillage);
+
+            Debug.Log("Aethoria: 엔스룸 마을 진입");
+        }
+
+        // 절망의 언덕: 붉은 달 아래 용암이 흐르는 절벽 끝. 일반 몬스터 없이 오른쪽 끝에 최종보스 루나벨이 서 있고,
+        // 왼쪽 끝 포탈로 처음 마을(출구 쪽)로 돌아간다. 보스방이라 오른쪽 포탈은 없다.
+        // 배경(Hill of Despair, 2172x724) 맨 앞 갈라진 돌바닥 윗면이 위에서부터 약 628px 지점이라 그 줄을 바닥으로 삼는다.
+        private const float HillGroundFraction = 628f / 724f;
+
+        private static void BuildHill()
+        {
+            BuildMap(stageRoot.transform, HillWidth, MapHeight, out int xMin, out int xMax, out int yMin, out int yMax,
+                "Backgrounds/HillOfDespair", HillGroundFraction);
+            mapXMin = xMin; mapXMax = xMax; mapYMin = yMin; mapYMax = yMax;
+
+            player.SetCombatLocked(false);
+            PlacePlayerAtSpawn(xMin + 4f, yMin);
+            FitCamera(xMin, xMax, yMin);
+
+            // 들어오면 곧바로 루나벨과의 결전이라 돌아가는 포탈은 두지 않는다(이기면 스테이지 클리어 창,
+            // 지면 마을로 돌아간다). 그래서 루나벨전은 도주도 막혀 있다(RhythmBattleUI).
+            SpawnLunabel(stageRoot.transform, yMin, xMax);
+
+            var stageManagerGO = new GameObject("StageManager");
+            stageManagerGO.transform.SetParent(stageRoot.transform);
+            stageManagerGO.AddComponent<StageManager>().Initialize(player);
+
+            Debug.Log("Aethoria: 절망의 언덕 진입");
+        }
+
+        // 천상으로 향하는 계단: 몬스터도 StageManager도 없는 안전 지역. 왼쪽 끝 포탈은 처음 마을(출구 쪽)로,
+        // 오른쪽 끝 포탈은 천상의 신전으로 이어진다.
+        // 배경(Stairs to the Temple of the Angel, 2172x724) 대리석 회랑 바닥 앞쪽 가장자리가 위에서부터 약 595px
+        // 지점이라 그 줄을 바닥으로 삼는다.
+        private const float StairsGroundFraction = 595f / 724f;
+        // 맵 폭(40)에 맞춰 늘리면 배율이 약 1.84라 기둥/아치가 캐릭터에 비해 거인국처럼 커 보였다. 1.3으로 줄이고
+        // 모자란 폭은 좌우 반전한 복사본으로 채운다. 이보다 더 줄이면 카메라(orthoSize 4) 아래쪽 바닥 밑이 비기 시작한다.
+        private const float StairsBackgroundScale = 1.3f;
+
+        private static void BuildStairs(bool enteringForward)
+        {
+            BuildMap(stageRoot.transform, StairsWidth, MapHeight, out int xMin, out int xMax, out int yMin, out int yMax,
+                "Backgrounds/HeavenStairs", StairsGroundFraction, StairsBackgroundScale);
+            mapXMin = xMin; mapXMax = xMax; mapYMin = yMin; mapYMax = yMax;
+
+            player.SetCombatLocked(true);
+            // 양끝 포탈 트리거(반경 2)에 걸리지 않을 만큼 떨어진 곳에 세운다. 신전에서 되돌아왔으면 오른쪽 끝.
+            PlacePlayerAtSpawn(enteringForward ? xMin + 4f : xMax - 4f, yMin);
+            FitCamera(xMin, xMax, yMin);
+
+            var backPortal = SpawnPortal(stageRoot.transform, xMin + 0.5f, yMin, backward: true);
+            backPortal.SetCustomTrigger(LeaveFieldToVillage);
+
+            var forwardPortal = SpawnPortal(stageRoot.transform, xMax - 0.5f, yMin, backward: false);
+            forwardPortal.SetCustomTrigger(EnterNextFieldStage);
+
+            Debug.Log("Aethoria: 천상으로 향하는 계단 진입");
+        }
+
+        // 천상의 신전: 계단 끝에서 들어오는 안전 지역. 왼쪽 끝 포탈로 계단(오른쪽 끝)으로 돌아가고,
+        // 다리 위 성소 건물 입구로 이리아의 성소에 들어간다.
+        // 배경(Temple of the Heavens, 1916x821) 맨 앞 대리석 다리 윗면 앞쪽 가장자리가 위에서부터 약 683px 지점이라
+        // 그 줄을 바닥으로 삼는다.
+        private const float TempleGroundFraction = 683f / 821f;
+        // 배경에서 다리 난간 윗면(원화 y 643) 아래만 남긴 그림. 성소 건물 앞에 한 겹 더 그려서 성소가 다리
+        // 너머 하늘에 떠 있고 아래쪽이 난간 뒤로 가려지게 한다. 순서는 배경(-10) < 성소(-7) < 덮개(-6) < 포탈(-5).
+        private const string TempleFrontOverlay = "Backgrounds/TempleOfHeavens_Front";
+
+        private static void BuildTemple()
+        {
+            BuildMap(stageRoot.transform, TempleWidth, MapHeight, out int xMin, out int xMax, out int yMin, out int yMax,
+                "Backgrounds/TempleOfHeavens", TempleGroundFraction);
+            mapXMin = xMin; mapXMax = xMax; mapYMin = yMin; mapYMax = yMax;
+            BuildMapBackground(stageRoot.transform, xMin, xMax, yMin, TempleFrontOverlay, TempleGroundFraction, sortingOrder: -6);
+
+            player.SetCombatLocked(true);
+            if (templeSpawnAtSanctuary)
             {
                 // 성소에서 막 나왔으면 입구 바로 앞에 세운다(입구 자체는 포탈이 아니라 트리거라 거리 제약이 없다).
-                ensroomSpawnAtSanctuary = false;
+                templeSpawnAtSanctuary = false;
                 PlacePlayerAtSpawn(SanctuaryX, yMin);
             }
             else
@@ -643,24 +873,23 @@ namespace Aethoria.Bootstrap
             }
             FitCamera(xMin, xMax, yMin);
 
-            var backPortal = SpawnPortal(stageRoot.transform, xMin + 0.5f, yMin, backward: true, EnsroomPortalBase, EnsroomPortalSwirlFolder);
-            backPortal.SetCustomTrigger(LeaveFieldToVillage);
+            var backPortal = SpawnPortal(stageRoot.transform, xMin + 0.5f, yMin, backward: true);
+            backPortal.SetCustomTrigger(EnterPreviousFieldStage);
 
             SpawnSanctuaryBuilding(stageRoot.transform, yMin);
 
-            Debug.Log("Aethoria: 엔스룸 마을 진입");
+            Debug.Log("Aethoria: 천상의 신전 진입");
         }
 
-        // 분수 중심이 배경(ensroom.png) 속에서 그림 폭의 약 54% 지점(기둥 꼭대기 분수대 기준)이라,
-        // 맵 폭(32)에 맞춰 깔리는 배경 공식(centerX + (fx-0.5)*scaledWidth, scaledWidth=32)으로 바꾸면 x=1.3.
-        // 성소 건물을 분수 바로 앞 그 자리에 놓는다(이리아는 더 이상 여기 서 있지 않고 안에 있다).
-        private const float SanctuaryX = 1.3f;
-        // 처음엔 9로 뒀더니 원경 성/폭포보다 성소가 훨씬 커 보여서 바로 눈앞(카메라 쪽)에 붙어 있는
-        // 것처럼 괴리감이 들었다. 다른 마을 건물(연습장/대장간, 폭 7)보다도 작게 줄여서 광장 안에이는 한
-        // 구조물처럼 보이게 했다.
-        private const float SanctuaryWidthOnMap = 5.5f;
+        // 배경 한가운데 여신상(그림 폭의 약 52%, x≈0.7)을 가리지 않게 다리 오른쪽에 성소 건물을 놓는다.
+        private const float SanctuaryX = 5.5f;
+        // 다리 위에 바로 세우면 캐릭터와 같은 줄에 붙어 보여서, 다리 너머 하늘에 떠 있는 섬처럼 조금 뒤로 물렸다.
+        // 멀리 있는 만큼 작게(4.5) 그리고, 발판 바닥면을 난간 윗면(바닥 위 약 0.67)보다 살짝 높게 띄운다.
+        // 그 아래 얼음 조각들은 TempleFrontOverlay(난간/다리)에 가려진다.
+        private const float SanctuaryWidthOnMap = 4.5f;
+        private const float SanctuaryRaise = 0.8f;
         // 원화(1536x1024) 속에서 떠 있는 발판의 평평한 바닥면(계단이 시작되는 줄)이 위에서부터 약 85% 지점.
-        // 그 아래로 늘어진 얼음 조각들은 바닥 아래로 살짝 묻히게 둔다.
+        // 그 아래로 늘어진 얼음 조각들은 다리 난간 뒤로 숨는다.
         private const float SanctuaryBaseFraction = 0.85f;
 
         private static void SpawnSanctuaryBuilding(Transform parent, int floorY)
@@ -673,14 +902,14 @@ namespace Aethoria.Bootstrap
 
                 var renderer = go.GetComponent<SpriteRenderer>();
                 renderer.sprite = sprite;
-                renderer.sortingOrder = -5;
+                renderer.sortingOrder = -7;
 
                 float scale = SanctuaryWidthOnMap / sprite.bounds.size.x;
                 go.transform.localScale = new Vector3(scale, scale, 1f);
 
                 var bounds = sprite.bounds;
                 float baseAbovePivot = (bounds.max.y - bounds.size.y * SanctuaryBaseFraction) * scale;
-                go.transform.position = new Vector3(SanctuaryX - bounds.center.x * scale, floorY - baseAbovePivot, 0f);
+                go.transform.position = new Vector3(SanctuaryX - bounds.center.x * scale, floorY + SanctuaryRaise - baseAbovePivot, 0f);
             }
 
             var entranceGO = new GameObject("SanctuaryEntrance");
@@ -937,7 +1166,17 @@ namespace Aethoria.Bootstrap
             var noaGO = new GameObject("Noa", typeof(SpriteRenderer));
             noaGO.transform.SetParent(parent);
             noaGO.transform.position = new Vector3(NoaX, floorY, 0f);
-            noaGO.AddComponent<NoaNpc>().Initialize(player.transform, npcDialogueUI, questManager, dailyQuestManager, saveScreen, inventoryUI, shopUI);
+            var noa = noaGO.AddComponent<NoaNpc>();
+            noa.Initialize(player.transform, npcDialogueUI, questManager, dailyQuestManager, saveScreen, inventoryUI, shopUI);
+            // 새 게임에서 처음 말을 걸면 상점 대화 전에 스토리 대사가 먼저 나온다. 다 보면 기록하고 저장한다.
+            if (noaFirstMeetingPending)
+            {
+                noa.SetFirstMeeting(() =>
+                {
+                    noaFirstMeetingPending = false;
+                    SaveGame();
+                });
+            }
         }
 
         // 마을 왼쪽 광장(여신상 분수와 왼쪽 노점 사이)에 이시스의 연습장 건물과 이시스를 놓는다.
@@ -973,7 +1212,17 @@ namespace Aethoria.Bootstrap
             var isisGO = new GameObject("Isis", typeof(SpriteRenderer));
             isisGO.transform.SetParent(parent);
             isisGO.transform.position = new Vector3(IsisX, floorY - IsisSink, 0f);
-            isisGO.AddComponent<IsisNpc>().Initialize(player.transform, npcDialogueUI, inventoryUI);
+            var isis = isisGO.AddComponent<IsisNpc>();
+            isis.Initialize(player.transform, npcDialogueUI, inventoryUI);
+            // 새 게임에서 처음 말을 걸면 연습장 입장 질문 전에 스토리 대사가 먼저 나온다. 다 보면 기록하고 저장한다.
+            if (isisFirstMeetingPending)
+            {
+                isis.SetFirstMeeting(() =>
+                {
+                    isisFirstMeetingPending = false;
+                    SaveGame();
+                });
+            }
         }
 
         // 마을 오른쪽 광장(노아의 상점과 마을 출구 포탈 사이)에 대장장이 엘리의 대장간과 엘리를 놓는다.
@@ -1103,7 +1352,7 @@ namespace Aethoria.Bootstrap
         // fixedScale > 0이면 그 배율을 그대로 쓴다(그림 속 건물이 캐릭터에 비해 너무 커 보일 때). 그러면 맵 폭을
         // 다 못 덮을 수 있어서, 좌우 반전한 복사본을 양옆에 이어 붙여 이음매 없이 채운다.
         private static void BuildMapBackground(Transform parent, int xMin, int xMax, int yMin,
-            string backgroundResourcePath, float groundFraction, float fixedScale = 0f)
+            string backgroundResourcePath, float groundFraction, float fixedScale = 0f, int sortingOrder = -10)
         {
             var sprite = Resources.Load<Sprite>(backgroundResourcePath);
             if (sprite == null) return;
@@ -1133,7 +1382,7 @@ namespace Aethoria.Bootstrap
 
                 var renderer = go.GetComponent<SpriteRenderer>();
                 renderer.sprite = sprite;
-                renderer.sortingOrder = -10;
+                renderer.sortingOrder = sortingOrder;
                 renderer.flipX = (i & 1) != 0;
 
                 go.transform.localScale = new Vector3(scale, scale, 1f);
@@ -1261,12 +1510,16 @@ namespace Aethoria.Bootstrap
             // 다른 HUD 요소 위에 그려지도록 가장 마지막에 추가한다(같은 캔버스에서 나중 자식이 위에 그려짐).
             tutorialUI = canvasGO.AddComponent<TutorialUI>();
             tutorialUI.Initialize(player.GetComponent<CharacterMovement2D>());
+
+            // 도입 스토리는 튜토리얼 안내보다도 위에 그린다.
+            storyIntroUI = canvasGO.AddComponent<StoryIntroUI>();
+            storyIntroUI.Initialize();
         }
 
         private static Character SpawnPlayer()
         {
             var data = ScriptableObject.CreateInstance<CharacterData>();
-            data.characterName = "소울이터";
+            data.characterName = "네크로시아";
             data.minLevel = 1;
             data.maxLevel = 50;
             // 데미지 계산식(DamageCalculation.md) 규모: 1레벨 공격력 15 / 방어력 1. 레벨당 +0.5씩 오른다.
@@ -1443,7 +1696,9 @@ namespace Aethoria.Bootstrap
             }
         }
 
-        private static void SpawnBoss(Transform parent, int floorY)
+        // 보스 기사는 맵 오른쪽 끝에서 플레이어 쪽(왼쪽)을 보고 대기 모션으로 서 있다가, 등장 연출(BossIntroCutscene)의
+        // 대사가 끝나면 점프 내려찍기로 뛰어든다.
+        private static void SpawnBoss(Transform parent, int floorY, int xMax)
         {
             var data = ScriptableObject.CreateInstance<MonsterData>();
             data.monsterName = "보스 기사";
@@ -1456,9 +1711,9 @@ namespace Aethoria.Bootstrap
             data.goldReward = 400;
 
             var go = new GameObject("Boss_Knight");
-            go.transform.position = new Vector3(5f, floorY, 0f);
+            go.transform.position = new Vector3(xMax - 1.5f, floorY, 0f);
             go.transform.SetParent(parent);
-            go.AddComponent<SpriteRenderer>();
+            go.AddComponent<SpriteRenderer>().flipX = true;
             go.AddComponent<CharacterPlaceholderVisual>().Configure(new Color(0.5f, 0.1f, 0.5f), 48, 72, PlaceholderShape.Humanoid);
 
             var collider = go.AddComponent<BoxCollider2D>();
@@ -1466,32 +1721,91 @@ namespace Aethoria.Bootstrap
             collider.offset = new Vector2(0f, 0.9f);
 
             go.AddComponent<Rigidbody2D>();
-            go.AddComponent<MonsterWalkSpriteAnimator>().Configure("Art/Monsters/BossKnight/Walk");
+            var bossWalkAnimator = go.AddComponent<MonsterWalkSpriteAnimator>();
+            bossWalkAnimator.Configure("Art/Monsters/BossKnight/Walk");
+            bossWalkAnimator.ConfigureIdle("Art/Monsters/BossKnight/Idle", 5f);
             var bossAttackAnimator = go.AddComponent<MonsterAttackSpriteAnimator>();
             bossAttackAnimator.AddClip(BossAI.JumpAttackClip, "Art/Monsters/BossKnight/JumpAttack");
             var monster = go.AddComponent<Monster>();
             monster.AssignData(data);
-            go.AddComponent<BossAI>();
+            var bossAI = go.AddComponent<BossAI>();
             go.AddComponent<MonsterHealthBar>().Configure(newWidth: 1.4f, newVerticalOffset: 0.15f);
 
             bossHealthUI.Bind(monster, data.monsterName);
-            monster.OnDied += _ => stageClearUI.Show(() => RetryDungeon(1)); // 보스를 잡으면 스테이지 클리어 창
+            // 보스를 잡으면 월드로 돌아와 유언 → 쓰러지는 모션(BossDeathCutscene)이 끝난 뒤 스테이지 클리어 창을 띄운다.
+            go.AddComponent<BossDeathCutscene>().Initialize(player, npcDialogueUI, () => stageClearUI.Show(() => RetryDungeon(1)));
+
+            go.AddComponent<BossIntroCutscene>().Initialize(bossAI, player, npcDialogueUI, skippable: bossIntroSeen,
+                onShown: () => bossIntroSeen = true);
             monster.OnDied += _ => TryDropDevilNecklace();
         }
+
+        // 절망의 언덕의 최종보스 루나벨. 걷지 않고 언덕 오른쪽 끝에 서서 플레이어를 바라보며, 중거리에서는 손을 뻗어
+        // 피의 손을 날리고, 몸에 닿으면 리듬전투(보스 패턴)로 싸운다(FinalBossAI). 보스 기사보다 단단하고 아프다.
+        // 언덕에 들어오면 의자에 앉은 루나벨과 대사를 주고받고(LunabelIntroCutscene), 피의 기둥이 플레이어 발밑까지
+        // 솟구친 뒤 루나벨이 일어서며 곧바로 리듬전투가 열린다.
+        private static void SpawnLunabel(Transform parent, int floorY, int xMax)
+        {
+            var data = ScriptableObject.CreateInstance<MonsterData>();
+            data.monsterName = "루나벨";
+            data.level = 15;
+            data.maxHp = 2600f;
+            data.attack = 20f; // 놓친 노드마다 (20-1) x 0.7 + 5 = 약 18
+            data.defense = 7f;
+            data.expReward = 1000;
+            data.goldReward = 700;
+
+            var go = new GameObject("Boss_Lunabel");
+            go.transform.position = new Vector3(xMax - 3f, floorY, 0f);
+            go.transform.SetParent(parent);
+            go.AddComponent<SpriteRenderer>().flipX = true;
+            go.AddComponent<CharacterPlaceholderVisual>().Configure(new Color(0.75f, 0.1f, 0.2f), 48, 72, PlaceholderShape.Humanoid);
+
+            var collider = go.AddComponent<BoxCollider2D>();
+            collider.size = new Vector2(1.3f, 2.2f);
+            collider.offset = new Vector2(0f, 1.1f);
+
+            go.AddComponent<Rigidbody2D>();
+            // 걷기 모션이 없어서 대기 프레임을 걷기 자리에도 넣는다(걷기 프레임이 비면 애니메이터가 꺼진다). 제자리에 서 있으므로 늘 대기 모션이 돈다.
+            var walkAnimator = go.AddComponent<MonsterWalkSpriteAnimator>();
+            walkAnimator.Configure(LunabelIdlePath);
+            walkAnimator.ConfigureIdle(LunabelIdlePath, 6f);
+            go.AddComponent<MonsterAttackSpriteAnimator>().Configure(LunabelAttackPath, 1.0f);
+            var monster = go.AddComponent<Monster>();
+            monster.AssignData(data);
+            var bossAI = go.AddComponent<FinalBossAI>();
+            go.AddComponent<MonsterHealthBar>().Configure(newWidth: 1.6f, newVerticalOffset: 0.15f);
+
+            bossHealthUI.Bind(monster, data.monsterName);
+            // 루나벨을 쓰러뜨리면 필드로 돌아와 패배 모션 → 네크로시아와의 마지막 대화 → 쓰러져 사라진 뒤 마을로 돌아간다.
+            go.AddComponent<LunabelDeathCutscene>().Initialize(player, npcDialogueUI, () => ReturnToVillage());
+
+            go.AddComponent<LunabelIntroCutscene>().Initialize(bossAI, player, npcDialogueUI, skippable: lunabelIntroSeen,
+                onShown: () => lunabelIntroSeen = true);
+        }
+
+        // 원본 시트(고딕 붉은 여왕 6프레임, 고딕 붉은 마법 공격 시퀀스)는 왼쪽을 보고 있어서, 다른 몬스터처럼
+        // 오른쪽을 보도록 좌우 반전해 잘라 두었다. 공격 시퀀스는 검은 배경을 지우고 8프레임으로 나눴다.
+        private const string LunabelIdlePath = FinalBossAI.IdlePath;
+        private const string LunabelAttackPath = "Art/Monsters/FinalBoss/Attack";
 
         // 강화석 드랍: 일반 몬스터는 25% 확률로 1개, 보스(기사/슬라임)는 항상 3개.
         private const float EnhanceStoneDropChance = 0.25f;
         private const int BossEnhanceStoneDrop = 3;
+        // 수정구: 보스(기사/슬라임)를 잡을 때마다 항상 3개.
+        private const int BossCrystalOrbDrop = 3;
         private const int StarterPotionCount = 3;
 
         private static void HandleMonsterDiedForDrops(Monster monster)
         {
             if (player == null || player.IsDead || monster == null) return;
 
-            bool isBoss = monster.GetComponent<BossAI>() != null || monster.GetComponent<BossSlimeAI>() != null;
+            bool isBoss = monster.GetComponent<BossAI>() != null || monster.GetComponent<BossSlimeAI>() != null
+                || monster.GetComponent<FinalBossAI>() != null;
             if (isBoss)
             {
                 player.GetComponent<Inventory>().AddItem(ItemDatabase.EnhanceStone, BossEnhanceStoneDrop);
+                player.GetComponent<Inventory>().AddItem(ItemDatabase.CrystalOrb, BossCrystalOrbDrop);
             }
             else if (Random.value < EnhanceStoneDropChance)
             {

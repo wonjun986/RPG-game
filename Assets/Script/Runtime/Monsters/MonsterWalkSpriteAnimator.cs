@@ -17,6 +17,9 @@ namespace Aethoria.Monsters
         private Sprite[] frames;
         private float timer;
         private int currentIndex;
+        // 멈춰 있을 때 반복할 대기 프레임(보스 기사처럼 대기 모션이 따로 있는 몬스터만). 없으면 걷기 첫 프레임에 멈춘다.
+        private Sprite[] idleFrames;
+        private float idleFrameRate = 5f;
 
         public bool HasFrames => frames != null && frames.Length > 0;
         // 리듬 전투 화면이 몬스터 대기 모션으로 그대로 가져다 쓴다.
@@ -36,6 +39,35 @@ namespace Aethoria.Monsters
             LoadFrames();
         }
 
+        public void ConfigureIdle(string idleResourcesPath, float newIdleFrameRate)
+        {
+            idleFrames = Resources.LoadAll<Sprite>(idleResourcesPath);
+            if (idleFrames != null && idleFrames.Length > 0)
+            {
+                System.Array.Sort(idleFrames, (a, b) => string.CompareOrdinal(a.name, b.name));
+            }
+            idleFrameRate = newIdleFrameRate;
+            currentIndex = 0;
+        }
+
+        public float IdleFrameRate => idleFrameRate;
+
+        // 루나벨 2페이즈처럼 모습이 바뀐 뒤 걷기/대기 프레임을 통째로 갈아 끼운다. newIdleFrameRate를 주면 대기 속도도 바꾼다.
+        public void OverrideFrames(Sprite[] newFrames, Sprite[] newIdleFrames, float newIdleFrameRate = -1f)
+        {
+            frames = newFrames;
+            idleFrames = newIdleFrames;
+            if (newIdleFrameRate > 0f) idleFrameRate = newIdleFrameRate;
+            currentIndex = 0;
+            timer = 0f;
+            enabled = HasFrames;
+            if (HasFrames) spriteRenderer.sprite = frames[0];
+        }
+
+        public bool HasIdleFrames => idleFrames != null && idleFrames.Length > 0;
+        // 리듬 전투 화면이 대기 모션이 따로 있는 몬스터(보스 기사)는 걷기 대신 이걸 기본 모션으로 쓴다.
+        public Sprite[] IdleFrames => idleFrames;
+
         private void LoadFrames()
         {
             frames = Resources.LoadAll<Sprite>(resourcesPath);
@@ -53,6 +85,20 @@ namespace Aethoria.Monsters
         private void Update()
         {
             bool isMoving = Mathf.Abs(body.linearVelocity.x) > moveThreshold;
+
+            if (!isMoving && HasIdleFrames)
+            {
+                timer += Time.deltaTime;
+                float idleDuration = 1f / idleFrameRate;
+                if (timer >= idleDuration)
+                {
+                    timer -= idleDuration;
+                    currentIndex++;
+                }
+                currentIndex %= idleFrames.Length;
+                spriteRenderer.sprite = idleFrames[currentIndex];
+                return;
+            }
 
             if (isMoving)
             {

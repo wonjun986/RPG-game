@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using Aethoria.Characters;
@@ -65,32 +66,39 @@ namespace Aethoria.UI
             if (inventory != null) inventory.OnItemAdded -= HandleItemAdded;
         }
 
+        // 한꺼번에 여러 아이템을 얻으면(보스 처치: 강화석 + 수정구) 덮어쓰지 않고 차례로 하나씩 띄운다.
+        private readonly Queue<(ItemData item, int count)> pending = new();
+
         private void HandleItemAdded(ItemData item, int count)
         {
             if (item == null) return;
 
-            icon.sprite = Resources.Load<Sprite>(item.iconPath);
-            label.text = count > 1 ? $"{item.itemName} +{count} 획득!" : $"{item.itemName} 획득!";
-
-            if (routine != null) StopCoroutine(routine);
-            routine = StartCoroutine(ShowRoutine());
+            pending.Enqueue((item, count));
+            if (routine == null) routine = StartCoroutine(ShowRoutine());
         }
 
         // 보스 처치 직후 타임스케일이 그대로 흐르는 상황이지만, 혹시 모를 정지 연출과 겹쳐도
         // 사라지도록 실시간으로 잰다(SaveToastUI와 동일한 방식).
         private IEnumerator ShowRoutine()
         {
-            SetAlpha(1f);
-            yield return new WaitForSecondsRealtime(HoldDuration);
-
-            float t = 0f;
-            while (t < FadeDuration)
+            while (pending.Count > 0)
             {
-                t += Time.unscaledDeltaTime;
-                SetAlpha(1f - t / FadeDuration);
-                yield return null;
+                var (item, count) = pending.Dequeue();
+                icon.sprite = Resources.Load<Sprite>(item.iconPath);
+                label.text = count > 1 ? $"{item.itemName} +{count} 획득!" : $"{item.itemName} 획득!";
+
+                SetAlpha(1f);
+                yield return new WaitForSecondsRealtime(HoldDuration);
+
+                float t = 0f;
+                while (t < FadeDuration)
+                {
+                    t += Time.unscaledDeltaTime;
+                    SetAlpha(1f - t / FadeDuration);
+                    yield return null;
+                }
+                SetAlpha(0f);
             }
-            SetAlpha(0f);
             routine = null;
         }
 

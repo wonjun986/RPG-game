@@ -7,7 +7,8 @@ using Aethoria.UI;
 namespace Aethoria.Stages
 {
     // 마을에 서 있는 노아. 제자리에서 깜빡이는 대기 애니메이션을 반복하다가, 플레이어가 가까이 오면
-    // 머리 위에 "[Z] 대화하기" 프롬프트를 띄운다. Z를 누르면 인사말이 뜨고, 이어서 상점/퀘스트를
+    // 머리 위에 "[Z] 대화하기" 프롬프트를 띄운다. 새 게임에서 처음 말을 걸면 스토리 대사(FirstMeetingLines)가 먼저 나온다.
+    // Z를 누르면 인사말이 뜨고, 이어서 상점/퀘스트를
     // 고르는 선택창이 나온다(1=상점, 2=퀘스트, 3=일일 의뢰, 4=저장). 상점은 구매 화면(ShopUI)을 연다.
     // 저장은 슬롯 5칸짜리 저장 화면(SaveScreenUI)을 연다.
     // 퀘스트는 QuestManager 상태에 따라 의뢰(Z 수락 / X 거절), 진행 상황 안내, 완료 보고(보상 지급)로 갈린다.
@@ -16,7 +17,34 @@ namespace Aethoria.Stages
     [RequireComponent(typeof(SpriteRenderer))]
     public class NoaNpc : MonoBehaviour
     {
-        private enum TalkState { None, Greeting, Choice, QuestOffer, DailyQuestOffer, Response }
+        private enum TalkState { None, FirstMeeting, Greeting, Choice, QuestOffer, DailyQuestOffer, Response }
+
+        // 새 게임에서 처음 말을 걸면 상점 대화 전에 나오는 스토리 대사(노아 ↔ 네크로시아). [Z]로 넘기고, 다 보면 곧바로
+        // 상점/퀘스트 선택창으로 이어진다. 도중에 멀어지면 끊기고, 다음에 말을 걸면 처음부터 다시 나온다.
+        private readonly struct StoryLine
+        {
+            public readonly bool IsNecrosia;
+            public readonly string Text;
+            public StoryLine(bool isNecrosia, string text) { IsNecrosia = isNecrosia; Text = text; }
+        }
+
+        private static readonly StoryLine[] FirstMeetingLines =
+        {
+            new StoryLine(false, "어머, 어둠의 숲 쪽에서 오셨어요? 그 숲은 몇 년째 아무도 드나들지 않았는데..."),
+            new StoryLine(true, "...여긴 어디지?"),
+            new StoryLine(false, "숲 어귀의 작은 마을이에요. 저는 여기서 잡화점을 하는 노아라고 해요. 많이 지쳐 보이시네요."),
+            new StoryLine(true, "붉은 달... 루나벨에 대해 아는 게 있나."),
+            new StoryLine(false, "...절망의 언덕의 피의 여왕 말이죠. 그 붉은 달이 뜬 뒤로 몬스터들이 날뛰기 시작했어요. 다들 언덕 쪽은 쳐다보지도 않아요."),
+            new StoryLine(false, "설마 그 언덕에 가시려고요? 지금 그 몸으로는 무리예요. 평야나 폐허의 몬스터부터 상대하면서 힘을 되찾는 게 좋겠어요."),
+            new StoryLine(true, "...그래. 지금의 나로는 그날의 리듬을 따라잡지 못한다."),
+            new StoryLine(false, "그럼 제가 도울게요! 필요한 물건은 상점에서, 마을의 부탁은 퀘스트로 드릴게요. 대신 꼭 살아서 돌아오셔야 해요."),
+        };
+        private const string StoryNextHint = "   <color=#F2D94E>[Z]</color>";
+        private const string StoryPlayerNextHint = "   <color=#B98CE8>[Z]</color>";
+
+        private bool firstMeetingPending;
+        private System.Action onFirstMeetingDone;
+        private int storyIndex;
 
         [SerializeField] private string resourcesPath = "Art/NPC/Noa/Idle";
         [SerializeField] private float frameInterval = 0.5f;
@@ -67,6 +95,13 @@ namespace Aethoria.Stages
             if (quests != null) quests.OnChanged += RefreshQuestMarker;
             if (dailyQuests != null) dailyQuests.OnChanged += RefreshQuestMarker;
             RefreshQuestMarker();
+        }
+
+        // 다음에 말을 걸 때 상점 대화 전에 첫 만남 스토리 대사를 먼저 보여준다. 다 보면 done을 부른다(기록/저장은 부른 쪽 몫).
+        public void SetFirstMeeting(System.Action done)
+        {
+            firstMeetingPending = true;
+            onFirstMeetingDone = done;
         }
 
         private void OnDestroy()
@@ -200,7 +235,30 @@ namespace Aethoria.Stages
             switch (state)
             {
                 case TalkState.None:
-                    if (inRange && zPressed) EnterGreeting();
+                    if (inRange && zPressed)
+                    {
+                        if (firstMeetingPending) EnterFirstMeeting();
+                        else EnterGreeting();
+                    }
+                    break;
+
+                case TalkState.FirstMeeting:
+                    if (zPressed)
+                    {
+                        storyIndex++;
+                        if (storyIndex < FirstMeetingLines.Length)
+                        {
+                            ShowStoryLine();
+                        }
+                        else
+                        {
+                            firstMeetingPending = false;
+                            var done = onFirstMeetingDone;
+                            onFirstMeetingDone = null;
+                            done?.Invoke();
+                            EnterChoice();
+                        }
+                    }
                     break;
 
                 case TalkState.Greeting:
@@ -263,6 +321,22 @@ namespace Aethoria.Stages
                     if (zPressed || stateTimer >= responseDuration) EndTalk();
                     break;
             }
+        }
+
+        private void EnterFirstMeeting()
+        {
+            state = TalkState.FirstMeeting;
+            storyIndex = 0;
+            if (promptText != null) promptText.gameObject.SetActive(false);
+            if (playerMovement != null) playerMovement.SetInputLocked(true);
+            ShowStoryLine();
+        }
+
+        private void ShowStoryLine()
+        {
+            var line = FirstMeetingLines[storyIndex];
+            if (line.IsNecrosia) dialogueUI?.ShowNecrosia(line.Text + StoryPlayerNextHint);
+            else dialogueUI?.Show("UI/Noa_Talk", line.Text + StoryNextHint);
         }
 
         private void EnterGreeting()

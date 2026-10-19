@@ -7,12 +7,38 @@ using Aethoria.UI;
 namespace Aethoria.Stages
 {
     // 마을의 연습장 앞에 서 있는 이시스. 대기 애니메이션(4프레임)을 반복하다가 플레이어가 가까이 오면
-    // 머리 위에 "[Z] 대화하기"를 띄운다. Z를 누르면 연습장에 들어갈지 묻고(Z 입장 / X 취소),
+    // 머리 위에 "[Z] 대화하기"를 띄운다. 새 게임에서 처음 말을 걸면 스토리 대사(FirstMeetingLines)가 먼저 나온다.
+    // Z를 누르면 연습장에 들어갈지 묻고(Z 입장 / X 취소),
     // 입장하면 허수아비가 서 있는 연습장 맵으로 이동한다.
     [RequireComponent(typeof(SpriteRenderer))]
     public class IsisNpc : MonoBehaviour
     {
-        private enum TalkState { None, Offer, Response }
+        private enum TalkState { None, FirstMeeting, Offer, Response }
+
+        // 새 게임에서 처음 말을 걸면 연습장 입장 질문 전에 나오는 스토리 대사(이시스 ↔ 네크로시아). [Z]로 넘기고, 다 보면
+        // 곧바로 입장 질문으로 이어진다. 도중에 멀어지면 끊기고, 다음에 말을 걸면 처음부터 다시 나온다.
+        private readonly struct StoryLine
+        {
+            public readonly bool IsNecrosia;
+            public readonly string Text;
+            public StoryLine(bool isNecrosia, string text) { IsNecrosia = isNecrosia; Text = text; }
+        }
+
+        private static readonly StoryLine[] FirstMeetingLines =
+        {
+            new StoryLine(false, "...멈춰라. 처음 보는 얼굴이군. 그 낫, 평범한 물건이 아니야."),
+            new StoryLine(true, "연습장이 있다고 들었다."),
+            new StoryLine(false, "나는 이시스. 한때 이 땅의 기사였다. 붉은 달이 뜬 밤, 언덕으로 향한 동료들을 모두 잃었지."),
+            new StoryLine(false, "루나벨의 공격에는 리듬이 있다더군. 그 박자를 읽지 못한 자는 하나도 살아 돌아오지 못했다."),
+            new StoryLine(true, "...알고 있다. 그 리듬, 한 번은 무너졌지만 이번엔 놓치지 않는다."),
+            new StoryLine(false, "흥, 말은 쉽지. 허수아비라면 얼마든지 베어도 좋다. 감각이 돌아올 때까지 휘둘러 봐라."),
+        };
+        private const string StoryNextHint = "   <color=#F2D94E>[Z]</color>";
+        private const string StoryPlayerNextHint = "   <color=#B98CE8>[Z]</color>";
+
+        private bool firstMeetingPending;
+        private System.Action onFirstMeetingDone;
+        private int storyIndex;
 
         private const string TalkFrame = "UI/Isis_Talk";
         // Isis_Talk은 이시스의 팔이 대사 칸 왼쪽(그림 x 약 815px)까지 걸쳐 있어서, 대사를 그보다 오른쪽에서 시작한다.
@@ -46,6 +72,13 @@ namespace Aethoria.Stages
             playerMovement = playerTransform != null ? playerTransform.GetComponent<CharacterMovement2D>() : null;
             dialogueUI = dialogue;
             inventoryUI = inventory;
+        }
+
+        // 다음에 말을 걸 때 입장 질문 전에 첫 만남 스토리 대사를 먼저 보여준다. 다 보면 done을 부른다(기록/저장은 부른 쪽 몫).
+        public void SetFirstMeeting(System.Action done)
+        {
+            firstMeetingPending = true;
+            onFirstMeetingDone = done;
         }
 
         private void Awake()
@@ -138,10 +171,37 @@ namespace Aethoria.Stages
                 case TalkState.None:
                     if (inRange && zPressed)
                     {
-                        state = TalkState.Offer;
                         if (promptText != null) promptText.gameObject.SetActive(false);
                         if (playerMovement != null) playerMovement.SetInputLocked(true);
-                        dialogueUI?.Show(TalkFrame, offerLine, TalkTextLeft);
+                        if (firstMeetingPending)
+                        {
+                            state = TalkState.FirstMeeting;
+                            storyIndex = 0;
+                            ShowStoryLine();
+                        }
+                        else
+                        {
+                            EnterOffer();
+                        }
+                    }
+                    break;
+
+                case TalkState.FirstMeeting:
+                    if (zPressed)
+                    {
+                        storyIndex++;
+                        if (storyIndex < FirstMeetingLines.Length)
+                        {
+                            ShowStoryLine();
+                        }
+                        else
+                        {
+                            firstMeetingPending = false;
+                            var done = onFirstMeetingDone;
+                            onFirstMeetingDone = null;
+                            done?.Invoke();
+                            EnterOffer();
+                        }
                     }
                     break;
 
@@ -164,6 +224,19 @@ namespace Aethoria.Stages
                     if (zPressed || stateTimer >= responseDuration) EndTalk();
                     break;
             }
+        }
+
+        private void EnterOffer()
+        {
+            state = TalkState.Offer;
+            dialogueUI?.Show(TalkFrame, offerLine, TalkTextLeft);
+        }
+
+        private void ShowStoryLine()
+        {
+            var line = FirstMeetingLines[storyIndex];
+            if (line.IsNecrosia) dialogueUI?.ShowNecrosia(line.Text + StoryPlayerNextHint);
+            else dialogueUI?.Show(TalkFrame, line.Text + StoryNextHint, TalkTextLeft);
         }
 
         private void EndTalk()

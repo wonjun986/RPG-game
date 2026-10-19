@@ -12,10 +12,31 @@ namespace Aethoria.UI
         private const float BoxHeight = BoxWidth * ImageHeight / ImageWidth; // 대화 프레임 원본 비율에 맞춤
         public const float DefaultTextLeft = 0.32f;
         private const float PlainTextLeft = 0.07f;
-        private const float DefaultTextTop = 0.53f;
+        public const float DefaultTextTop = 0.53f;
+        public const float DefaultTextBottom = 0.22f;
+        public const float DefaultTextRight = 0.92f;
         // 이름판 기본 좌표(엘리/노아 등 Elly_Talk 계열 프레임 기준, 그림 x 620~990, y 318~372).
         // 프레임마다 이름판 위치가 달라서(예: 이리아는 훨씬 위쪽) Show()에서 NPC별로 다시 줄 수 있다.
         private const float DefaultPlateX0 = 620f, DefaultPlateY0 = 318f, DefaultPlateX1 = 990f, DefaultPlateY1 = 372f;
+
+        // 네크로시아 대화창(UI/Player_Talk). 원본(Sprite/UI/Player_Talk, 2171x724)은 캔버스를 꽉 채워서 루나벨 창보다 훨씬 커 보였다.
+        // 루나벨 창처럼 2172x724 투명 캔버스 안에 0.8배로 줄여 (217, 170)에 넣어 두었다. 어두운 대사 칸 안쪽에서
+        // 오른쪽 나침반 문양 앞까지(x 729~1537, y 462~602)에 글자를 쓴다. 이름판이 없는 그림이라 이름은 대사 첫 줄에 붙인다.
+        private const string PlayerTalkFrame = "UI/Player_Talk";
+        private const float PlayerTextLeft = 729f / ImageWidth;
+        private const float PlayerTextRight = 1537f / ImageWidth;
+        private const float PlayerTextTop = 1f - 462f / ImageHeight;
+        private const float PlayerTextBottom = 1f - 602f / ImageHeight;
+        private const string PlayerNameTag = "<b><color=#C9A6F0>네크로시아</color></b>\n";
+
+        // 루나벨 대화창(UI/Lunabel_Talk, 원본 1848x851을 좌우 투명 여백으로 3:1에 맞춘 2172x724).
+        // 이름판 안쪽은 x 810~1070, y 405~465이고, 어두운 대사 칸은 이름판 아래 y 465~640, x 800~1770이다.
+        // 글자는 테두리에 붙지 않게 안쪽으로 조금 띄운다(x 820~1750, y 468~632).
+        private const string LunabelTalkFrame = "UI/Lunabel_Talk";
+        private const float LunabelTextLeft = 820f / ImageWidth;
+        private const float LunabelTextRight = 1750f / ImageWidth;
+        private const float LunabelTextBottom = 1f - 632f / ImageHeight;
+        private const float LunabelPlateX0 = 810f, LunabelPlateY0 = 405f, LunabelPlateX1 = 1070f, LunabelPlateY1 = 465f;
 
         private GameObject box;
         private RawImage frameImage;
@@ -66,8 +87,8 @@ namespace Aethoria.UI
             var textGO = new GameObject("DialogueText", typeof(RectTransform), typeof(Text));
             textRect = (RectTransform)textGO.transform;
             textRect.SetParent(rect, false);
-            textRect.anchorMin = new Vector2(DefaultTextLeft, 0.22f);
-            textRect.anchorMax = new Vector2(0.92f, 0.53f);
+            textRect.anchorMin = new Vector2(DefaultTextLeft, DefaultTextBottom);
+            textRect.anchorMax = new Vector2(DefaultTextRight, DefaultTextTop);
             textRect.offsetMin = Vector2.zero;
             textRect.offsetMax = Vector2.zero;
 
@@ -111,10 +132,13 @@ namespace Aethoria.UI
         // 위치가 달라서(이리아는 엘리보다 훨씬 위쪽) 안 주면 기본값(Elly_Talk 기준)을 쓴다.
         // textColor: 대사 글자색. 기본은 흰색(어두운 프레임용)이고, 이리아처럼 대사 칸 배경이 밝은
         // 프레임은 검은 계열로 따로 줘야 글자가 보인다.
+        // textBottom/textRight: 대사 칸 아래쪽/오른쪽 끝(프레임 비율). 보스 기사처럼 대사 칸이 더 낮거나
+        // 오른쪽에 문양이 그려진 프레임에서 따로 준다.
         public void Show(string resourcePath, string line, float textLeft = DefaultTextLeft, string speakerName = null,
             float namePlateX0 = DefaultPlateX0, float namePlateY0 = DefaultPlateY0,
             float namePlateX1 = DefaultPlateX1, float namePlateY1 = DefaultPlateY1,
-            Color? textColor = null)
+            Color? textColor = null, float textBottom = DefaultTextBottom, float textRight = DefaultTextRight,
+            float textTop = DefaultTextTop)
         {
             if (currentResourcePath != resourcePath)
             {
@@ -124,7 +148,7 @@ namespace Aethoria.UI
             bool hasFrame = frameImage.texture != null;
             frameImage.enabled = hasFrame;
             plainBox.gameObject.SetActive(!hasFrame);
-            textRect.anchorMin = new Vector2(hasFrame ? textLeft : PlainTextLeft, textRect.anchorMin.y);
+            textRect.anchorMin = new Vector2(hasFrame ? textLeft : PlainTextLeft, hasFrame ? textBottom : DefaultTextBottom);
 
             bool hasName = hasFrame && !string.IsNullOrEmpty(speakerName);
             nameText.text = hasName ? speakerName : "";
@@ -132,10 +156,30 @@ namespace Aethoria.UI
             float plateTopAnchor = 1f - namePlateY1 / ImageHeight;
             nameRect.anchorMin = new Vector2(namePlateX0 / ImageWidth, plateTopAnchor);
             nameRect.anchorMax = new Vector2(namePlateX1 / ImageWidth, 1f - namePlateY0 / ImageHeight);
-            textRect.anchorMax = new Vector2(textRect.anchorMax.x, hasName ? plateTopAnchor : DefaultTextTop);
+            textRect.anchorMax = new Vector2(hasFrame ? textRight : DefaultTextRight, hasName ? plateTopAnchor : hasFrame ? textTop : DefaultTextTop);
             dialogueText.text = line;
             dialogueText.color = textColor ?? Color.white;
             box.SetActive(true);
+        }
+
+        // 네크로시아(플레이어) 대사. 이름을 첫 줄에 붙여 네크로시아 대화창에 띄운다.
+        public void ShowNecrosia(string line)
+        {
+            Show(PlayerTalkFrame, PlayerNameTag + line, PlayerTextLeft,
+                textBottom: PlayerTextBottom, textRight: PlayerTextRight, textTop: PlayerTextTop);
+        }
+
+        // 루나벨 대사. 이름은 이름판 안에 쓴다.
+        public void ShowLunabel(string line)
+        {
+            Show(LunabelTalkFrame, line, LunabelTextLeft, "루나벨",
+                LunabelPlateX0, LunabelPlateY0, LunabelPlateX1, LunabelPlateY1, null, LunabelTextBottom, LunabelTextRight);
+        }
+
+        // 같은 캔버스에서 나중에 켜진 창(리듬 전투 화면 등)보다 위에 대화창을 그린다.
+        public void BringToFront()
+        {
+            box.transform.SetAsLastSibling();
         }
 
         public void Hide()

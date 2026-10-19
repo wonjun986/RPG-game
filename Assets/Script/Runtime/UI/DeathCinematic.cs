@@ -50,6 +50,8 @@ namespace Aethoria.UI
         private Text prompt;
 
         public bool IsShowing => gameObject.activeSelf;
+        // Play(allowAlternate: true)에서 Z/Enter 대신 X를 눌러 끝냈는지(쓰러졌을 때: Z = 재도전, X = 마을로).
+        public bool AlternateChosen { get; private set; }
 
         // parent(캔버스) 아래에 화면 전체를 덮는 연출 패널을 만든다. 처음에는 숨겨져 있다.
         // promptText: 마지막에 깜빡이는 안내 문구(예: "[Z] 마을로 돌아가기").
@@ -142,8 +144,10 @@ namespace Aethoria.UI
         }
 
         // Show() 뒤에 호출한다. 연출을 끝까지 재생하고 Z/Enter 입력까지 기다린다(화면은 그대로 남는다).
-        public IEnumerator Play()
+        // allowAlternate면 X로도 끝낼 수 있고, 그때는 AlternateChosen이 true가 된다.
+        public IEnumerator Play(bool allowAlternate = false)
         {
+            AlternateChosen = false;
             // 1) 붉은 화면 + 피격 섬광, 실루엣(다이 모션 첫 프레임)이 맞은 충격으로 흔들린다.
             figure.enabled = figure.texture != null;
             yield return Animate(RedFadeDuration, p => redBackdrop.color = WithAlpha(DeathRed, p));
@@ -184,6 +188,12 @@ namespace Aethoria.UI
             float blink = 0f;
             while (!ConfirmPressed())
             {
+                var keyboard = Keyboard.current;
+                if (allowAlternate && keyboard != null && keyboard.xKey.wasPressedThisFrame)
+                {
+                    AlternateChosen = true;
+                    break;
+                }
                 blink += Time.unscaledDeltaTime;
                 prompt.color = new Color(0.9f, 0.85f, 0.95f, 0.45f + 0.55f * (0.5f + 0.5f * Mathf.Cos(blink * PromptBlinkSpeed)));
                 yield return null;
