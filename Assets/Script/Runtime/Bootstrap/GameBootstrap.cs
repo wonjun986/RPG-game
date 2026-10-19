@@ -1777,8 +1777,8 @@ namespace Aethoria.Bootstrap
             go.AddComponent<MonsterHealthBar>().Configure(newWidth: 1.6f, newVerticalOffset: 0.15f);
 
             bossHealthUI.Bind(monster, data.monsterName);
-            // 루나벨을 쓰러뜨리면 필드로 돌아와 패배 모션 → 네크로시아와의 마지막 대화 → 쓰러져 사라진 뒤 마을로 돌아간다.
-            go.AddComponent<LunabelDeathCutscene>().Initialize(player, npcDialogueUI, () => ReturnToVillage());
+            // 루나벨을 쓰러뜨리면 필드로 돌아와 패배 모션 → 네크로시아와의 마지막 대화 → 쓰러져 사라진 뒤 마을의 노아 앞으로 돌아간다.
+            go.AddComponent<LunabelDeathCutscene>().Initialize(player, npcDialogueUI, () => ReturnToVillage(spawnAtNoa: true));
 
             go.AddComponent<LunabelIntroCutscene>().Initialize(bossAI, player, npcDialogueUI, skippable: lunabelIntroSeen,
                 onShown: () => lunabelIntroSeen = true);

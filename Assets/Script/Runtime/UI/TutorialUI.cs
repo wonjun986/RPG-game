@@ -91,7 +91,7 @@ namespace Aethoria.UI
             rect.offsetMax = Vector2.zero;
             panel.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.8f);
 
-            // 안내창 틀(UI/TutorialPanel, Sprite/UI/Tutorial UI 1983x793): 왼쪽에 네크로시아 초상화, 위쪽 작은 칸에 제목,
+            // 안내창 틀(UI/TutorialPanel, Sprite/UI/Tutorial_UI 1983x793): 왼쪽에 네크로시아 초상화, 위쪽 작은 칸에 제목,
             // 오른쪽 큰 어두운 칸에 본문을 쓴다. 틀 그림이 없으면 예전처럼 어두운 판에 글자만 쓴다.
             var frameTexture = Resources.Load<Texture2D>(PanelFramePath);
             var boxGO = new GameObject("Box", typeof(RectTransform), typeof(RawImage));

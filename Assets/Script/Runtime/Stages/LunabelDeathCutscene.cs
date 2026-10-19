@@ -18,6 +18,11 @@ namespace Aethoria.Stages
     {
         private const string DefeatPath = "Art/Monsters/FinalBoss/Defeat";
         private const float DelayAfterBattle = 0.5f;
+        // 전투가 끝나면 네크로시아가 루나벨 앞 이만큼(유닛) 떨어진 자리까지 걸어간다.
+        private const float StandDistance = 2.5f;
+        private const float ArriveTolerance = 0.1f;
+        private const float WalkTimeout = 8f;
+        private const float AfterWalkPause = 0.3f;
         private const float DefeatFrameInterval = 0.16f;
         // 패배 모션 중 이 프레임(0부터)까지 재생하고 무릎 꿇은 채 대화한다. 나머지는 대화 뒤 쓰러질 때 재생한다.
         private const int KneelFrameIndex = 5;
@@ -103,9 +108,12 @@ namespace Aethoria.Stages
             while (battleUI != null && battleUI.IsOpen) yield return null;
             yield return new WaitForSeconds(DelayAfterBattle);
 
+            // 전투가 열린 자리(언덕 왼쪽)는 루나벨과 멀어서 화면에 루나벨이 안 보인다. 네크로시아가 루나벨 앞까지 걸어간다
+            // (카메라가 따라가며 루나벨이 화면에 들어온다).
             if (playerMovement != null)
             {
                 playerMovement.SetInputLocked(true);
+                yield return WalkToFront();
                 playerMovement.Face(transform.position.x >= player.transform.position.x ? Vector2.right : Vector2.left);
             }
             // 패배 프레임은 오른쪽을 보게 잘라 두었다. 플레이어가 왼쪽에 있으면 뒤집어 플레이어 쪽을 보게 한다.
@@ -153,6 +161,25 @@ namespace Aethoria.Stages
             onFinished?.Invoke();
         }
 
+        // 루나벨 앞 StandDistance만큼 떨어진 자리까지 걷는다(이미 가까우면 걷지 않는다). 막혀서 못 가도 WalkTimeout 뒤엔 멈춘다.
+        private IEnumerator WalkToFront()
+        {
+            if (player == null) yield break;
+            float side = player.transform.position.x <= transform.position.x ? -1f : 1f;
+            float targetX = transform.position.x + side * StandDistance;
+            float direction = Mathf.Sign(targetX - player.transform.position.x);
+            if (Mathf.Abs(targetX - player.transform.position.x) <= ArriveTolerance) yield break;
+
+            playerMovement.SetScriptedMove(direction);
+            for (float t = 0f; t < WalkTimeout; t += Time.deltaTime)
+            {
+                if ((targetX - player.transform.position.x) * direction <= ArriveTolerance) break;
+                yield return null;
+            }
+            playerMovement.SetScriptedMove(0f);
+            yield return new WaitForSeconds(AfterWalkPause);
+        }
+
         private static bool AdvancePressed()
         {
             var keyboard = Keyboard.current;
@@ -173,7 +200,11 @@ namespace Aethoria.Stages
         {
             if (finished) return;
             finished = true;
-            if (playerMovement != null) playerMovement.SetInputLocked(false);
+            if (playerMovement != null)
+            {
+                playerMovement.SetScriptedMove(0f);
+                playerMovement.SetInputLocked(false);
+            }
         }
 
         // 연출 도중 스테이지가 다시 지어지면 루나벨과 함께 지워지므로, 막아 둔 것들을 풀고 나간다.
