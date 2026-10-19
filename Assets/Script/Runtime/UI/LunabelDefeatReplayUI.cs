@@ -18,7 +18,12 @@ namespace Aethoria.UI
         private const float NecrosiaIdleHeight = 1.8f;
         // 월드 1유닛을 화면 몇 px로 그릴지. 루나벨(약 2.1유닛)과 네크로시아(약 1.5유닛)의 키 비율을 게임과 같게 유지한다.
         private const float PixelsPerUnit = 135f;
-        private const float FeetY = 300f;          // 화면 아래에서 발밑까지(대화창 위에 서도록)
+        // 배경(2172x724)은 화면 높이에 맞춰 깔리므로(EnvelopeParent), 그림 속 땅(위에서 628px, 게임의 HillGroundFraction과 같은 줄)이
+        // 화면 아래에서 이 비율 높이에 온다. 두 캐릭터의 발밑을 그 줄에 맞춰 땅 위에 서 있게 한다.
+        private const float GroundAnchorY = 1f - 628f / 724f;
+        // 캐릭터가 화면 아래쪽 땅에 서므로, 대화창은 화면 위쪽 절반에 띄워 겹치지 않게 한다.
+        // 0.45면 루나벨 대화창(초상화가 그림 맨 위까지 올라온다)도 화면 위로 잘리지 않고, 캐릭터 머리와도 겹치지 않는다.
+        private const float DialogueAreaBottom = 0.45f;
         private const float CharacterGap = 170f;   // 화면 가운데에서 각 캐릭터까지
         private const float ScreenFade = 0.5f;
         private const float StartPause = 0.4f;
@@ -80,6 +85,7 @@ namespace Aethoria.UI
             var dialogueRect = (RectTransform)dialogueGO.transform;
             dialogueRect.SetParent(rootRect, false);
             Stretch(dialogueRect);
+            dialogueRect.anchorMin = new Vector2(0f, DialogueAreaBottom);
             dialogue = dialogueGO.AddComponent<NpcDialogueUI>();
             dialogue.Initialize();
 
@@ -98,9 +104,9 @@ namespace Aethoria.UI
             var go = new GameObject(name, typeof(RectTransform), typeof(Image));
             var rect = (RectTransform)go.transform;
             rect.SetParent(parent, false);
-            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0f);
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, GroundAnchorY);
             rect.pivot = new Vector2(0.5f, 0f);
-            rect.anchoredPosition = new Vector2(x, FeetY);
+            rect.anchoredPosition = new Vector2(x, 0f);
             rect.localScale = new Vector3(flip ? -1f : 1f, 1f, 1f);
             var image = go.GetComponent<Image>();
             image.raycastTarget = false;

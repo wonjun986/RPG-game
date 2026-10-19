@@ -186,8 +186,10 @@ namespace Aethoria.UI
         private void CloseExtras()
         {
             extrasPanel.SetActive(false);
-            // 메뉴 선택은 Update가 마지막 항목(EXTRAS)으로 다시 잡아 준다.
-            if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(null);
+            // 닫힌 창의 버튼에 선택이 남지 않게, 커서를 메뉴의 EXTRAS 항목으로 바로 돌려놓는다.
+            int extrasIndex = System.Array.FindIndex(menuButtons, b => b.name == "ExtrasButton");
+            if (extrasIndex >= 0) selectedIndex = extrasIndex;
+            if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(menuButtons[selectedIndex].gameObject);
         }
 
         private void PlayDeathMotion()
@@ -421,10 +423,9 @@ namespace Aethoria.UI
                 var button = buttons[i];
                 button.transition = Selectable.Transition.None;
 
-                var nav = new Navigation { mode = Navigation.Mode.Explicit };
-                nav.selectOnUp = buttons[(i + buttons.Length - 1) % buttons.Length];
-                nav.selectOnDown = buttons[(i + 1) % buttons.Length];
-                button.navigation = nav;
+                // 위/아래 이동은 Update가 직접 처리한다(MoveMenuSelection). EventSystem 자동 이동에 맡기면 EXTRAS 창을
+                // 열고 닫은 뒤 이동이 멈춰 커서가 안 움직이는 일이 있었다.
+                button.navigation = new Navigation { mode = Navigation.Mode.None };
 
                 button.gameObject.AddComponent<SelectOnHover>();
 
@@ -470,6 +471,12 @@ namespace Aethoria.UI
                 int index = System.Array.FindIndex(menuButtons, b => b.gameObject == eventSystem.currentSelectedGameObject);
                 if (index >= 0) selectedIndex = index;
                 else eventSystem.SetSelectedGameObject(menuButtons[selectedIndex].gameObject); // 선택이 풀렸으면 마지막 항목을 다시 선택
+
+                if (keyboard != null)
+                {
+                    if (keyboard.upArrowKey.wasPressedThisFrame || keyboard.wKey.wasPressedThisFrame) MoveMenuSelection(-1);
+                    else if (keyboard.downArrowKey.wasPressedThisFrame || keyboard.sKey.wasPressedThisFrame) MoveMenuSelection(1);
+                }
             }
 
             float pulse = 0.75f + 0.25f * Mathf.Sin(Time.unscaledTime * 4f);
@@ -479,6 +486,13 @@ namespace Aethoria.UI
                 if (menuGlows[i].gameObject.activeSelf != selected) menuGlows[i].gameObject.SetActive(selected);
                 if (selected) menuGlows[i].color = new Color(GlowColor.r, GlowColor.g, GlowColor.b, GlowColor.a * pulse);
             }
+        }
+
+        // 메뉴 커서를 위(-1)/아래(+1)로 한 칸 옮긴다. 끝에서는 반대쪽 끝으로 넘어간다.
+        private void MoveMenuSelection(int delta)
+        {
+            selectedIndex = (selectedIndex + delta + menuButtons.Length) % menuButtons.Length;
+            if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(menuButtons[selectedIndex].gameObject);
         }
 
         private class SelectOnHover : MonoBehaviour, IPointerEnterHandler
