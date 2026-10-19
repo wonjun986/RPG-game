@@ -23,11 +23,9 @@ namespace Aethoria.Characters
         private bool isGrounded;
         private bool inputLocked;
         private int airJumpsUsed;
-        // 연출이 입력을 잠근 채 캐릭터를 걷게 할 때의 좌우 입력(-1/0/1). SetScriptedMove로만 바뀐다.
-        private float scriptedInput;
 
         public Vector2 FacingDirection { get; private set; } = Vector2.right;
-        public bool IsMoving => Mathf.Abs(horizontalInput) > 0.01f || Mathf.Abs(scriptedInput) > 0.01f;
+        public bool IsMoving => Mathf.Abs(horizontalInput) > 0.01f;
         public bool IsGrounded => isGrounded;
         public bool IsInputLocked => inputLocked;
         public float VerticalVelocity => body.linearVelocity.y;
@@ -55,15 +53,6 @@ namespace Aethoria.Characters
             if (locked) horizontalInput = 0f;
         }
 
-        // 연출(컷신)에서 입력을 잠근 채 캐릭터를 걷게 한다. direction: -1 왼쪽, 1 오른쪽, 0 멈춤.
-        // 걷는 동안에는 걷기 애니메이션도 그대로 돈다(IsMoving).
-        public void SetScriptedMove(float direction)
-        {
-            scriptedInput = Mathf.Clamp(direction, -1f, 1f);
-            if (Mathf.Abs(scriptedInput) > 0.01f) FacingDirection = scriptedInput > 0f ? Vector2.right : Vector2.left;
-            else if (body != null) body.linearVelocity = new Vector2(0f, body.linearVelocity.y);
-        }
-
         // 순간이동 직후처럼 입력 없이 바라보는 방향만 정해 줄 때 쓴다.
         public void Face(Vector2 direction)
         {
@@ -75,11 +64,7 @@ namespace Aethoria.Characters
             isGrounded = CheckGrounded();
             if (isGrounded) airJumpsUsed = 0;
 
-            if (inputLocked)
-            {
-                if (Mathf.Abs(scriptedInput) > 0.01f) body.linearVelocity = new Vector2(scriptedInput * moveSpeed, body.linearVelocity.y);
-                return;
-            }
+            if (inputLocked) return;
 
             body.linearVelocity = new Vector2(horizontalInput * moveSpeed, body.linearVelocity.y);
 

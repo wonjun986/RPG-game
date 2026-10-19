@@ -65,8 +65,9 @@ namespace Aethoria.EditorTools
             ("Art/Monsters/FinalBoss/Phase2Attack/", 193f),
             // 1페이즈 혈류 흡수(뱀파이어 엘프의 혈류 흡수 연속 동작)는 1페이즈 대기와 나란히 놓고 키를 맞춘 값.
             ("Art/Monsters/FinalBoss/Absorb/", 144f),
-            // 패배 모션(Lunabel_Defeat, 8프레임): 첫 프레임 후광~발 약 475px가 1페이즈 대기(515px, 180)와 같은 키가 되게 한다.
-            ("Art/Monsters/FinalBoss/Defeat/", 166f),
+            // 패배 모션(Lunabel_Defeat, 8프레임): 대기와 같은 키(166)로는 클리어 연출에서 너무 커 보인다는 피드백으로,
+            // 프레임 키 481px가 약 2.1유닛(네크로시아보다 조금 큰 정도)이 되게 줄였다.
+            ("Art/Monsters/FinalBoss/Defeat/", 230f),
             // 맞는 모션(Lunabel`s_Hit) 시트는 더 크게 그렸다(키 629px).
             ("Art/Monsters/FinalBoss/Hit/", 219f),
             // 루나벨이 날리는 피의 손(Lunabel's hand launch, 6프레임): 그림 폭 638px가 약 2.2유닛이 되게 한다.

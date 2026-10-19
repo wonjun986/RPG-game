@@ -7,6 +7,7 @@ using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
 using Aethoria.Monsters;
 using Aethoria.Save;
+using Aethoria.Stages;
 
 namespace Aethoria.UI
 {
@@ -38,8 +39,12 @@ namespace Aethoria.UI
         private GameObject extrasPanel;
         private Button deathMotionButton;
         private Button lunabelMotionButton;
+        private Button knightMotionButton;
+        private Button lunabelDefeatButton;
         private DeathCinematic deathCinematic;
         private MotionGalleryUI lunabelGallery;
+        private MotionGalleryUI knightGallery;
+        private LunabelDefeatReplayUI lunabelDefeatReplay;
 
         // onContinue: 불러오기 화면에서 고른 슬롯 번호(1~5)를 넘겨받는다.
         public void Initialize(UnityAction onGameStart, UnityAction<int> onContinue)
@@ -100,6 +105,12 @@ namespace Aethoria.UI
             {
                 if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(lunabelMotionButton.gameObject);
             };
+            knightGallery = MotionGalleryUI.Create(canvasGO.transform, "기사 모션", BuildKnightClips());
+            knightGallery.Closed += () =>
+            {
+                if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(knightMotionButton.gameObject);
+            };
+            lunabelDefeatReplay = LunabelDefeatReplayUI.Create(canvasGO.transform);
 
             // CONTINUE를 누르면 노아의 저장 화면과 같은 슬롯 창을 불러오기 모드로 띄운다.
             loadScreen = canvasGO.AddComponent<SaveScreenUI>();
@@ -135,14 +146,14 @@ namespace Aethoria.UI
             boxRect.anchorMin = new Vector2(0.5f, 0.5f);
             boxRect.anchorMax = new Vector2(0.5f, 0.5f);
             boxRect.pivot = new Vector2(0.5f, 0.5f);
-            boxRect.sizeDelta = new Vector2(420f, 360f);
+            boxRect.sizeDelta = new Vector2(420f, 540f);
             boxGO.GetComponent<Image>().color = new Color(0.06f, 0.04f, 0.09f, 0.97f);
 
             var titleGO = new GameObject("Title", typeof(RectTransform), typeof(Text));
             var titleRect = (RectTransform)titleGO.transform;
             titleRect.SetParent(boxRect, false);
-            titleRect.anchorMin = new Vector2(0f, 0.78f);
-            titleRect.anchorMax = new Vector2(1f, 0.95f);
+            titleRect.anchorMin = new Vector2(0f, 0.86f);
+            titleRect.anchorMax = new Vector2(1f, 0.97f);
             titleRect.offsetMin = Vector2.zero;
             titleRect.offsetMax = Vector2.zero;
             var titleText = titleGO.GetComponent<Text>();
@@ -153,11 +164,15 @@ namespace Aethoria.UI
             titleText.color = new Color(0.85f, 0.7f, 1f);
             titleText.text = "EXTRAS";
 
-            WorldMapUI.BuildDialogButton(boxRect, "DeathMotionButton", "데스 모션 보기", new Vector2(0.12f, 0.56f), new Vector2(0.88f, 0.73f), PlayDeathMotion);
-            WorldMapUI.BuildDialogButton(boxRect, "LunabelMotionButton", "루나벨 모션 보기", new Vector2(0.12f, 0.33f), new Vector2(0.88f, 0.5f), OpenLunabelGallery);
-            WorldMapUI.BuildDialogButton(boxRect, "CloseButton", "닫기", new Vector2(0.12f, 0.08f), new Vector2(0.88f, 0.25f), CloseExtras);
+            WorldMapUI.BuildDialogButton(boxRect, "DeathMotionButton", "데스 모션 보기", new Vector2(0.12f, 0.71f), new Vector2(0.88f, 0.82f), PlayDeathMotion);
+            WorldMapUI.BuildDialogButton(boxRect, "LunabelMotionButton", "루나벨 모션 보기", new Vector2(0.12f, 0.57f), new Vector2(0.88f, 0.68f), OpenLunabelGallery);
+            WorldMapUI.BuildDialogButton(boxRect, "KnightMotionButton", "기사 모션 보기", new Vector2(0.12f, 0.43f), new Vector2(0.88f, 0.54f), OpenKnightGallery);
+            WorldMapUI.BuildDialogButton(boxRect, "LunabelDefeatButton", "루나벨 처치 장면", new Vector2(0.12f, 0.29f), new Vector2(0.88f, 0.40f), PlayLunabelDefeat);
+            WorldMapUI.BuildDialogButton(boxRect, "CloseButton", "닫기", new Vector2(0.12f, 0.08f), new Vector2(0.88f, 0.19f), CloseExtras);
             deathMotionButton = boxRect.Find("DeathMotionButton").GetComponent<Button>();
             lunabelMotionButton = boxRect.Find("LunabelMotionButton").GetComponent<Button>();
+            knightMotionButton = boxRect.Find("KnightMotionButton").GetComponent<Button>();
+            lunabelDefeatButton = boxRect.Find("LunabelDefeatButton").GetComponent<Button>();
 
             extrasPanel.SetActive(false);
         }
@@ -200,12 +215,57 @@ namespace Aethoria.UI
             lunabelGallery.Show();
         }
 
+        private void OpenKnightGallery()
+        {
+            if (knightGallery.IsShowing) return;
+            if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(null);
+            knightGallery.Show();
+        }
+
+        private void PlayLunabelDefeat()
+        {
+            if (lunabelDefeatReplay.IsShowing) return;
+            StartCoroutine(PlayLunabelDefeatRoutine());
+        }
+
+        private IEnumerator PlayLunabelDefeatRoutine()
+        {
+            // 대사를 넘기는 Enter가 선택된 버튼까지 눌러 장면이 다시 시작되지 않도록 선택을 비워 둔다.
+            if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(null);
+            yield return lunabelDefeatReplay.Play();
+            yield return null;
+            if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(lunabelDefeatButton.gameObject);
+        }
+
+        // 기사들이 게임에서 쓰는 모션/이펙트. 보스 기사(어둠의 숲 보스)와 일반 기사. 게임처럼 왼쪽(플레이어 쪽)을 보게 뒤집는다.
+        private static MotionGalleryUI.Clip[] BuildKnightClips()
+        {
+            const string boss = "Art/Monsters/BossKnight/";
+            const string knight = "Art/Monsters/Knight/";
+            return new[]
+            {
+                new MotionGalleryUI.Clip("보스 기사 - 대기", 1f / 5f, true, false, true, boss + "Idle"),
+                new MotionGalleryUI.Clip("보스 기사 - 걷기", 0.12f, true, false, true, boss + "Walk"),
+                new MotionGalleryUI.Clip("보스 기사 - 공격", 0.08f, false, false, true, boss + "Attack"),
+                new MotionGalleryUI.Clip("보스 기사 - 점프 내려찍기", 0.08f, false, false, true, boss + "JumpAttack"),
+                new MotionGalleryUI.Clip("보스 기사 필살기 - 검 들어올리기", 0.12f, false, false, true, BossAI.SpecialRaisePath),
+                new MotionGalleryUI.Clip("보스 기사 필살기 - 기운 모으기", 0.1f, true, false, true, BossAI.SpecialChargePath),
+                new MotionGalleryUI.Clip("보스 기사 필살기 - 전체 모션", 0.1f, false, false, true,
+                    BossAI.SpecialRaisePath, BossAI.SpecialChargePath, BossAI.SpecialChargePath),
+                new MotionGalleryUI.Clip("보스 기사 - 쓰러짐", 0.16f, false, false, true, boss + "Die"),
+                new MotionGalleryUI.Clip("이펙트 - 검기", 0.07f, true, true, true, BossAI.SwordWavePath),
+                new MotionGalleryUI.Clip("일반 기사 - 걷기", 0.12f, true, false, true, knight + "Walk"),
+                new MotionGalleryUI.Clip("일반 기사 - 공격", 0.1f, false, false, true, knight + "Attack"),
+            };
+        }
+
         // 루나벨이 게임에서 쓰는 모션/이펙트. 캐릭터 모션은 게임처럼 왼쪽(플레이어 쪽)을 보게 뒤집는다.
         private static MotionGalleryUI.Clip[] BuildLunabelClips()
         {
             const string root = "Art/Monsters/FinalBoss/";
             return new[]
             {
+                new MotionGalleryUI.Clip("첫 조우 - 의자에 앉은 모습", 1f / 3f, true, false, true, FinalBossAI.SeatedPath),
                 new MotionGalleryUI.Clip("1페이즈 대기", 1f / 6f, true, false, true, root + "Idle"),
                 new MotionGalleryUI.Clip("피의 손 뻗기 (공격)", 0.125f, false, false, true, root + "Attack"),
                 new MotionGalleryUI.Clip("피격", 0.1f, false, false, true, FinalBossAI.HitPath),
@@ -218,6 +278,9 @@ namespace Aethoria.UI
                 new MotionGalleryUI.Clip("필살기 - 구체 던지기", 0.1f, false, false, true, FinalBossAI.ThrowPath),
                 new MotionGalleryUI.Clip("필살기 - 전체 모션", 0.1f, false, false, true,
                     FinalBossAI.SpecialPath, FinalBossAI.SpecialChargePath, FinalBossAI.SpecialChargePath, FinalBossAI.ThrowPath),
+                new MotionGalleryUI.Clip("패배 - 쓰러지는 모션", LunabelDeathCutscene.DefeatFrameInterval, false, false, true, LunabelDeathCutscene.DefeatPath),
+                new MotionGalleryUI.Clip("전투 시작 - BATTLE 연출", 0.09f, false, true, false, "Art/Effects/LunabelBattleSplash"),
+                new MotionGalleryUI.Clip("이펙트 - 피의 회오리", 0.08f, true, true, false, FinalBossAI.BloodVortexPath),
                 new MotionGalleryUI.Clip("이펙트 - 피의 손", 0.06f, true, true, true, BloodHandProjectile.FramesPath),
                 new MotionGalleryUI.Clip("이펙트 - 핏빛 구체", 0.1f, true, true, false, FinalBossAI.BloodOrbPath),
                 new MotionGalleryUI.Clip("이펙트 - 피의 기둥", 0.07f, false, true, false,
@@ -390,7 +453,9 @@ namespace Aethoria.UI
 
             bool extrasOpen = extrasPanel != null && extrasPanel.activeSelf;
             bool cinematicPlaying = (deathCinematic != null && deathCinematic.IsShowing)
-                || (lunabelGallery != null && (lunabelGallery.IsShowing || lunabelGallery.ClosedThisFrame));
+                || (lunabelGallery != null && (lunabelGallery.IsShowing || lunabelGallery.ClosedThisFrame))
+                || (knightGallery != null && (knightGallery.IsShowing || knightGallery.ClosedThisFrame))
+                || (lunabelDefeatReplay != null && lunabelDefeatReplay.IsShowing);
             var keyboard = Keyboard.current;
             if (extrasOpen && !cinematicPlaying && keyboard != null && (keyboard.escapeKey.wasPressedThisFrame || keyboard.xKey.wasPressedThisFrame))
             {
