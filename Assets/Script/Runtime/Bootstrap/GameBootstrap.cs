@@ -1105,7 +1105,9 @@ namespace Aethoria.Bootstrap
         // 그 아래를 돌담 띠(RuinsGroundStrip)로 덮어 포탈이 계단 위에 떠 보이지 않게 한다.
         private static readonly Vector2[] RuinsEntranceTerrain =
         {
-            new Vector2(-17.72f, 2.59f), // 높은 돌단(그림 y 600). 이보다 왼쪽도 같은 높이
+            // 충돌선은 점이 있는 곳까지만 생기므로 맵 왼쪽 벽(-20) 너머까지 점을 둬야 한다 — 없으면 포탈 자리에서 바닥까지 떨어진다.
+            new Vector2(-21f, 2.59f),
+            new Vector2(-17.72f, 2.59f), // 높은 돌단(그림 y 600)
             new Vector2(-5.68f, 2.59f),
             new Vector2(-2.74f, 0.84f),  // 계단을 내려와 가운데 돌다리(그림 y 725)
             new Vector2(1.6f, 0.84f),
