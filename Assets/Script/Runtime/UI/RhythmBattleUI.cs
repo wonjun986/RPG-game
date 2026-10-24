@@ -436,8 +436,10 @@ namespace Aethoria.UI
         }
         private Image battleSplashImage;
         private Sprite[] battleSplashFrames = System.Array.Empty<Sprite>();
-        // 루나벨전 전용 BATTLE 연출(Final_Battle 8프레임): 핏빛 글자에서 피가 점점 흘러내린다. 글자가 가로로 넓어서
-        // 기본 연출(세로로 긴 칸)과 따로 화면 가운데의 넓은 칸에 그리고, 피가 다 흘러내린 마지막 프레임에서 잠깐 머문다.
+        // 루나벨전 전용 FINAL BATTLE 연출(고딕 판타지 파이널 배틀 스프라이트, 10프레임): 핏빛 낫 두 자루가 내려와 X자로 교차하고
+        // 그 위에 "FINAL BATTLE" 글자가 박힌다. 시트 칸 간격이 고르지 않아 프레임마다 X자 교차점(글자 프레임은 그림 가운데)을
+        // 같은 500x400 캔버스 가운데에 맞춰 잘라 두었다. 글자가 가로로 넓어서 기본 연출(세로로 긴 칸)과 따로 화면 가운데의
+        // 넓은 칸에 그리고, 마지막 프레임에서 잠깐 머문다.
         private const string LunabelSplashPath = "Art/Effects/LunabelBattleSplash";
         private const float LunabelSplashFrameInterval = 0.09f;
         private const float LunabelSplashHold = 0.5f;
@@ -626,6 +628,9 @@ namespace Aethoria.UI
         private Vector2 monsterBaseWorldSize = Vector2.one; // 대기 첫 프레임의 월드 크기. 이게 칸에 꽉 차게 맞춘다.
         // 전용 대기 모션이 있는 몬스터(보스 기사)는 칸보다 조금 크게 그린다 — 대기 모션은 칸에 맞춰 줄면 공격 모션보다 작아 보였다.
         private const float DedicatedIdleDisplayScale = 1.1f;
+        // 황금 모래룡은 원화가 가로로 길어(약 2:1) 칸 폭에 맞추면 키가 플레이어 초상화의 절반쯤밖에 안 됐다.
+        // 몸통이 플레이어보다 커 보이게 크게 그린다(칸 밖 왼쪽으로 꼬리/모래가 넘쳐 보이는 게 맞다).
+        private const float SandDragonDisplayScale = 2.2f;
         private float monsterDisplayScale = 1f;
 
         private Monster monster;
@@ -718,6 +723,9 @@ namespace Aethoria.UI
             for (int d = 0; d < 10; d++) lunabelDigits[d] = Resources.Load<Sprite>("UI/DamageDigits/lunabel_" + d);
             bloodPillarRiseFrames = LoadSortedSprites(FinalBossAI.BloodPillarRisePath);
             bloodPillarTornadoFrames = LoadSortedSprites(FinalBossAI.BloodPillarTornadoPath);
+            sandTailFrames = LoadSortedSprites(SandTailPath);
+            sandChargeFrames = LoadSortedSprites(SandChargePath);
+            sandBeamFrames = LoadSortedSprites(SandBeamPath);
             bloodVortexFrames = LoadSortedSprites(FinalBossAI.BloodVortexPath);
             lunabelHitFrames = LoadSortedSprites(FinalBossAI.HitPath);
             lunabelTapSprite = Resources.Load<Sprite>(LunabelNodePath + "/tap");
@@ -750,9 +758,11 @@ namespace Aethoria.UI
             player = targetPlayer;
             playerMovement = player.GetComponent<CharacterMovement2D>();
 
-            isBossBattle = monster.GetComponent<BossAI>() != null || monster.GetComponent<BossSlimeAI>() != null
+            isBossBattle = monster.GetComponent<BossAI>() != null || monster.GetComponent<BossSlimeAI>() != null || monster.GetComponent<SandDragonAI>() != null
                 || monster.GetComponent<FinalBossAI>() != null;
             isLunabelBattle = monster.GetComponent<FinalBossAI>() != null;
+            isSandDragonBattle = monster.GetComponent<SandDragonAI>() != null;
+            sandDragonEnemyTurns = 0;
             battleBackground.gameObject.SetActive(isLunabelBattle && battleBackground.texture != null);
             laneBackdrop.gameObject.SetActive(battleBackground.gameObject.activeSelf);
             fleeLocked = isLunabelBattle;
@@ -893,6 +903,25 @@ namespace Aethoria.UI
             }
             // 보스전은 보스가 먼저 치고, 일반 몬스터(와 연습장 허수아비)는 플레이어가 선공을 잡는다.
             turnRoutine = StartCoroutine(isBossBattle ? EnemyTurn() : PlayerTurn());
+        }
+
+        // 관리자 모드(AdminUI): 지금 싸우는 상대를 바로 쓰러뜨린다. 루나벨처럼 한 방에 안 죽게 버티는 상대도 그대로 쓰러진다.
+        // 쓰러지면 평소처럼 OnDied → EndBattle 로 전투가 끝나고 보상/사망 연출이 이어진다. 연습장 허수아비는 쓰러지지 않는다.
+        public bool AdminKillOpponent()
+        {
+            if (!IsOpen || monster == null || monster.IsDead || isPractice) return false;
+            monster.SurviveLethalHit = false;
+            monster.TakeDamage(monster.CurrentHp + monster.MaxHp);
+            return true;
+        }
+
+        // 관리자 모드: 필살 게이지를 가득 채운다.
+        public bool AdminFillSkillGauge()
+        {
+            if (!IsOpen) return false;
+            skillGauge = MaxSkillGauge;
+            RefreshHpBars();
+            return true;
         }
 
         private void HandleMonsterDied(Monster _) => EndBattle(fled: false);
@@ -1172,6 +1201,7 @@ namespace Aethoria.UI
             // 줄어들어서, 크게 그린 2페이즈 모습이 1페이즈와 같은 크기로 보여 버린다.
             monsterBaseWorldSize = WorldSize(finalBossAI != null && lunabelBaseIdleSprite != null ? lunabelBaseIdleSprite : monsterIdleFrames[0]);
             monsterDisplayScale = dummy == null && walk != null && walk.HasIdleFrames ? DedicatedIdleDisplayScale : 1f;
+            if (isSandDragonBattle) monsterDisplayScale = SandDragonDisplayScale;
             SetMonsterFrame(monsterIdleFrames[0]);
         }
 
@@ -1297,6 +1327,28 @@ namespace Aethoria.UI
             {
                 // 1페이즈 전용: 3번째 적 턴마다 피를 흡수해 체력을 채우는 턴. 이후 루나벨의 노드를 일정 개수 놓치면 피의 회오리가 터진다.
                 yield return LunabelBloodAbsorb(finalBoss);
+                if (BattleEnded()) yield break;
+                yield return new WaitForSecondsRealtime(AfterChartPause);
+                if (BattleEnded()) yield break;
+                turnRoutine = StartCoroutine(PlayerTurn());
+                yield break;
+            }
+
+            // 황금 모래룡: 3번째 적 턴마다 황금 브레스(충전 → 차징 → 발사), 그 밖의 짝수 턴엔 대지 강타 → 꼬리 대지 폭발.
+            if (isSandDragonBattle) sandDragonEnemyTurns++;
+            if (isSandDragonBattle && sandChargeFrames.Length > 0 && sandBeamFrames.Length > 0
+                && sandDragonEnemyTurns % SandDragonBeamEveryTurns == 0)
+            {
+                yield return SandDragonBeam();
+                if (BattleEnded()) yield break;
+                yield return new WaitForSecondsRealtime(AfterChartPause);
+                if (BattleEnded()) yield break;
+                turnRoutine = StartCoroutine(PlayerTurn());
+                yield break;
+            }
+            if (isSandDragonBattle && sandTailFrames.Length > 0 && sandDragonEnemyTurns % SandDragonTailEveryTurns == 0)
+            {
+                yield return SandDragonTailStrike();
                 if (BattleEnded()) yield break;
                 yield return new WaitForSecondsRealtime(AfterChartPause);
                 if (BattleEnded()) yield break;
@@ -1432,6 +1484,8 @@ namespace Aethoria.UI
                 if (pattern.EnragedOnly && !enraged) continue;
                 // 루나벨은 노드가 붉은 안개 속으로 사라지는 패턴(그림자 손아귀)을 쓰지 않는다.
                 if (pattern.Vanish && isLunabelBattle) continue;
+                // 모래룡은 흡혈하는 존재가 아니라서 흡혈 참격을 쓰지 않는다(대신 황금 브레스가 있다).
+                if (pattern.Drain && isSandDragonBattle) continue;
                 if (pattern == lastBossPattern) continue;
                 candidates.Add(pattern);
             }
@@ -1609,7 +1663,7 @@ namespace Aethoria.UI
         private IEnumerator BossSpecialMove(int specialIndex)
         {
             phaseBannerText.color = EnemyNoteColor;
-            phaseBannerText.text = "보스 기사가 검을 들어올린다...";
+            phaseBannerText.text = "알리아스가 검을 들어올린다...";
             PlayMonsterOneShot(bossSpecialRaiseFrames, BossSpecialRaiseInterval, restart: true);
             yield return new WaitForSecondsRealtime(BossSpecialRaiseInterval * bossSpecialRaiseFrames.Length);
             if (BattleEnded()) yield break;
@@ -1650,7 +1704,7 @@ namespace Aethoria.UI
                 monsterFrameIndex = 0;
                 monsterFrameTimer = 0f;
                 SetMonsterFrame(monsterIdleFrames[0]);
-                phaseBannerText.text = $"보스 기사가 주춤했다! 필살기 캔슬! ({hits}/{notes.Count})";
+                phaseBannerText.text = $"알리아스가 주춤했다! 필살기 캔슬! ({hits}/{notes.Count})";
                 ShowResult("캔슬 성공!", GoodColor);
                 PlayMonsterStagger();
                 yield return new WaitForSecondsRealtime(BossSpecialStaggerDuration);
@@ -1809,6 +1863,233 @@ namespace Aethoria.UI
                 bloodPillarRiseFrames, bloodPillarTornadoFrames, BloodPillarTornadoInterval);
             if (BattleEnded()) yield break;
             yield return new WaitForSecondsRealtime(LunabelSpecialAfterPause);
+            phaseBannerText.text = "";
+        }
+
+        // ---- 황금 모래룡: 황금 브레스 ----
+        // 입에 금빛 기운을 모으는 모션(에너지 충전 8프레임)을 한 번 재생 → 마지막 두 프레임(커진 구슬)을 반복하며 차징하는
+        // 동안 "기운 흩트리기" 채보가 흐른다(알리아스/루나벨 필살기와 같은 규칙: 맞힌 노드는 구슬을 흩트린다).
+        // 하나라도 놓치면 놓친 비율만큼의 위력으로 입에서 플레이어에게 황금 빔(6프레임)을 쏜다. 빔이 닿아 있는 동안 여러 번 나눠 맞는다.
+        // 전부 맞히면 구슬이 흩어져 피해 없이 끝난다.
+        private const string SandChargePath = "Art/Monsters/SandDragon/Charge";
+        private const string SandBeamPath = "Art/Effects/SandDragonBeam";
+        private const string SandDragonBeamName = "황금 브레스";
+        private const int SandDragonBeamEveryTurns = 3;
+        private static readonly string[] SandDragonBeamCharts =
+        {
+            "UDU-DUD-u===-DDUU-UD-d===---",
+            "DDU-UDD-UU-d====-UDUD-DU---",
+            "U-UD-DU-u===-DUDU-UUDD-D---",
+        };
+        private const float SandDragonChargeInterval = 0.12f;
+        private const float SandDragonChargeHoldInterval = 0.1f;
+        private const float SandDragonChargeLeadIn = 0.5f;
+        private const float SandDragonBeamFrameInterval = 0.06f;
+        private const float SandDragonBeamDuration = 1.2f;
+        private const int SandDragonBeamHits = 4;
+        private const float SandDragonBeamDamageMultiplier = 6f;
+        // 빔 칸 그림(512x512)의 출발점(오른쪽 위 별)과 충돌점(왼쪽 아래) 픽셀 — 칸 왼쪽 위 기준.
+        private const float SandBeamCellPx = 512f;
+        private static readonly Vector2 SandBeamOriginPx = new Vector2(475f, 24f);
+        private static readonly Vector2 SandBeamEndPx = new Vector2(21f, 451f);
+        // 충전 프레임(758x409 캔버스)에서 구슬이 피벗(아래 가운데)보다 이만큼(원화 px) 오른쪽/위에 있다.
+        private static readonly Vector2 SandChargeOrbFromPivotPx = new Vector2(133f, 237f);
+        // 빔이 닿는 곳: 플레이어 초상화 가슴께(배경 그림 px).
+        private const float SandBeamTargetX = 430f;
+        private const float SandBeamTargetY = 400f;
+        private Sprite[] sandChargeFrames = System.Array.Empty<Sprite>();
+        private Sprite[] sandBeamFrames = System.Array.Empty<Sprite>();
+        private Image sandBeamImage;
+
+        private IEnumerator SandDragonBeam()
+        {
+            phaseBannerText.color = EnemyNoteColor;
+            phaseBannerText.text = "모래룡이 입을 벌린다... 금빛 기운이 모여든다!";
+            PlayMonsterOneShot(sandChargeFrames, SandDragonChargeInterval, restart: true);
+            yield return new WaitForSecondsRealtime(SandDragonChargeInterval * sandChargeFrames.Length);
+            if (BattleEnded()) yield break;
+
+            // 차징: 구슬이 가장 커진 마지막 두 프레임을 반복.
+            phaseBannerText.text = "금빛 구슬이 부풀어 오른다! 노드를 맞혀 흩트려라!";
+            int holdCount = Mathf.Min(2, sandChargeFrames.Length);
+            var hold = new Sprite[holdCount];
+            System.Array.Copy(sandChargeFrames, sandChargeFrames.Length - holdCount, hold, 0, holdCount);
+            monsterHoldFrames = hold;
+            monsterHoldInterval = SandDragonChargeHoldInterval;
+            monsterOneShot = null;
+            monsterFrameIndex = 0;
+            monsterFrameTimer = 0f;
+            SetMonsterFrame(monsterHoldFrames[0]);
+            yield return new WaitForSecondsRealtime(SandDragonChargeLeadIn);
+            if (BattleEnded()) yield break;
+
+            int hits = 0;
+            var notes = BuildChartNotes(SandDragonBeamCharts[Random.Range(0, SandDragonBeamCharts.Length)]);
+            yield return RunChart(notes, SkillNoteColor, okWindow, (note, hit, diff) =>
+            {
+                if (hit)
+                {
+                    hits++;
+                    TriggerPlayerAttackAnim();
+                    ShowResult("기운을 흩트렸다!", GoodColor);
+                }
+                else
+                {
+                    ShowResult("놓쳤다...", MissColor);
+                }
+            });
+            if (BattleEnded()) yield break;
+
+            int misses = notes.Count - hits;
+            if (misses <= 0)
+            {
+                ReturnMonsterToIdle();
+                phaseBannerText.text = $"금빛 구슬이 흩어졌다! ({hits}/{notes.Count})";
+                ShowResult("완벽 방어!", GoodColor);
+                PlayMonsterStagger();
+                yield return new WaitForSecondsRealtime(BossSpecialStaggerDuration);
+                phaseBannerText.text = "";
+                yield break;
+            }
+
+            float missRatio = (float)misses / notes.Count;
+            phaseBannerText.text = $"{SandDragonBeamName}! 놓친 기운 {misses}/{notes.Count} — 위력 {missRatio * 100f:0}%";
+            // 쏘는 동안은 구슬을 문 마지막 충전 프레임으로 멈춰 있는다.
+            monsterHoldFrames = new[] { sandChargeFrames[sandChargeFrames.Length - 1] };
+            monsterHoldInterval = 1f;
+            SetMonsterFrame(monsterHoldFrames[0]);
+            yield return FireSandBeam(missRatio);
+            ReturnMonsterToIdle();
+            if (BattleEnded()) yield break;
+            phaseBannerText.text = "";
+        }
+
+        private IEnumerator FireSandBeam(float missRatio)
+        {
+            float hitDamage = CombatMath.PhysicalDamage(monster.Attack, player.Stats.defense)
+                * SandDragonBeamDamageMultiplier * missRatio / SandDragonBeamHits;
+
+            // 출발점 = 모래룡 초상화 피벗(아래 가운데) + 구슬 위치. 초상화는 좌우로 뒤집혀 있어(왼쪽을 본다) x는 빼 준다.
+            var rect = sandBeamImage.rectTransform;
+            var parent = (RectTransform)rect.parent;
+            var portrait = monsterPortrait.rectTransform;
+            float pxToUi = portrait.rect.height / Mathf.Max(1f, monsterPortrait.sprite.rect.height);
+            Vector2 pivotLocal = parent.InverseTransformPoint(portrait.position);
+            Vector2 origin = pivotLocal + new Vector2(-SandChargeOrbFromPivotPx.x * pxToUi, SandChargeOrbFromPivotPx.y * pxToUi);
+            // ImageToCanvasPos는 부모 왼쪽 위 기준 좌표라, 부모 중심 기준 로컬 좌표로 옮긴다.
+            Vector2 target = ImageToCanvasPos(SandBeamTargetX, SandBeamTargetY) + new Vector2(parent.rect.xMin, parent.rect.yMax);
+
+            // 그림 속 빔 방향/길이에 맞춰 회전과 배율을 정한다.
+            Vector2 artDir = new Vector2(SandBeamEndPx.x - SandBeamOriginPx.x, -(SandBeamEndPx.y - SandBeamOriginPx.y));
+            Vector2 wantDir = target - origin;
+            float scale = wantDir.magnitude / artDir.magnitude;
+            float angle = Vector2.SignedAngle(artDir, wantDir);
+
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = origin;
+            rect.sizeDelta = new Vector2(SandBeamCellPx, SandBeamCellPx) * scale;
+            rect.localRotation = Quaternion.Euler(0f, 0f, angle);
+            sandBeamImage.color = Color.white;
+            sandBeamImage.gameObject.SetActive(true);
+            rect.SetAsLastSibling();
+
+            float hitInterval = SandDragonBeamDuration / SandDragonBeamHits;
+            int dealt = 0;
+            float nextHit = SandDragonBeamFrameInterval * 2f; // 빔이 굵어지는 3번째 프레임부터 맞는다
+            float total = SandDragonBeamDuration + nextHit;
+            for (float t = 0f; t < total; t += Time.unscaledDeltaTime)
+            {
+                int step = (int)(t / SandDragonBeamFrameInterval);
+                int frame = step < sandBeamFrames.Length
+                    ? step
+                    : sandBeamFrames.Length - 3 + step % 3; // 다 굵어진 뒤엔 마지막 세 프레임을 번갈아 돌려 일렁이게
+                sandBeamImage.sprite = sandBeamFrames[Mathf.Clamp(frame, 0, sandBeamFrames.Length - 1)];
+                if (dealt < SandDragonBeamHits && t >= nextHit)
+                {
+                    dealt++;
+                    nextHit += hitInterval;
+                    DealBloodPillarHit(hitDamage, SandDragonBeamName);
+                    TriggerPlayerHitAnim();
+                    if (BattleEnded()) break;
+                }
+                yield return null;
+            }
+            for (float f = 0f; f < 0.25f; f += Time.unscaledDeltaTime)
+            {
+                sandBeamImage.color = new Color(1f, 1f, 1f, 1f - f / 0.25f);
+                yield return null;
+            }
+            sandBeamImage.gameObject.SetActive(false);
+            rect.localRotation = Quaternion.identity;
+        }
+
+        // ---- 황금 모래룡: 꼬리 대지 폭발 ----
+        // 모래룡이 몸을 들어 땅을 내리치는 모션(대지 강타 6프레임)과 함께 "충격" 노드가 흐른다. 놓친 노드 비율만큼 땅속으로
+        // 충격이 퍼져, 플레이어 발밑에서 금빛 꼬리가 솟구친다(꼬리 대지 폭발 4프레임 — 루나벨 피의 기둥과 같은 자리/방식으로
+        // 솟은 뒤 여러 번 나눠 피해). 전부 막으면 꼬리가 빗나가 피해가 없다.
+        private const string SandTailPath = "Art/Effects/SandTailBurst";
+        private const string SandDragonTailName = "꼬리 대지 폭발";
+        private const int SandDragonTailEveryTurns = 2;
+        private static readonly string[] SandDragonTailCharts =
+        {
+            "DD-UU-D-U-DDUU---",
+            "U-DD-UU-D-DUDU---",
+            "DDD-U-U-DD-UUU---",
+        };
+        private const float SandDragonSlamFrameInterval = 0.12f;
+        private const int SandDragonTailHits = 3;
+        private const float SandDragonTailDamageMultiplier = 5f;
+        private const float SandDragonTailRiseInterval = 0.09f;
+        private Sprite[] sandTailFrames = System.Array.Empty<Sprite>();
+        private bool isSandDragonBattle;
+        private int sandDragonEnemyTurns;
+
+        private IEnumerator SandDragonTailStrike()
+        {
+            phaseBannerText.color = EnemyNoteColor;
+            phaseBannerText.text = "모래룡이 몸을 치켜든다... 땅이 울린다! 노드를 막아 충격을 흘려라!";
+            PlayMonsterOneShot(monsterAttackFrames, SandDragonSlamFrameInterval, restart: true);
+            yield return new WaitForSecondsRealtime(SandDragonSlamFrameInterval * Mathf.Max(1, monsterAttackFrames.Length) * 0.5f);
+            if (BattleEnded()) yield break;
+
+            int blocked = 0;
+            var notes = BuildChartNotes(SandDragonTailCharts[Random.Range(0, SandDragonTailCharts.Length)]);
+            yield return RunChart(notes, EnemyNoteColor, blockWindow, (note, hit, diff) =>
+            {
+                if (hit)
+                {
+                    blocked++;
+                    TriggerPlayerGuardAnim();
+                    ShowResult("충격을 흘렸다!", GoodColor);
+                }
+                else
+                {
+                    ShowResult("땅이 갈라진다...", MissColor);
+                }
+            });
+            if (BattleEnded()) yield break;
+
+            int misses = notes.Count - blocked;
+            if (misses <= 0)
+            {
+                ReturnMonsterToIdle();
+                phaseBannerText.text = $"충격을 전부 흘렸다! 꼬리가 빗나갔다! ({blocked}/{notes.Count})";
+                ShowResult("완벽 방어!", GoodColor);
+                yield return new WaitForSecondsRealtime(BossSpecialStaggerDuration);
+                phaseBannerText.text = "";
+                yield break;
+            }
+
+            float missRatio = (float)misses / notes.Count;
+            phaseBannerText.text = $"{SandDragonTailName}! 놓친 충격 {misses}/{notes.Count} — 위력 {missRatio * 100f:0}%";
+            PlayMonsterOneShot(monsterAttackFrames, SandDragonSlamFrameInterval, restart: true);
+            // 앞 프레임들은 모래가 소용돌이치다 꼬리가 솟는 장면(한 번), 마지막 프레임(다 솟은 꼬리)에 머물며 나눠 때린다.
+            var rise = new Sprite[Mathf.Max(0, sandTailFrames.Length - 1)];
+            System.Array.Copy(sandTailFrames, rise, rise.Length);
+            var hold = new[] { sandTailFrames[sandTailFrames.Length - 1] };
+            yield return BloodPillar(SandDragonTailHits, SandDragonTailDamageMultiplier * missRatio, SandDragonTailName,
+                rise, hold, SandDragonTailRiseInterval);
+            if (BattleEnded()) yield break;
             phaseBannerText.text = "";
         }
 
@@ -1985,6 +2266,7 @@ namespace Aethoria.UI
             }
             if (bloodOrbImage != null) bloodOrbImage.gameObject.SetActive(false);
             if (bloodPillarImage != null) bloodPillarImage.gameObject.SetActive(false);
+            if (sandBeamImage != null) sandBeamImage.gameObject.SetActive(false);
         }
 
         private IEnumerator BloodOrbRoutine()
@@ -2032,7 +2314,7 @@ namespace Aethoria.UI
         private IEnumerator BossBlockFlee()
         {
             phaseBannerText.color = EnemyNoteColor;
-            phaseBannerText.text = "보스 기사: \"어딜 도망치려 하느냐! 도망칠 수 없다!\"";
+            phaseBannerText.text = "알리아스: \"어딜 도망치려 하느냐! 도망칠 수 없다!\"";
             ShowResult("도망칠 수 없다!", MissColor);
             yield return new WaitForSecondsRealtime(FleeBlockedLinePause);
             if (BattleEnded()) yield break;
@@ -3647,6 +3929,12 @@ namespace Aethoria.UI
             bloodPillarImage.rectTransform.pivot = new Vector2(0.5f, 0f);
             bloodPillarImage.rectTransform.anchoredPosition = ImageToCanvasPos(BloodPillarX, BloodPillarBottomY);
             bloodPillarImage.gameObject.SetActive(false);
+
+            // 모래룡 황금 브레스. 빔 그림(512x512 칸, 오른쪽 위 출발점 → 왼쪽 아래 충돌점 대각선)의 출발점을 피벗으로 두고,
+            // 모래룡 입(충전 구슬)에서 플레이어 가슴까지 닿게 회전/크기를 맞춘다(FireSandBeam).
+            sandBeamImage = CreateMovableImage(contentRect, "SandDragonBeam", 1f);
+            sandBeamImage.rectTransform.pivot = new Vector2(SandBeamOriginPx.x / SandBeamCellPx, 1f - SandBeamOriginPx.y / SandBeamCellPx);
+            sandBeamImage.gameObject.SetActive(false);
             bloodOrbImage.gameObject.SetActive(false);
 
             BuildMyTurnFrame(contentRect);

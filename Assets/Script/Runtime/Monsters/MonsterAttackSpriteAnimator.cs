@@ -59,6 +59,12 @@ namespace Aethoria.Monsters
             clips[clipName] = LoadSorted(clipResourcesPath);
         }
 
+        // 이미 불러 둔 프레임 일부로 클립을 만든다(예: 모래룡 포효 = 대지 강타 앞쪽 몇 장).
+        public void AddClip(string clipName, Sprite[] clipFrames)
+        {
+            clips[clipName] = clipFrames;
+        }
+
         public bool HasClip(string clipName)
         {
             return clips.TryGetValue(clipName, out var clip) && clip != null && clip.Length > 0;

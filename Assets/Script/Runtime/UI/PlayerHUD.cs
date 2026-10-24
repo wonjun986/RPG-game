@@ -4,32 +4,33 @@ using Aethoria.Characters;
 
 namespace Aethoria.UI
 {
-    // 화면 좌상단에 HP/MP 프레임(아트)을 그리고, 그 아래에 EXP/골드(코드로 그린 막대)를 보여준다.
+    // 화면 좌상단에 HP 프레임(아트)을 그리고, 그 아래에 EXP/골드(코드로 그린 막대)를 보여준다.
     // 전투가 리듬 전투로 바뀌어 필드에서는 스킬을 쓰지 않으므로 스킬 프레임은 띄우지 않는다.
+    // MP도 더 이상 쓰지 않아서, 원본 HP/MP 프레임(UI/PlayerUI)에서 MP 칸을 빼고 아래 장식을 그 자리까지 끌어올린
+    // UI/PlayerUI_HpOnly를 쓴다. 그림 크기(2172x724)는 같아서 HP 칸 좌표는 그대로다.
     public class PlayerHUD : MonoBehaviour
     {
         // Player UI.png 원본 캔버스는 2172x724(정확히 3:1)라서, 화면에 그릴 때도
         // 같은 비율로 맞춰야 안의 HP/MP 바 좌표(아래 앵커 값들)가 어긋나지 않는다.
         private const float PlayerFrameWidth = 340f;
         private const float PlayerFrameHeight = PlayerFrameWidth / 3f;
-        // HP/MP 프레임과 그 아래 EXP/골드 사이 간격.
+        // HP 프레임과 그 아래 EXP/골드 사이 간격.
         private const float BottomGap = 10f;
+        // HP 프레임 그림은 MP 줄(원본 204px)을 뺀 만큼 아래쪽이 비어 있어서, EXP/골드를 그만큼 위로 당긴다.
+        private const float FrameEmptyBottom = PlayerFrameHeight * 204f / 724f;
 
         // 아래 앵커 좌표들은 PlayerUI.png 안에 이미 그려진 검은 게이지 칸의
         // 픽셀 위치(2172x724 기준)를 이미지 크기로 나눈 비율이다.
         private static readonly Vector2 HpBarMin = new(0.4042f, 0.5235f);
         private static readonly Vector2 HpBarMax = new(0.8734f, 0.6478f);
-        private static readonly Vector2 MpBarMin = new(0.4042f, 0.2514f);
-        private static readonly Vector2 MpBarMax = new(0.8734f, 0.3660f);
 
         private Character target;
         private Image hpFill;
-        private Image mpFill;
         private Image expFill;
         private Text hpLabel;
-        private Text mpLabel;
         private Text expLabel;
         private Text goldLabel;
+        private const string FrameArt = "UI/PlayerUI_HpOnly";
 
         public void Initialize(Character character)
         {
@@ -39,13 +40,12 @@ namespace Aethoria.UI
 
         private void BuildBars()
         {
-            var frameRect = CreateArtFrame("PlayerFrame", "UI/PlayerUI", new Vector2(16f, -16f), PlayerFrameWidth, PlayerFrameHeight);
+            var frameRect = CreateArtFrame("PlayerFrame", FrameArt, new Vector2(16f, -16f), PlayerFrameWidth, PlayerFrameHeight);
 
             hpFill = CreateArtBar(frameRect, HpBarMin, HpBarMax, new Color(0.85f, 0.15f, 0.2f), out hpLabel);
-            mpFill = CreateArtBar(frameRect, MpBarMin, MpBarMax, new Color(0.35f, 0.55f, 0.95f), out mpLabel);
 
-            // HP/MP 프레임 바로 아래에 배치한다.
-            float belowFrame = -16f - PlayerFrameHeight - BottomGap;
+            // HP 프레임 바로 아래에 배치한다.
+            float belowFrame = -16f - PlayerFrameHeight + FrameEmptyBottom - BottomGap;
             var root = new GameObject("StatusPanel", typeof(RectTransform));
             root.transform.SetParent(transform, false);
             var rootRect = (RectTransform)root.transform;
@@ -201,15 +201,12 @@ namespace Aethoria.UI
             if (target == null) return;
 
             float hpRatio = target.MaxHp > 0f ? target.CurrentHp / target.MaxHp : 0f;
-            float mpRatio = target.MaxMana > 0f ? target.CurrentMana / target.MaxMana : 0f;
             float expRatio = target.ExpToNextLevel > 0 ? (float)target.CurrentExp / target.ExpToNextLevel : 0f;
 
             hpFill.fillAmount = Mathf.Clamp01(hpRatio);
-            mpFill.fillAmount = Mathf.Clamp01(mpRatio);
             expFill.fillAmount = Mathf.Clamp01(expRatio);
 
             hpLabel.text = $"{Mathf.CeilToInt(target.CurrentHp)}/{Mathf.CeilToInt(target.MaxHp)}";
-            mpLabel.text = $"{Mathf.CeilToInt(target.CurrentMana)}/{Mathf.CeilToInt(target.MaxMana)}";
             expLabel.text = $"Lv.{target.Level}  EXP {target.CurrentExp}/{target.ExpToNextLevel}";
             goldLabel.text = target.Gold.ToString("N0");
         }

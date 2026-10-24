@@ -83,13 +83,58 @@ namespace Aethoria.Stages
             baseRenderer.sortingOrder = -4;
         }
 
+        // 테두리(문틀) 한 장 + 그 구멍 안에서 도는 소용돌이 프레임들(천상의 계단 포탈). 엔스룸처럼 프레임을 테두리와 같은
+        // 캔버스로 만들면 너무 커서, 소용돌이는 구멍 크기만 한 작은 캔버스(모든 프레임이 같은 크기)로 따로 만들어 두고
+        // 테두리 그림 픽셀 좌표로 자리를 계산해 겹친다. 프레임 크기가 전부 같으니 갈아 끼워도 위치가 흔들리지 않는다.
+        // swirlBottomCenterPx: 소용돌이 캔버스 아래 가운데가 테두리 그림(왼쪽 위 원점)의 어디에 오는지.
+        // swirlPixelScale: 소용돌이 프레임을 몇 배로 늘려 그리는지(용량을 줄이려고 절반 해상도로 저장했다면 2).
+        public void CreateFramedVisual(float inwardOffset, float floorOffset, string basePath, string swirlFolder,
+            Vector2 swirlBottomCenterPx, float swirlPixelScale, float swirlFrameDuration)
+        {
+            var baseSprite = Resources.Load<Sprite>(basePath);
+            if (baseSprite == null) return;
+
+            var go = new GameObject("PortalVisual");
+            go.transform.SetParent(transform, false);
+            go.transform.localPosition = new Vector3(backward ? inwardOffset : -inwardOffset, -floorOffset, 0f);
+
+            var baseGO = new GameObject("Frame");
+            baseGO.transform.SetParent(go.transform, false);
+            var baseRenderer = baseGO.AddComponent<SpriteRenderer>();
+            baseRenderer.sprite = baseSprite;
+            baseRenderer.sortingOrder = -4;
+
+            var swirlFrames = Resources.LoadAll<Sprite>(swirlFolder);
+            if (swirlFrames == null || swirlFrames.Length == 0) return;
+            System.Array.Sort(swirlFrames, (a, b) => string.CompareOrdinal(a.name, b.name));
+
+            // 두 그림 모두 피벗이 아래 가운데라는 전제로, 테두리 픽셀 좌표를 테두리의 실제 PPU로 나눠 자리를 잡는다.
+            float basePpu = baseSprite.pixelsPerUnit;
+            Rect baseRect = baseSprite.rect;
+            var swirlGO = new GameObject("Swirl");
+            swirlGO.transform.SetParent(go.transform, false);
+            swirlGO.transform.localPosition = new Vector3(
+                (swirlBottomCenterPx.x - baseRect.width / 2f) / basePpu,
+                (baseRect.height - swirlBottomCenterPx.y) / basePpu, 0f);
+            float swirlScale = swirlPixelScale * swirlFrames[0].pixelsPerUnit / basePpu;
+            swirlGO.transform.localScale = new Vector3(swirlScale, swirlScale, 1f);
+
+            visualRenderer = swirlGO.AddComponent<SpriteRenderer>();
+            visualRenderer.sprite = swirlFrames[0];
+            visualRenderer.sortingOrder = -5; // 테두리 뒤
+            frames = swirlFrames;
+            frameDuration = swirlFrameDuration;
+        }
+
+        private float frameDuration = FrameDuration;
+
         private void Update()
         {
             if (visualRenderer == null || frames == null || frames.Length < 2) return;
 
             frameTimer += Time.deltaTime;
-            if (frameTimer < FrameDuration) return;
-            frameTimer -= FrameDuration;
+            if (frameTimer < frameDuration) return;
+            frameTimer -= frameDuration;
 
             frameIndex = (frameIndex + 1) % frames.Length;
             visualRenderer.sprite = frames[frameIndex];

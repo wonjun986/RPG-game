@@ -68,6 +68,8 @@ namespace Aethoria.Characters
         // 스킬로 거는 무적(SetInvincible)과 피격 직후 잠깐의 무적(postHitInvincibleRemaining) 둘 중
         // 하나라도 걸려 있으면 무적이다. 서로 독립된 타이머라 한쪽이 끝나도 다른 쪽을 끄지 않는다.
         public bool IsInvincible => isInvincible || postHitInvincibleRemaining > 0f;
+        // 관리자 모드(AdminUI)의 무적. 스킬 무적/피격 무적과 따로 놀아서 그쪽 타이머가 끝나도 풀리지 않는다.
+        public bool GodMode { get; set; }
         public bool IsCombatLocked => isCombatLocked;
         public int CurrentExp => currentExp;
         public int ExpToNextLevel => ExperienceMath.RequiredExpForLevel(level);
@@ -240,7 +242,7 @@ namespace Aethoria.Characters
         public void TakeDamage(float finalDamage, Vector2? sourcePosition = null, bool hitReaction = true)
         {
             bool blocked = hitReaction ? IsInvincible : isInvincible;
-            if (IsDead || blocked || finalDamage <= 0f) return;
+            if (IsDead || blocked || GodMode || finalDamage <= 0f) return;
 
             currentHp = Mathf.Max(0f, currentHp - finalDamage);
             OnDamaged?.Invoke(this, finalDamage);

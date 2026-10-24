@@ -91,9 +91,53 @@ namespace Aethoria.Quests
             return finished;
         }
 
+        // 이 NPC에게 말을 걸면 퀘스트 장면이 나와야 하는지(의뢰할 퀘스트, 찾아온 Talk 퀘스트, 보고받을 퀘스트). NPC 머리 위 표시에도 쓴다.
+        public bool HasBusinessWith(string npc)
+        {
+            var quest = Current;
+            if (quest == null) return false;
+            switch (status)
+            {
+                case QuestStatus.Available: return quest.giverNpc == npc;
+                case QuestStatus.InProgress: return quest.type == QuestType.Talk && quest.targetNpc == npc;
+                case QuestStatus.ReadyToTurnIn: return quest.turnInNpc == npc;
+                default: return false;
+            }
+        }
+
+        // Talk 퀘스트의 목표 NPC에게 말을 걸었을 때 부른다. 목표가 맞으면 보고 가능 상태로 바꾸고 true.
+        public bool CompleteTalk(string npc)
+        {
+            var quest = Current;
+            if (status != QuestStatus.InProgress || quest == null || quest.type != QuestType.Talk || quest.targetNpc != npc) return false;
+
+            status = QuestStatus.ReadyToTurnIn;
+            OnChanged?.Invoke();
+            return true;
+        }
+
+        // 관리자 모드(AdminUI): 지금 퀘스트를 한 단계 진행한다(수락 → 목표 달성 → 보고).
+        public void AdminAdvance()
+        {
+            switch (status)
+            {
+                case QuestStatus.Available:
+                    Accept();
+                    break;
+                case QuestStatus.InProgress:
+                    progress = Current.requiredCount;
+                    status = QuestStatus.ReadyToTurnIn;
+                    OnChanged?.Invoke();
+                    break;
+                case QuestStatus.ReadyToTurnIn:
+                    TurnIn();
+                    break;
+            }
+        }
+
         private void HandleMonsterDied(Monster monster)
         {
-            if (status != QuestStatus.InProgress) return;
+            if (status != QuestStatus.InProgress || Current.type != QuestType.Kill) return;
             if (monster.Data == null || monster.Data.monsterName != Current.targetMonsterName) return;
 
             progress = Mathf.Min(progress + 1, Current.requiredCount);

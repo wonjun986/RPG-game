@@ -246,15 +246,15 @@ namespace Aethoria.UI
             const string knight = "Art/Monsters/Knight/";
             return new[]
             {
-                new MotionGalleryUI.Clip("보스 기사 - 대기", 1f / 5f, true, false, true, boss + "Idle"),
-                new MotionGalleryUI.Clip("보스 기사 - 걷기", 0.12f, true, false, true, boss + "Walk"),
-                new MotionGalleryUI.Clip("보스 기사 - 공격", 0.08f, false, false, true, boss + "Attack"),
-                new MotionGalleryUI.Clip("보스 기사 - 점프 내려찍기", 0.08f, false, false, true, boss + "JumpAttack"),
-                new MotionGalleryUI.Clip("보스 기사 필살기 - 검 들어올리기", 0.12f, false, false, true, BossAI.SpecialRaisePath),
-                new MotionGalleryUI.Clip("보스 기사 필살기 - 기운 모으기", 0.1f, true, false, true, BossAI.SpecialChargePath),
-                new MotionGalleryUI.Clip("보스 기사 필살기 - 전체 모션", 0.1f, false, false, true,
+                new MotionGalleryUI.Clip("알리아스 - 대기", 1f / 5f, true, false, true, boss + "Idle"),
+                new MotionGalleryUI.Clip("알리아스 - 걷기", 0.12f, true, false, true, boss + "Walk"),
+                new MotionGalleryUI.Clip("알리아스 - 공격", 0.08f, false, false, true, boss + "Attack"),
+                new MotionGalleryUI.Clip("알리아스 - 점프 내려찍기", 0.08f, false, false, true, boss + "JumpAttack"),
+                new MotionGalleryUI.Clip("알리아스 필살기 - 검 들어올리기", 0.12f, false, false, true, BossAI.SpecialRaisePath),
+                new MotionGalleryUI.Clip("알리아스 필살기 - 기운 모으기", 0.1f, true, false, true, BossAI.SpecialChargePath),
+                new MotionGalleryUI.Clip("알리아스 필살기 - 전체 모션", 0.1f, false, false, true,
                     BossAI.SpecialRaisePath, BossAI.SpecialChargePath, BossAI.SpecialChargePath),
-                new MotionGalleryUI.Clip("보스 기사 - 쓰러짐", 0.16f, false, false, true, boss + "Die"),
+                new MotionGalleryUI.Clip("알리아스 - 쓰러짐", 0.16f, false, false, true, boss + "Die"),
                 new MotionGalleryUI.Clip("이펙트 - 검기", 0.07f, true, true, true, BossAI.SwordWavePath),
                 new MotionGalleryUI.Clip("일반 기사 - 걷기", 0.12f, true, false, true, knight + "Walk"),
                 new MotionGalleryUI.Clip("일반 기사 - 공격", 0.1f, false, false, true, knight + "Attack"),

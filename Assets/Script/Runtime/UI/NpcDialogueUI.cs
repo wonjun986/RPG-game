@@ -59,6 +59,7 @@ namespace Aethoria.UI
                 { "UI/Isis_Talk", new FrameBox(754f, 2035f, 632f) },
                 { "UI/Iria_Talk", new FrameBox(498f, 2052f, 545f) },
                 { "UI/BossKnight_Talk", new FrameBox(557f, 1940f, 677f) },
+                { "UI/Lily_Talk", new FrameBox(815f, 2040f, 546f) },
             };
         private const float BoxBottomMargin = 30f;
 
@@ -158,13 +159,15 @@ namespace Aethoria.UI
         // 위치가 달라서(이리아는 엘리보다 훨씬 위쪽) 안 주면 기본값(Elly_Talk 기준)을 쓴다.
         // textColor: 대사 글자색. 기본은 흰색(어두운 프레임용)이고, 이리아처럼 대사 칸 배경이 밝은
         // 프레임은 검은 계열로 따로 줘야 글자가 보인다.
+        // namedTextTop: 이름판이 있을 때 대사 칸 위쪽 끝(프레임 비율). 안 주면 이름판 윗변에 맞춘다. 릴리처럼 이름판이
+        // 대사 칸 위 테두리에 따로 붙어 있는 프레임은 대사가 테두리 장식까지 올라가지 않게 직접 준다.
         // textBottom/textRight: 대사 칸 아래쪽/오른쪽 끝(프레임 비율). 보스 기사처럼 대사 칸이 더 낮거나
         // 오른쪽에 문양이 그려진 프레임에서 따로 준다.
         public void Show(string resourcePath, string line, float textLeft = DefaultTextLeft, string speakerName = null,
             float namePlateX0 = DefaultPlateX0, float namePlateY0 = DefaultPlateY0,
             float namePlateX1 = DefaultPlateX1, float namePlateY1 = DefaultPlateY1,
             Color? textColor = null, float textBottom = DefaultTextBottom, float textRight = DefaultTextRight,
-            float textTop = DefaultTextTop)
+            float textTop = DefaultTextTop, float? namedTextTop = null)
         {
             if (currentResourcePath != resourcePath)
             {
@@ -183,7 +186,7 @@ namespace Aethoria.UI
             float plateTopAnchor = 1f - namePlateY1 / ImageHeight;
             nameRect.anchorMin = new Vector2(namePlateX0 / ImageWidth, plateTopAnchor);
             nameRect.anchorMax = new Vector2(namePlateX1 / ImageWidth, 1f - namePlateY0 / ImageHeight);
-            textRect.anchorMax = new Vector2(hasFrame ? textRight : DefaultTextRight, hasName ? plateTopAnchor : hasFrame ? textTop : DefaultTextTop);
+            textRect.anchorMax = new Vector2(hasFrame ? textRight : DefaultTextRight, hasName ? namedTextTop ?? plateTopAnchor : hasFrame ? textTop : DefaultTextTop);
             dialogueText.text = line;
             dialogueText.color = textColor ?? Color.white;
             box.SetActive(true);

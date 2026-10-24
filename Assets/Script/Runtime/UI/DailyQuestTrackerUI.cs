@@ -37,7 +37,7 @@ namespace Aethoria.UI
             rect.anchorMax = new Vector2(1f, 1f);
             rect.pivot = new Vector2(1f, 1f);
             rect.anchoredPosition = new Vector2(-16f, TopOffset);
-            rect.sizeDelta = new Vector2(300f, 64f);
+            rect.sizeDelta = new Vector2(380f, 64f);
             var bg = panel.GetComponent<Image>();
             bg.color = new Color(0.06f, 0.04f, 0.09f, 0.75f);
             bg.raycastTarget = false;

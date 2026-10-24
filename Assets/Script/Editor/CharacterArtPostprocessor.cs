@@ -80,16 +80,33 @@ namespace Aethoria.EditorTools
             ("Art/Monsters/BossSlime/", 100f), ("Art/Effects/SlimeWaterBall/", 100f),
             // 튜토리얼 숲의 정령(Tutorial_Monster_Move): 뿔~발 약 476px가 약 1.8유닛(플레이어보다 조금 크게)이 되게 한다.
             ("Art/Monsters/ForestSpirit/", 265f),
+            // 푸른 바다의 심해 정령: 프레임 키 609px(뿔~꼬리)가 약 2유닛(콜로서스와 비슷한 덩치)이 되게 한다.
+            ("Art/Monsters/SeaSpirit/", 300f),
+            // 잊혀진 폐허 보스 황금 모래룡: 모래 아랫단~뿔 끝 약 390px가 약 2.6유닛(보스 슬라임보다 크고 알리아스와 비슷한 덩치)이 되게 한다.
+            ("Art/Monsters/SandDragon/", 150f),
+            // 모래룡 꼬리 대지 폭발: 다 솟은 꼬리(약 650px)가 약 3.2유닛(모래룡 머리보다 조금 높게)이 되게 한다.
+            ("Art/Effects/SandTailBurst/", 200f),
             // 노아 대기 프레임도 Jump처럼 캐릭터가 프레임을 거의 꽉 채워서, 150을 쓰면 실제로 거대해진다.
             ("Art/NPC/Noa/Idle/", 400f),
             // 이시스(연습장 NPC)는 갑옷 기사라 플레이어(1.5)보다 조금 큰 약 1.8유닛(프레임 키 약 704px).
             ("Art/NPC/Isis/Idle/", 390f),
             // 대장장이 엘리도 이시스와 비슷한 키(약 1.8유닛, 프레임 키 724px).
             ("Art/NPC/Elly/Idle/", 400f),
+            // 엔스룸 릴리: 프레임 키 538px가 약 1.8유닛(LilyNpc가 실제 높이로 다시 맞추지만 기본값도 비슷하게 둔다).
+            ("Art/NPC/Lily/Idle/", 300f),
             // 연습장 허수아비: 배경에 그려진 허수아비보다 작아 보이지 않게 약 2.4유닛(프레임 키 약 739px).
             ("Art/Props/Dummy/", 308f),
             // 맵 끝 포탈: 프레임 키 678px가 약 3.4유닛(캐릭터보다 조금 크게)이 되게 한다.
             ("Art/Props/Portal/", 200f),
+            // 천상의 계단 성전 포탈: 문틀 키 1448px가 약 3.8유닛(기본 포탈보다 조금 크게)이 되게 한다. 안쪽 소용돌이도 같은 값
+            // (Portal.CreateFramedVisual이 두 그림의 PPU를 읽어 크기를 맞추므로 값이 달라도 어긋나지는 않는다).
+            ("Art/Props/HeavenPortal/", 380f),
+            // 처음 마을 출구 고딕 수정문 포탈: 문틀이 성전 포탈과 같은 1086x1448이라 같은 크기(약 3.8유닛)로 맞춘다.
+            ("Art/Props/VillagePortal/", 380f),
+            // 잊혀진 폐허 담쟁이 유적 아치 포탈: 문틀이 같은 1086x1448이라 같은 크기로 맞춘다.
+            ("Art/Props/RuinsPortal/", 380f),
+            // 푸른 바다 청록 수정 석조 아치 포탈: 문틀이 같은 1086x1448이라 같은 크기로 맞춘다.
+            ("Art/Props/SeaPortal/", 380f),
             // W스킬 악마의 손: 포탈에서 손끝까지 약 376px가 약 2.2유닛 사거리가 되게 한다.
             ("Art/Effects/DemonHand/", 170f),
         };

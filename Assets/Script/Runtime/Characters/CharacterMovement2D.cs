@@ -1,9 +1,12 @@
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 namespace Aethoria.Characters
 {
     // 좌우 이동 + 위쪽 방향키로 점프하는 옛날 플래시 액션 게임 스타일 조작.
+    // 단방향 발판(PlatformEffector2D) 위에서 아래 방향키를 누르면 그 발판을 뚫고 아래로 내려온다.
     [RequireComponent(typeof(Rigidbody2D))]
     public class CharacterMovement2D : MonoBehaviour
     {
@@ -14,12 +17,16 @@ namespace Aethoria.Characters
         [SerializeField] private float gravityScale = 4f;
         // 땅을 딛지 않은 채로 추가로 쓸 수 있는 공중 점프 횟수. 1이면 2단 점프.
         [SerializeField] private int maxAirJumps = 1;
+        // 아래로 내려올 때 밟고 있던 발판과의 충돌을 끄는 시간. 몸이 발판 두께를 다 빠져나갈 만큼만 끈다.
+        [SerializeField] private float dropThroughDuration = 0.35f;
 
         private Rigidbody2D body;
         private Collider2D bodyCollider;
         private readonly Collider2D[] groundCheckResults = new Collider2D[8];
         private float horizontalInput;
         private bool jumpRequested;
+        private bool dropRequested;
+        private readonly HashSet<Collider2D> droppingThrough = new HashSet<Collider2D>();
         private bool isGrounded;
         private bool inputLocked;
         private int airJumpsUsed;
@@ -64,9 +71,16 @@ namespace Aethoria.Characters
             isGrounded = CheckGrounded();
             if (isGrounded) airJumpsUsed = 0;
 
-            if (inputLocked) return;
+            if (inputLocked)
+            {
+                dropRequested = false;
+                return;
+            }
 
             body.linearVelocity = new Vector2(horizontalInput * moveSpeed, body.linearVelocity.y);
+
+            if (dropRequested && isGrounded) TryDropThrough();
+            dropRequested = false;
 
             if (jumpRequested)
             {
@@ -85,21 +99,65 @@ namespace Aethoria.Characters
             jumpRequested = false;
         }
 
+        // 발밑의 단방향 발판들과 잠깐 충돌을 꺼서 아래로 떨어지게 한다. 단단한 바닥(일반 콜라이더)을 밟고 있으면 아무 일도 없다.
+        private void TryDropThrough()
+        {
+            if (bodyCollider == null) return;
+
+            int count = Physics2D.OverlapBox(GroundCheckCenter, GroundCheckSize, 0f, new ContactFilter2D { useTriggers = false }, groundCheckResults);
+            bool onSolidGround = false;
+            var platforms = new List<Collider2D>();
+            for (int i = 0; i < count; i++)
+            {
+                var hit = groundCheckResults[i];
+                if (hit == bodyCollider || droppingThrough.Contains(hit)) continue;
+                if (hit.usedByEffector) platforms.Add(hit);
+                else onSolidGround = true;
+            }
+            // 발판 가장자리가 바닥과 겹친 자리 등 단단한 바닥도 같이 밟고 있으면 내려가지 않는다(바닥을 뚫을 수는 없으니).
+            if (onSolidGround || platforms.Count == 0) return;
+
+            foreach (var platform in platforms) StartCoroutine(DropThrough(platform));
+            isGrounded = false;
+            body.linearVelocity = new Vector2(body.linearVelocity.x, -2f);
+        }
+
+        private IEnumerator DropThrough(Collider2D platform)
+        {
+            droppingThrough.Add(platform);
+            Physics2D.IgnoreCollision(bodyCollider, platform, true);
+            yield return new WaitForSeconds(dropThroughDuration);
+            if (platform != null && bodyCollider != null) Physics2D.IgnoreCollision(bodyCollider, platform, false);
+            droppingThrough.Remove(platform);
+        }
+
+        // 내려가는 도중에 꺼지면 코루틴이 멈춰 충돌이 영영 꺼진 채 남으므로 여기서 되돌린다.
+        private void OnDisable()
+        {
+            foreach (var platform in droppingThrough)
+            {
+                if (platform != null && bodyCollider != null) Physics2D.IgnoreCollision(bodyCollider, platform, false);
+            }
+            droppingThrough.Clear();
+        }
+
+        private Vector2 GroundCheckCenter => (Vector2)transform.position + Vector2.down * 0.05f;
+        private static readonly Vector2 GroundCheckSize = new Vector2(0.5f, 0.06f);
+
         // 발밑(자신의 콜라이더 바로 아래)에 뭔가 있는지로 착지 여부를 매 프레임 새로 판정한다.
         // 콜리전 이벤트 기반보다 단순하고, "공중에서 점프가 다시 풀리는" 문제가 없다.
         // 트리거 콜라이더(퀘스트/영역 감지 등)와 자기 자신의 콜라이더는 바닥으로 치지 않는다.
         // (이걸 걸러내지 않으면 공중의 트리거 안에서도 착지 판정이 나서 무한 점프가 가능해진다.)
         private bool CheckGrounded()
         {
-            Vector2 checkCenter = (Vector2)transform.position + Vector2.down * 0.05f;
-            Vector2 checkSize = new Vector2(0.5f, 0.06f);
-
             var filter = new ContactFilter2D { useTriggers = false };
-            int count = Physics2D.OverlapBox(checkCenter, checkSize, 0f, filter, groundCheckResults);
+            int count = Physics2D.OverlapBox(GroundCheckCenter, GroundCheckSize, 0f, filter, groundCheckResults);
             for (int i = 0; i < count; i++)
             {
                 var hit = groundCheckResults[i];
                 if (hit == bodyCollider) continue;
+                // 뚫고 내려가는 중인 발판은 발밑에 걸려도 바닥으로 치지 않는다.
+                if (droppingThrough.Contains(hit)) continue;
 
                 // 단방향 발판(PlatformEffector2D)은 아래에서 뚫고 올라가는 중에도 발밑 검사에 걸린다.
                 // 올라가는 중이거나 발이 아직 발판 윗면보다 아래에 있으면 착지로 치지 않는다(2단 점프가 풀리는 것 방지).
@@ -135,6 +193,11 @@ namespace Aethoria.Characters
             if (keyboard.upArrowKey.wasPressedThisFrame)
             {
                 jumpRequested = true;
+            }
+
+            if (keyboard.downArrowKey.wasPressedThisFrame)
+            {
+                dropRequested = true;
             }
         }
     }

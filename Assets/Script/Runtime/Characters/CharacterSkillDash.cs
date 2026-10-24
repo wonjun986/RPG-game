@@ -97,7 +97,17 @@ namespace Aethoria.Characters
             StartCoroutine(DashRoutine());
         }
 
-        private IEnumerator DashRoutine()
+        // 보스 등장 연출에서 네크로시아가 보스를 향해 돌진할 때 쓴다. 쿨타임/전투 잠금과 상관없이 바라보는 방향으로
+        // distance만큼 duration초에 대시하고, 끝나도 조작 잠금은 풀지 않는다(연출이 이어서 전투를 연다).
+        public Coroutine PlayCutsceneDash(float distance, float duration)
+        {
+            if (isDashing) return null;
+            return StartCoroutine(DashRoutine(distance, duration, keepInputLocked: true));
+        }
+
+        private IEnumerator DashRoutine() => DashRoutine(dashDistance, dashDuration, keepInputLocked: false);
+
+        private IEnumerator DashRoutine(float distance, float duration, bool keepInputLocked)
         {
             isDashing = true;
             movement.SetInputLocked(true);
@@ -105,18 +115,18 @@ namespace Aethoria.Characters
 
             Vector2 direction = movement.FacingDirection;
             Vector2 start = body.position;
-            Vector2 end = start + direction * dashDistance;
+            Vector2 end = start + direction * distance;
 
             BeginDashPose(direction);
 
             var monsterColliders = BeginIgnoringMonsterCollisions();
 
             float elapsed = 0f;
-            while (elapsed < dashDuration)
+            while (elapsed < duration)
             {
                 yield return new WaitForFixedUpdate();
                 elapsed += Time.fixedDeltaTime;
-                float t = Mathf.Clamp01(elapsed / dashDuration);
+                float t = Mathf.Clamp01(elapsed / duration);
                 body.MovePosition(Vector2.Lerp(start, end, t));
                 UpdateDashFrame(t);
             }
@@ -125,7 +135,7 @@ namespace Aethoria.Characters
             EndDashPose();
 
             character.SetInvincible(false);
-            movement.SetInputLocked(false);
+            if (!keepInputLocked) movement.SetInputLocked(false);
             isDashing = false;
         }
 

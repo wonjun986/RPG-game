@@ -9,7 +9,7 @@ namespace Aethoria.UI
     // "데스 모션 보기"에서 같은 연출을 재생한다.
     // 연출 순서: 화면이 붉게 물들며 네크로시아 실루엣이 피격당해 흔들리고 → 무릎 꿇고 엎어지는 다이 모션 →
     // 암전 → 게임오버 로고(UI/GameOverLogo)가 떠오르고 → Z/Enter를 누르면 Play가 끝난다.
-    // 다이 모션(UI/NecrosiaDieMotion/die_01~08)은 원본 시트(Sprite/SoulEater Sprite/necrosia_die_motion.png,
+    // 다이 모션(UI/NecrosiaDieMotion/die_01~08)은 원본 시트(Sprite/SoulEater Sprite/Motions/necrosia_die_motion.png,
     // 빨간 배경 위 검은 실루엣 4x2칸)에서 빨간 배경을 투명하게 빼고 한 장씩 잘라, 같은 크기 캔버스에 발밑(아래쪽)을
     // 맞춰 둔 것이다 — 뒤의 붉은 배경(DeathRed)이 그대로 비쳐 원본과 똑같이 보인다.
     // 모든 타이밍은 실시간으로 재므로 timeScale이 0이어도 그대로 재생된다.

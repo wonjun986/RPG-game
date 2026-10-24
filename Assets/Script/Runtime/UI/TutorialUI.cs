@@ -133,19 +133,35 @@ namespace Aethoria.UI
 
         private void BuildGuide()
         {
-            guideBox = new GameObject("TutorialGuide", typeof(RectTransform), typeof(Image));
+            guideBox = new GameObject("TutorialGuide", typeof(RectTransform), typeof(RawImage));
             var rect = (RectTransform)guideBox.transform;
             rect.SetParent(transform, false);
             rect.anchorMin = new Vector2(0.5f, 1f);
             rect.anchorMax = new Vector2(0.5f, 1f);
             rect.pivot = new Vector2(0.5f, 1f);
-            rect.anchoredPosition = new Vector2(0f, -96f);
-            rect.sizeDelta = new Vector2(620f, 64f);
-            var image = guideBox.GetComponent<Image>();
-            image.color = new Color(0.06f, 0.04f, 0.09f, 0.85f);
+            var image = guideBox.GetComponent<RawImage>();
             image.raycastTarget = false;
 
-            guideText = BuildText(rect, "Text", Vector2.zero, Vector2.one, 24, GuideColor, FontStyle.Bold, TextAnchor.MiddleCenter);
+            // 안내 틀(UI/TutorialGuide, Sprite/UI/Tutorial Controls 를 1672x630 으로 자른 것): 위쪽 장식판에 TUTORIAL,
+            // 가운데 어두운 칸에 지금 할 일을 쓴다. 틀 그림이 없으면 예전처럼 어두운 띠에 글자만 쓴다.
+            var frameTexture = Resources.Load<Texture2D>(GuideFramePath);
+            if (frameTexture != null)
+            {
+                image.texture = frameTexture;
+                rect.anchoredPosition = new Vector2(0f, -4f);
+                rect.sizeDelta = new Vector2(GuideWidth, GuideWidth * GuideImageHeight / GuideImageWidth);
+                guideText = BuildText(rect, "Text", GuideAnchor(230f, 470f), GuideAnchor(1450f, 295f), 24, GuideColor, FontStyle.Bold, TextAnchor.MiddleCenter, 0f);
+                guideText.resizeTextForBestFit = true;
+                guideText.resizeTextMinSize = 12;
+                guideText.resizeTextMaxSize = 24;
+            }
+            else
+            {
+                image.color = new Color(0.06f, 0.04f, 0.09f, 0.85f);
+                rect.anchoredPosition = new Vector2(0f, -96f);
+                rect.sizeDelta = new Vector2(620f, 64f);
+                guideText = BuildText(rect, "Text", Vector2.zero, Vector2.one, 24, GuideColor, FontStyle.Bold, TextAnchor.MiddleCenter);
+            }
             guideBox.SetActive(false);
         }
 
@@ -178,6 +194,13 @@ namespace Aethoria.UI
 
         // 안내창 틀 그림 픽셀 좌표(왼쪽 위 원점) → 앵커.
         private static Vector2 PanelAnchor(float x, float y) => new Vector2(x / PanelImageWidth, 1f - y / PanelImageHeight);
+
+        private const string GuideFramePath = "UI/TutorialGuide";
+        private const float GuideImageWidth = 1672f, GuideImageHeight = 630f;
+        private const float GuideWidth = 700f; // 캔버스(1280x720) 기준 단계 안내 폭
+
+        // 단계 안내 틀 그림 픽셀 좌표(왼쪽 위 원점) → 앵커.
+        private static Vector2 GuideAnchor(float x, float y) => new Vector2(x / GuideImageWidth, 1f - y / GuideImageHeight);
 
         private static Text BuildText(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax, int fontSize, Color color, FontStyle style, TextAnchor anchor, float sidePadding = 32f)
         {

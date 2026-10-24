@@ -179,7 +179,7 @@ namespace Aethoria.Characters
         // 새 보스 몬스터를 추가하면 여기에도 그 보스 전용 AI 타입을 추가해야 궁극기 배율이 적용된다.
         private static bool IsBossMonster(Monster monster)
         {
-            return monster.GetComponent<BossAI>() != null || monster.GetComponent<BossSlimeAI>() != null
+            return monster.GetComponent<BossAI>() != null || monster.GetComponent<BossSlimeAI>() != null || monster.GetComponent<SandDragonAI>() != null
                 || monster.GetComponent<FinalBossAI>() != null;
         }
     }

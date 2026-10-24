@@ -4,13 +4,19 @@ using UnityEngine.InputSystem;
 using UnityEngine.UI;
 using Aethoria.Bootstrap;
 using Aethoria.Characters;
+using Aethoria.Quests;
 using Aethoria.Stages;
 
 namespace Aethoria.UI
 {
     // 마을 출구 포탈을 밟으면 뜨는 월드맵(UI/All_Area_Map). 지금 실제로 갈 수 있는 지역은
-    // 어둠의 숲(기존 1~3스테이지+보스), 광활한 평야, 잊혀진 폐허, 엔스룸 마을, 천상으로 향하는 계단뿐이라,
-    // 그 칸들만 갈 수 있고 나머지는 어둡게 덮어서 아직 갈 수 없다는 것만 보여준다. SD 캐릭터(UI/SD)가
+    // 어둠의 숲(기존 1~3스테이지+보스), 광활한 평야, 잊혀진 폐허, 푸른 바다, 엔스룸 마을, 천상으로 향하는 계단,
+    // 절망의 언덕이다. 지역은 메인 퀘스트(스토리) 진행에 맞춰 열린다 — 보고한 메인 퀘스트 수(QuestManager.QuestIndex)가
+    // 그 지역의 RequiredQuests에 못 미치면 어둡게 덮고, 고르면 "이야기를 더 진행해야 한다"는 안내만 띄운다.
+    // 관리자 모드(AdminUI)에서 AdminUnlockAll을 켜면 전부 열린다.
+    // 잠긴 지역 위에는 자물쇠 쇠사슬(UI/MapChain/chain_1)이 걸려 있다. 퀘스트를 보고해 지역이 새로 열린 뒤 처음 지도를 열면,
+    // 지도가 그 지역으로 확대되면서 쇠사슬이 부서지는 연출(chain_1~8)이 나오고 "○○ 해금!"이 뜬 뒤 다시 축소된다.
+    // 어디까지 연출을 봤는지(unlockSeen = 그때의 메인 퀘스트 번호)는 저장 파일에 남는다. SD 캐릭터(UI/SD)가
     // 커서 역할을 하며 방향키로 지역
     // 사이를 옮겨 다니고, Enter/Z로 선택한다. "마을"을 선택하거나 Esc를 누르면 "마을로
     // 이동하시겠습니까?" 확인 창이 뜨고, 예를 골라야 실제로 창을 닫는다.
@@ -21,8 +27,10 @@ namespace Aethoria.UI
             public string Name;
             public Vector2 AnchorMin;
             public Vector2 AnchorMax;
-            public bool Locked;
+            public int RequiredQuests; // 이만큼 메인 퀘스트를 보고해야 열린다(0 = 처음부터 열림)
             public System.Action OnSelect;
+            public GameObject LockOverlay;
+            public RawImage Chain;
 
             public Vector2 Center => (AnchorMin + AnchorMax) * 0.5f;
         }
@@ -35,6 +43,10 @@ namespace Aethoria.UI
         private Coroutine alertRoutine;
         private Portal sourcePortal;
         private CharacterMovement2D playerMovement;
+        private QuestManager quests;
+
+        // 관리자 모드: 스토리 진행과 상관없이 모든 지역을 연다.
+        public static bool AdminUnlockAll { get; set; }
 
         private MapNode[] nodes;
         private MapNode villageNode;
@@ -43,10 +55,41 @@ namespace Aethoria.UI
         private GameObject confirmPanel;
         private bool confirmingExit;
 
+        // ---- 쇠사슬 해금 연출 ----
+        private const string ChainFramesPath = "UI/MapChain/chain_";
+        private const int ChainFrameCount = 8;
+        private static readonly Vector2 ChainSize = new Vector2(84f, 112f); // 캔버스(1280x720) 기준, 원본 384x512 비율
+        private const float ZoomScale = 2.2f;
+        private const float ZoomInDuration = 0.6f;
+        private const float ZoomOutDuration = 0.5f;
+        private const float ChainFrameInterval = 0.11f;
+        private const float BannerHold = 1.1f;
+
+        private readonly Texture2D[] chainFrames = new Texture2D[ChainFrameCount];
+        private Text unlockBanner;
+        private int unlockSeen;
+        private bool playingUnlock;
+
+        // 쇠사슬 해금 연출을 어디까지 봤는지(그때의 메인 퀘스트 번호). 저장/불러오기에 쓴다.
+        public int UnlockSeen => unlockSeen;
+        public void SetUnlockSeen(int questIndex) => unlockSeen = Mathf.Max(0, questIndex);
+
         public void Initialize(CharacterMovement2D movement)
         {
             playerMovement = movement;
             BuildPanel();
+        }
+
+        // QuestManager는 HUD에서 월드맵보다 늦게 만들어져서 따로 넘겨받는다.
+        public void SetQuestManager(QuestManager questManager)
+        {
+            quests = questManager;
+        }
+
+        private bool IsLocked(MapNode node)
+        {
+            if (AdminUnlockAll || node.RequiredQuests <= 0 || quests == null) return false;
+            return quests.QuestIndex < node.RequiredQuests;
         }
 
         private void BuildPanel()
@@ -63,18 +106,19 @@ namespace Aethoria.UI
             panel.GetComponent<RawImage>().texture = Resources.Load<Texture2D>("UI/All_Area_Map");
 
             // 아래 좌표들은 All_Area_Map.png 안에 이미 그려진 각 지역 라벨 위치에 맞춘 값
-            // (0~1, 왼쪽 아래 기준). 마을 = 취소하고 그대로 있기, 어둠의 숲 = 유일하게 구현된 던전,
-            // 나머지는 아직 콘텐츠가 없어 잠금 처리.
+            // (0~1, 왼쪽 아래 기준). 마을 = 취소하고 그대로 있기.
+            // RequiredQuests는 QuestDatabase 순서(0 슬라임, 1 보스 슬라임, 2 기사, 3 보스 기사, 4 콜로서스, 5 심해 정령,
+            // 6 이리아 찾기, 7 루나벨)에서 "그 지역을 소개하는 퀘스트의 번호" — 앞 퀘스트를 보고해야 열린다.
             nodes = new[]
             {
-                new MapNode { Name = "마을", AnchorMin = new Vector2(0.11f, 0.69f), AnchorMax = new Vector2(0.25f, 0.81f), Locked = false },
-                new MapNode { Name = "어둠의 숲", AnchorMin = new Vector2(0.34f, 0.67f), AnchorMax = new Vector2(0.48f, 0.78f), Locked = false, OnSelect = HandleEnterDarkForest },
-                new MapNode { Name = "잊혀진 폐허", AnchorMin = new Vector2(0.59f, 0.68f), AnchorMax = new Vector2(0.73f, 0.79f), Locked = false, OnSelect = HandleEnterRuins },
-                new MapNode { Name = "절망의 언덕", AnchorMin = new Vector2(0.78f, 0.74f), AnchorMax = new Vector2(0.92f, 0.84f), Locked = false, OnSelect = HandleEnterHill },
-                new MapNode { Name = "광활한 평야", AnchorMin = new Vector2(0.17f, 0.42f), AnchorMax = new Vector2(0.33f, 0.52f), Locked = false, OnSelect = HandleEnterPlains },
-                new MapNode { Name = "엔스룸 마을", AnchorMin = new Vector2(0.39f, 0.27f), AnchorMax = new Vector2(0.54f, 0.36f), Locked = false, OnSelect = HandleEnterEnsroom },
-                new MapNode { Name = "푸른 바다", AnchorMin = new Vector2(0.73f, 0.35f), AnchorMax = new Vector2(0.88f, 0.44f), Locked = true },
-                new MapNode { Name = "천상으로 향하는 계단", AnchorMin = new Vector2(0.433f, 0.082f), AnchorMax = new Vector2(0.531f, 0.121f), Locked = false, OnSelect = HandleEnterTemple },
+                new MapNode { Name = "마을", AnchorMin = new Vector2(0.11f, 0.69f), AnchorMax = new Vector2(0.25f, 0.81f) },
+                new MapNode { Name = "어둠의 숲", AnchorMin = new Vector2(0.34f, 0.67f), AnchorMax = new Vector2(0.48f, 0.78f), RequiredQuests = 2, OnSelect = HandleEnterDarkForest },
+                new MapNode { Name = "잊혀진 폐허", AnchorMin = new Vector2(0.59f, 0.68f), AnchorMax = new Vector2(0.73f, 0.79f), RequiredQuests = 4, OnSelect = HandleEnterRuins },
+                new MapNode { Name = "절망의 언덕", AnchorMin = new Vector2(0.78f, 0.74f), AnchorMax = new Vector2(0.92f, 0.84f), RequiredQuests = 7, OnSelect = HandleEnterHill },
+                new MapNode { Name = "광활한 평야", AnchorMin = new Vector2(0.17f, 0.42f), AnchorMax = new Vector2(0.33f, 0.52f), OnSelect = HandleEnterPlains },
+                new MapNode { Name = "엔스룸 마을", AnchorMin = new Vector2(0.39f, 0.27f), AnchorMax = new Vector2(0.54f, 0.36f), OnSelect = HandleEnterEnsroom },
+                new MapNode { Name = "푸른 바다", AnchorMin = new Vector2(0.73f, 0.35f), AnchorMax = new Vector2(0.88f, 0.44f), RequiredQuests = 5, OnSelect = HandleEnterBlueSea },
+                new MapNode { Name = "천상으로 향하는 계단", AnchorMin = new Vector2(0.433f, 0.082f), AnchorMax = new Vector2(0.531f, 0.121f), RequiredQuests = 6, OnSelect = HandleEnterTemple },
             };
 
             villageNode = nodes[0];
@@ -85,11 +129,58 @@ namespace Aethoria.UI
                 BuildNodeButton(panel.transform, localNode);
             }
 
+            for (int i = 0; i < ChainFrameCount; i++) chainFrames[i] = Resources.Load<Texture2D>(ChainFramesPath + (i + 1));
+            foreach (var node in nodes)
+            {
+                if (node.RequiredQuests > 0) BuildChain(panel.transform, node);
+            }
+
             BuildCursor(panel.transform);
             BuildAlertText(panel.transform);
             BuildConfirmDialog(panel.transform);
+            BuildUnlockBanner();
 
             panel.SetActive(false);
+        }
+
+        // 지역 라벨 한가운데에 거는 자물쇠 쇠사슬. 지도와 함께 확대/축소되도록 지도 패널의 자식으로 둔다.
+        private void BuildChain(Transform parent, MapNode node)
+        {
+            if (chainFrames[0] == null) return;
+
+            var go = new GameObject(node.Name + "_Chain", typeof(RectTransform), typeof(RawImage));
+            var rect = (RectTransform)go.transform;
+            rect.SetParent(parent, false);
+            rect.anchorMin = rect.anchorMax = node.Center;
+            rect.sizeDelta = ChainSize;
+
+            node.Chain = go.GetComponent<RawImage>();
+            node.Chain.texture = chainFrames[0];
+            node.Chain.raycastTarget = false;
+        }
+
+        // 확대되는 지도 위가 아니라 화면 기준으로 띄우는 "○○ 해금!" 글자.
+        private void BuildUnlockBanner()
+        {
+            var go = new GameObject("UnlockBanner", typeof(RectTransform), typeof(Text), typeof(Outline));
+            var rect = (RectTransform)go.transform;
+            rect.SetParent(transform, false);
+            rect.anchorMin = new Vector2(0f, 0.12f);
+            rect.anchorMax = new Vector2(1f, 0.26f);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+
+            unlockBanner = go.GetComponent<Text>();
+            unlockBanner.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            unlockBanner.fontSize = 44;
+            unlockBanner.fontStyle = FontStyle.Bold;
+            unlockBanner.alignment = TextAnchor.MiddleCenter;
+            unlockBanner.color = new Color(0.85f, 0.75f, 1f);
+            unlockBanner.raycastTarget = false;
+            var outline = go.GetComponent<Outline>();
+            outline.effectColor = new Color(0.12f, 0.02f, 0.25f, 0.9f);
+            outline.effectDistance = new Vector2(3f, -3f);
+            go.SetActive(false);
         }
 
         // 클릭으로도 고를 수 있게, 잠긴 지역이면 안내문을 띄우고 아니면 선택한다(키보드 확인과 동일한 경로).
@@ -103,9 +194,11 @@ namespace Aethoria.UI
                 TrySelect(node);
             });
 
-            if (node.Locked)
+            // 잠금 덮개는 미리 만들어 두고, 지도를 열 때마다(Show) 지금 진행도에 맞춰 켜고 끈다.
+            if (node.RequiredQuests > 0)
             {
                 var go = new GameObject(node.Name + "_Locked", typeof(RectTransform), typeof(Image));
+                node.LockOverlay = go;
                 var rect = (RectTransform)go.transform;
                 rect.SetParent(parent, false);
                 rect.anchorMin = node.AnchorMin;
@@ -233,14 +326,125 @@ namespace Aethoria.UI
             confirmingExit = false;
             confirmPanel.SetActive(false);
             panel.SetActive(true);
+            ResetZoom();
+            unlockBanner.gameObject.SetActive(false);
+
+            // 마지막으로 연출을 본 뒤에 새로 열린 지역은 아직 잠긴 모습(쇠사슬)으로 두었다가 연출에서 부순다.
+            var newlyUnlocked = new System.Collections.Generic.List<MapNode>();
+            int questIndex = quests != null ? quests.QuestIndex : 0;
+            foreach (var node in nodes)
+            {
+                bool locked = IsLocked(node);
+                bool pending = !locked && node.RequiredQuests > unlockSeen && node.RequiredQuests <= questIndex;
+                if (pending) newlyUnlocked.Add(node);
+                if (node.LockOverlay != null) node.LockOverlay.SetActive(locked || pending);
+                if (node.Chain != null)
+                {
+                    node.Chain.gameObject.SetActive(locked || pending);
+                    node.Chain.texture = chainFrames[0];
+                    node.Chain.color = Color.white;
+                }
+            }
             MoveCursorTo(nodes[currentIndex]);
             HideAlert();
             if (playerMovement != null) playerMovement.SetInputLocked(true);
             Time.timeScale = 0f;
+
+            if (newlyUnlocked.Count > 0) StartCoroutine(PlayUnlocks(newlyUnlocked));
+            else unlockSeen = Mathf.Max(unlockSeen, questIndex);
+        }
+
+        // 새로 열린 지역마다 차례로: 그 지역으로 확대 → 쇠사슬이 금 가고 부서져 소용돌이로 사라짐 → "○○ 해금!" → 축소.
+        // 연출 중에는 지도 조작을 막고, 끝나면 커서를 마지막으로 열린 지역에 둔다.
+        private IEnumerator PlayUnlocks(System.Collections.Generic.List<MapNode> unlocked)
+        {
+            playingUnlock = true;
+            yield return new WaitForSecondsRealtime(0.3f);
+
+            foreach (var node in unlocked)
+            {
+                yield return Zoom(1f, ZoomScale, node.Center, ZoomInDuration);
+                yield return new WaitForSecondsRealtime(0.25f);
+
+                if (node.Chain != null)
+                {
+                    for (int i = 1; i < ChainFrameCount; i++)
+                    {
+                        node.Chain.texture = chainFrames[i] != null ? chainFrames[i] : node.Chain.texture;
+                        // 부서지는 순간(5번째 프레임)에 덮개를 걷어 낸다.
+                        if (i == 4 && node.LockOverlay != null) node.LockOverlay.SetActive(false);
+                        yield return new WaitForSecondsRealtime(ChainFrameInterval);
+                    }
+                    // 마지막 소용돌이는 천천히 흐려지며 사라진다.
+                    for (float t = 0f; t < 0.4f; t += Time.unscaledDeltaTime)
+                    {
+                        node.Chain.color = new Color(1f, 1f, 1f, 1f - t / 0.4f);
+                        yield return null;
+                    }
+                    node.Chain.gameObject.SetActive(false);
+                }
+                if (node.LockOverlay != null) node.LockOverlay.SetActive(false);
+
+                unlockBanner.text = $"{node.Name} 해금!";
+                unlockBanner.gameObject.SetActive(true);
+                yield return new WaitForSecondsRealtime(BannerHold);
+                unlockBanner.gameObject.SetActive(false);
+
+                yield return Zoom(ZoomScale, 1f, node.Center, ZoomOutDuration);
+
+                int index = System.Array.IndexOf(nodes, node);
+                if (index >= 0)
+                {
+                    currentIndex = index;
+                    MoveCursorTo(node);
+                }
+            }
+
+            unlockSeen = Mathf.Max(unlockSeen, quests != null ? quests.QuestIndex : 0);
+            playingUnlock = false;
+        }
+
+        // 지도 패널을 focus(0~1, 왼쪽 아래 기준) 지점을 화면 가운데로 끌어오며 확대/축소한다.
+        // 가장자리가 비어 보이지 않도록 이동량은 지도가 화면을 다 덮는 범위 안으로 제한한다.
+        private IEnumerator Zoom(float from, float to, Vector2 focus, float duration)
+        {
+            for (float t = 0f; t < duration; t += Time.unscaledDeltaTime)
+            {
+                ApplyZoom(Mathf.Lerp(from, to, Mathf.SmoothStep(0f, 1f, t / duration)), focus);
+                yield return null;
+            }
+            ApplyZoom(to, focus);
+        }
+
+        private void ApplyZoom(float scale, Vector2 focus)
+        {
+            var rect = (RectTransform)panel.transform;
+            Vector2 size = rect.rect.size;
+            Vector2 offset = -(focus - new Vector2(0.5f, 0.5f)) * size * scale;
+            Vector2 limit = size * (scale - 1f) * 0.5f;
+            offset = new Vector2(Mathf.Clamp(offset.x, -limit.x, limit.x), Mathf.Clamp(offset.y, -limit.y, limit.y));
+            rect.localScale = new Vector3(scale, scale, 1f);
+            rect.anchoredPosition = offset;
+        }
+
+        private void ResetZoom()
+        {
+            var rect = (RectTransform)panel.transform;
+            rect.localScale = Vector3.one;
+            rect.anchoredPosition = Vector2.zero;
         }
 
         private void Hide()
         {
+            if (playingUnlock)
+            {
+                // 연출 도중에 닫히는 경우(씬 전환 등)에도 다음에 같은 연출이 다시 나오지 않게 정리한다.
+                StopAllCoroutines();
+                playingUnlock = false;
+                unlockSeen = Mathf.Max(unlockSeen, quests != null ? quests.QuestIndex : 0);
+            }
+            ResetZoom();
+            unlockBanner.gameObject.SetActive(false);
             panel.SetActive(false);
             Time.timeScale = 1f;
             if (playerMovement != null) playerMovement.SetInputLocked(false);
@@ -252,6 +456,9 @@ namespace Aethoria.UI
 
             var keyboard = Keyboard.current;
             if (keyboard == null) return;
+
+            // 쇠사슬 해금 연출 중에는 지도 조작을 받지 않는다.
+            if (playingUnlock) return;
 
             if (confirmingExit)
             {
@@ -325,9 +532,10 @@ namespace Aethoria.UI
 
         private void TrySelect(MapNode node)
         {
-            if (node.Locked)
+            if (playingUnlock) return; // 해금 연출 중의 마우스 클릭도 무시한다
+            if (IsLocked(node))
             {
-                ShowAlert($"{node.Name}은(는) 아직 갈 수 없습니다.");
+                ShowAlert($"{node.Name}은(는) 아직 갈 수 없어요. 이야기를 더 진행해 보세요.");
                 return;
             }
 
@@ -397,6 +605,12 @@ namespace Aethoria.UI
         {
             Hide();
             GameBootstrap.EnterRuins();
+        }
+
+        private void HandleEnterBlueSea()
+        {
+            Hide();
+            GameBootstrap.EnterBlueSea();
         }
 
         private void HandleEnterEnsroom()

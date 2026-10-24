@@ -17,33 +17,29 @@ namespace Aethoria.Stages
     [RequireComponent(typeof(SpriteRenderer))]
     public class NoaNpc : MonoBehaviour
     {
-        private enum TalkState { None, FirstMeeting, Greeting, Choice, QuestOffer, DailyQuestOffer, Response }
+        private enum TalkState { None, Story, Greeting, Choice, QuestOffer, DailyQuestOffer, Response }
 
         // 새 게임에서 처음 말을 걸면 상점 대화 전에 나오는 스토리 대사(노아 ↔ 네크로시아). [Z]로 넘기고, 다 보면 곧바로
         // 상점/퀘스트 선택창으로 이어진다. 도중에 멀어지면 끊기고, 다음에 말을 걸면 처음부터 다시 나온다.
-        private readonly struct StoryLine
+        // 메인 퀘스트의 의뢰/보고 스토리 대사(QuestData.offerStory/completeStory)도 같은 방식(Story 상태)으로 보여 준다.
+        private static readonly QuestStoryLine[] FirstMeetingLines =
         {
-            public readonly bool IsNecrosia;
-            public readonly string Text;
-            public StoryLine(bool isNecrosia, string text) { IsNecrosia = isNecrosia; Text = text; }
-        }
-
-        private static readonly StoryLine[] FirstMeetingLines =
-        {
-            new StoryLine(false, "어머, 어둠의 숲 쪽에서 오셨어요? 그 숲은 몇 년째 아무도 드나들지 않았는데..."),
-            new StoryLine(true, "...여긴 어디지?"),
-            new StoryLine(false, "숲 어귀의 작은 마을이에요. 저는 여기서 잡화점을 하는 노아라고 해요. 많이 지쳐 보이시네요."),
-            new StoryLine(true, "붉은 달... 루나벨에 대해 아는 게 있나."),
-            new StoryLine(false, "...절망의 언덕의 피의 여왕 말이죠. 그 붉은 달이 뜬 뒤로 몬스터들이 날뛰기 시작했어요. 다들 언덕 쪽은 쳐다보지도 않아요."),
-            new StoryLine(false, "설마 그 언덕에 가시려고요? 지금 그 몸으로는 무리예요. 평야나 폐허의 몬스터부터 상대하면서 힘을 되찾는 게 좋겠어요."),
-            new StoryLine(true, "...그래. 지금의 나로는 그날의 리듬을 따라잡지 못한다."),
-            new StoryLine(false, "그럼 제가 도울게요! 필요한 물건은 상점에서, 마을의 부탁은 퀘스트로 드릴게요. 대신 꼭 살아서 돌아오셔야 해요."),
+            new QuestStoryLine(false, "어머, 어둠의 숲 쪽에서 오셨어요? 그 숲은 몇 년째 아무도 드나들지 않았는데..."),
+            new QuestStoryLine(true, "...여긴 어디지?"),
+            new QuestStoryLine(false, "숲 어귀의 작은 마을이에요. 저는 여기서 잡화점을 하는 노아라고 해요. 많이 지쳐 보이시네요."),
+            new QuestStoryLine(true, "붉은 달... 루나벨에 대해 아는 게 있나."),
+            new QuestStoryLine(false, "...절망의 언덕의 피의 여왕 말이죠. 그 붉은 달이 뜬 뒤로 몬스터들이 날뛰기 시작했어요. 다들 언덕 쪽은 쳐다보지도 않아요."),
+            new QuestStoryLine(false, "설마 그 언덕에 가시려고요? 지금 그 몸으로는 무리예요. 가까운 평야의 몬스터부터 상대하면서 힘을 되찾는 게 좋겠어요."),
+            new QuestStoryLine(true, "...그래. 지금의 나로는 그날의 리듬을 따라잡지 못한다."),
+            new QuestStoryLine(false, "그럼 제가 도울게요! 필요한 물건은 상점에서, 해야 할 일은 퀘스트로 알려 드릴게요. 대신 꼭 살아서 돌아오셔야 해요."),
         };
         private const string StoryNextHint = "   <color=#F2D94E>[Z]</color>";
         private const string StoryPlayerNextHint = "   <color=#B98CE8>[Z]</color>";
 
         private bool firstMeetingPending;
         private System.Action onFirstMeetingDone;
+        private QuestStoryLine[] storyLines;
+        private System.Action onStoryDone;
         private int storyIndex;
 
         [SerializeField] private string resourcesPath = "Art/NPC/Noa/Idle";
@@ -150,8 +146,10 @@ namespace Aethoria.Stages
             var status = quests != null ? quests.Status : QuestStatus.AllDone;
             var dailyStatus = dailyQuests != null ? dailyQuests.Status : DailyQuestStatus.Claimed;
 
-            bool readyToTurnIn = status == QuestStatus.ReadyToTurnIn || dailyStatus == DailyQuestStatus.ReadyToTurnIn;
-            bool available = status == QuestStatus.Available || dailyStatus == DailyQuestStatus.Available;
+            // 메인 퀘스트는 노아가 의뢰/보고받는 차례일 때만 표시한다(이리아 차례면 이리아 머리 위에 뜬다).
+            bool mainBusiness = quests != null && quests.HasBusinessWith(QuestData.Noa);
+            bool readyToTurnIn = (mainBusiness && status == QuestStatus.ReadyToTurnIn) || dailyStatus == DailyQuestStatus.ReadyToTurnIn;
+            bool available = (mainBusiness && status == QuestStatus.Available) || dailyStatus == DailyQuestStatus.Available;
 
             questMarker.text = readyToTurnIn ? "?" : "!";
             questMarker.gameObject.SetActive(readyToTurnIn || available);
@@ -238,25 +236,25 @@ namespace Aethoria.Stages
                     if (inRange && zPressed)
                     {
                         if (firstMeetingPending) EnterFirstMeeting();
+                        // 메인 퀘스트 의뢰/보고 차례면 인사말/선택창을 건너뛰고 곧바로 그 이야기로 들어간다.
+                        else if (quests != null && quests.HasBusinessWith(QuestData.Noa)) BeginTalk(HandleQuestChoice);
                         else EnterGreeting();
                     }
                     break;
 
-                case TalkState.FirstMeeting:
+                case TalkState.Story:
                     if (zPressed)
                     {
                         storyIndex++;
-                        if (storyIndex < FirstMeetingLines.Length)
+                        if (storyIndex < storyLines.Length)
                         {
                             ShowStoryLine();
                         }
                         else
                         {
-                            firstMeetingPending = false;
-                            var done = onFirstMeetingDone;
-                            onFirstMeetingDone = null;
+                            var done = onStoryDone;
+                            onStoryDone = null;
                             done?.Invoke();
-                            EnterChoice();
                         }
                     }
                     break;
@@ -325,27 +323,54 @@ namespace Aethoria.Stages
 
         private void EnterFirstMeeting()
         {
-            state = TalkState.FirstMeeting;
-            storyIndex = 0;
+            BeginTalk(() => PlayStory(FirstMeetingLines, () =>
+            {
+                firstMeetingPending = false;
+                var done = onFirstMeetingDone;
+                onFirstMeetingDone = null;
+                done?.Invoke();
+                EnterChoice();
+            }));
+        }
+
+        // 대화를 시작한다(조작 잠금, 프롬프트 숨김). 첫 화면은 next가 정한다.
+        private void BeginTalk(System.Action next)
+        {
             if (promptText != null) promptText.gameObject.SetActive(false);
             if (playerMovement != null) playerMovement.SetInputLocked(true);
+            next();
+        }
+
+        // 노아 ↔ 네크로시아 대사를 [Z]로 한 줄씩 넘기고, 다 보면 done을 부른다. 대사가 없으면 바로 done.
+        private void PlayStory(QuestStoryLine[] lines, System.Action done)
+        {
+            if (lines == null || lines.Length == 0)
+            {
+                done();
+                return;
+            }
+            state = TalkState.Story;
+            storyLines = lines;
+            storyIndex = 0;
+            onStoryDone = done;
             ShowStoryLine();
         }
 
         private void ShowStoryLine()
         {
-            var line = FirstMeetingLines[storyIndex];
-            if (line.IsNecrosia) dialogueUI?.ShowNecrosia(line.Text + StoryPlayerNextHint);
-            else dialogueUI?.Show("UI/Noa_Talk", line.Text + StoryNextHint);
+            var line = storyLines[storyIndex];
+            if (line.isNecrosia) dialogueUI?.ShowNecrosia(line.text + StoryPlayerNextHint);
+            else dialogueUI?.Show("UI/Noa_Talk", line.text + StoryNextHint);
         }
 
         private void EnterGreeting()
         {
-            state = TalkState.Greeting;
-            stateTimer = 0f;
-            if (promptText != null) promptText.gameObject.SetActive(false);
-            if (playerMovement != null) playerMovement.SetInputLocked(true);
-            dialogueUI?.Show("UI/Noa_Talk", greetingLine);
+            BeginTalk(() =>
+            {
+                state = TalkState.Greeting;
+                stateTimer = 0f;
+                dialogueUI?.Show("UI/Noa_Talk", greetingLine);
+            });
         }
 
         private void EnterChoice()
@@ -362,20 +387,39 @@ namespace Aethoria.Stages
 
             switch (status)
             {
+                case QuestStatus.Available when quest.giverNpc == QuestData.Noa:
+                    PlayStory(quest.offerStory, () =>
+                    {
+                        state = TalkState.QuestOffer;
+                        stateTimer = 0f;
+                        dialogueUI?.Show("UI/Noa_Talk",
+                            $"{quest.offerLine}\n<color=#F2D94E>보상: 경험치 {quest.expReward}</color>\n[Z] 수락   [X] 거절");
+                    });
+                    break;
+
                 case QuestStatus.Available:
-                    state = TalkState.QuestOffer;
-                    stateTimer = 0f;
-                    dialogueUI?.Show("UI/Noa_Talk",
-                        $"{quest.offerLine}\n<color=#F2D94E>보상: 경험치 {quest.expReward}</color>\n[Z] 수락   [X] 거절");
+                    // 다른 NPC가 의뢰하는 차례(6장은 이리아가 맡긴다).
+                    EnterResponse($"{quest.giverNpc} 님이 기다리고 계실 거예요. ({quest.location})");
+                    break;
+
+                case QuestStatus.InProgress when quest.type == QuestType.Talk:
+                    EnterResponse($"{quest.targetNpc} 님을 꼭 만나 보세요. ({quest.location})");
                     break;
 
                 case QuestStatus.InProgress:
                     EnterResponse($"{quest.title}, 잘 부탁드려요! ({quest.targetMonsterName} {quests.Progress}/{quest.requiredCount})");
                     break;
 
+                case QuestStatus.ReadyToTurnIn when quest.turnInNpc == QuestData.Noa:
+                    PlayStory(quest.completeStory, () =>
+                    {
+                        var finished = quests.TurnIn();
+                        EnterResponse($"{finished.completeLine}\n<color=#F2D94E>경험치 +{finished.expReward}</color>");
+                    });
+                    break;
+
                 case QuestStatus.ReadyToTurnIn:
-                    var finished = quests.TurnIn();
-                    EnterResponse($"{finished.completeLine}\n<color=#F2D94E>경험치 +{finished.expReward}</color>");
+                    EnterResponse($"{quest.turnInNpc} 님께 먼저 알려 드리세요. ({quest.location})");
                     break;
 
                 default:

@@ -15,7 +15,7 @@ namespace Aethoria.Stages
     public class BossIntroCutscene : MonoBehaviour
     {
         private const string TalkFrame = "UI/BossKnight_Talk";
-        private const string SpeakerName = "보스 기사";
+        private const string SpeakerName = "알리아스";
         // 대화창 그림(2172x724) 속 위치(픽셀로 잰 값). 이름판 안쪽은 x 640~920, y 414~468이고 대사 칸 왼쪽 위에 겹쳐 있다.
         // 어두운 대사 칸 안쪽은 x 585~1940, y 446~640인데, 글자는 이름판 아래(y 468~)부터 쓰고
         // 테두리에 붙지 않게 안쪽으로 조금 띄운다(x 615~1740, y ~625). 오른쪽 끝의 십자 문양(x 1770~)은 피한다.
@@ -44,7 +44,7 @@ namespace Aethoria.Stages
         {
             "...여기까지 걸어 들어온 자가 또 있었군.",
             "숲의 기사들을 쓰러뜨린 것이 너인가. 그 낫에서 죽음의 냄새가 나는구나.",
-            "이 숲의 끝은 내가 지킨다. 지나가고 싶다면, 내 검을 넘어서라.",
+            "나는 숲의 기사단장 알리아스. 이 숲의 끝은 내가 지킨다. 지나가고 싶다면, 내 검을 넘어서라.",
             "자, 와라!",
         };
 

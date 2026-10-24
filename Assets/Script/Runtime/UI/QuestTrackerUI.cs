@@ -35,7 +35,7 @@ namespace Aethoria.UI
             rect.anchorMax = new Vector2(1f, 1f);
             rect.pivot = new Vector2(1f, 1f);
             rect.anchoredPosition = new Vector2(-16f, -16f);
-            rect.sizeDelta = new Vector2(300f, 64f);
+            rect.sizeDelta = new Vector2(380f, 64f);
             var bg = panel.GetComponent<Image>();
             bg.color = new Color(0.06f, 0.04f, 0.09f, 0.75f);
             bg.raycastTarget = false;
@@ -61,21 +61,38 @@ namespace Aethoria.UI
             text.alignment = TextAnchor.MiddleLeft;
             text.color = color;
             text.raycastTarget = false;
+            text.resizeTextForBestFit = true; // 장소까지 붙어 길어진 줄은 칸에 맞춰 줄인다
+            text.resizeTextMinSize = 12;
+            text.resizeTextMaxSize = fontSize;
             return text;
         }
 
         private void Refresh()
         {
+            // 받을 퀘스트가 있을 때도 띄워서, 다음 이야기를 누구에게 들으러 가야 하는지 늘 보이게 한다.
             var quest = quests.Current;
-            bool visible = quest != null
-                && (quests.Status == QuestStatus.InProgress || quests.Status == QuestStatus.ReadyToTurnIn);
+            bool visible = quest != null && quests.Status != QuestStatus.AllDone;
             panel.SetActive(visible);
             if (!visible) return;
 
-            titleText.text = $"[퀘스트] {quest.title}";
-            progressText.text = quests.Status == QuestStatus.ReadyToTurnIn
-                ? "완료! 마을의 노아에게 보고하세요"
-                : $"{quest.targetMonsterName} 처치  {quests.Progress} / {quest.requiredCount}";
+            string chapter = string.IsNullOrEmpty(quest.chapter) ? "퀘스트" : quest.chapter;
+            switch (quests.Status)
+            {
+                case QuestStatus.Available:
+                    titleText.text = $"[{chapter}] 다음 이야기";
+                    progressText.text = $"{quest.giverNpc}에게 말을 걸어 보자";
+                    break;
+                case QuestStatus.ReadyToTurnIn:
+                    titleText.text = $"[{chapter}] {quest.title}";
+                    progressText.text = $"완료! {quest.turnInNpc}에게 보고하자";
+                    break;
+                default:
+                    titleText.text = $"[{chapter}] {quest.title}";
+                    progressText.text = quest.type == QuestType.Talk
+                        ? $"{quest.targetNpc} 찾아가기 · {quest.location}"
+                        : $"{quest.targetMonsterName} {quests.Progress}/{quest.requiredCount} · {quest.location}";
+                    break;
+            }
         }
     }
 }

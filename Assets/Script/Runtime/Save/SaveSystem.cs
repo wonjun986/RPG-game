@@ -47,11 +47,18 @@ namespace Aethoria.Save
         public bool bossIntroSeen;
         // 루나벨(절망의 언덕) 등장 연출을 본 적 있는지. 본 뒤로는 등장 대사를 Esc로 건너뛸 수 있다.
         public bool lunabelIntroSeen;
+        // 황금 모래룡(잊혀진 폐허 보스) 등장 연출을 본 적 있는지. 본 뒤로는 Esc로 건너뛸 수 있다.
+        public bool sandDragonIntroSeen;
         // 노아와의 첫 만남(스토리 대사)이 아직 남았는지. 새 게임에서만 true로 시작한다 — 이 값이 없던 예전 세이브는
         // false로 읽혀서, 이미 노아를 만난 캐릭터에게 첫 만남 대사가 다시 나오지 않는다.
         public bool noaFirstMeetingPending;
         // 이시스와의 첫 만남 대사가 아직 남았는지(노아와 같은 방식).
         public bool isisFirstMeetingPending;
+        // 월드맵에서 쇠사슬이 부서지는 해금 연출을 어디까지 봤는지(그때의 메인 퀘스트 번호). 이 값이 없던 예전 세이브는 -1로
+        // 읽혀서, 불러올 때 지금 퀘스트 번호로 맞춘다(이미 열려 있던 지역의 연출이 한꺼번에 나오지 않게).
+        public int mapUnlockSeen = -1;
+        // 릴리의 몬스터 도감: 몬스터 이름(itemId 자리)별 처치 수. 이 값이 없던 예전 세이브는 빈 도감에서 시작한다.
+        public List<ItemSaveEntry> bestiaryKills = new();
         public string savedAt;
     }
 

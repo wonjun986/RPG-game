@@ -13,7 +13,7 @@ namespace Aethoria.Data
             category = ItemCategory.Necklace,
             rarity = ItemRarity.Epic,
             flavorText = "어둠의 기운이 서린 목걸이.",
-            description = "보스 기사가 목에 걸고 있던 목걸이.\n걸고 있으면 귓가에 낮은 속삭임이 들려온다.",
+            description = "알리아스가 목에 걸고 있던 목걸이.\n걸고 있으면 귓가에 낮은 속삭임이 들려온다.",
             baseStats = new ItemStats { skillDamage = 10f, critDamage = 15f },
             bonusStats = new ItemStats { critChance = 3f },
         };
