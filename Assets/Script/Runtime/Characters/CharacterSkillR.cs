@@ -8,7 +8,8 @@ using Aethoria.Monsters;
 namespace Aethoria.Characters
 {
     // R = 죽음의 소용돌이 (궁극기). 시전하면 캐릭터가 잠시 맵에서 사라져 무적 상태로 숨고,
-    // 그 사이 맵 전체를 휘감을 만큼 커다란 칼날폭풍 이펙트 몇 개가 맵 곳곳에 떠오르며,
+    // 그 사이 커다란 칼날폭풍 무리가 등 뒤 맵 끝에서 반대편 맵 끝까지 휩쓸고 지나간다. 카메라도 폭풍을 따라가
+    // 맵 전체를 쓸고 가는 모습을 보여 준 뒤 캐릭터에게 돌아온다.
     // 피해는 범위 제한 없이 현재 맵에 있는 모든 몬스터에게 매 틱마다 들어간다.
     [RequireComponent(typeof(Character))]
     [RequireComponent(typeof(CharacterMovement2D))]
@@ -21,13 +22,16 @@ namespace Aethoria.Characters
         [SerializeField] private float damageMultiplierPerTick = 0.4f;
         [SerializeField] private float bossDamageMultiplier = 3.5f;
 
-        [Header("연출: 맵 중앙 칼날폭풍")]
+        [Header("연출: 맵을 휩쓰는 칼날폭풍")]
         [SerializeField] private string bladeStormEffectPath = "Art/Effects/DeathVortex";
         [SerializeField] private float bladeStormFrameDuration = 0.05f;
         [SerializeField] private int bladeStormCount = 3;
         [SerializeField] private float bladeStormScale = 4f;
         [SerializeField] private float bladeStormSpacing = 3f;
         [SerializeField] private float bladeStormHeight = 1.5f;
+        [SerializeField] private float sweepEdgeInset = 2f;           // 폭풍 무리가 출발/도착하는 맵 끝 안쪽 거리
+        [SerializeField] private float cameraSweepSmoothTime = 0.12f; // 카메라가 폭풍을 따라가는 부드러움
+        [SerializeField] private float cameraReturnSmoothTime = 0.35f;
 
         [Header("연출: 화면 흔들림")]
         [SerializeField] private float shakeDuration = 0.25f;
@@ -88,21 +92,43 @@ namespace Aethoria.Characters
             character.SetInvincible(true);
             if (visualRenderer != null) visualRenderer.enabled = false;
 
-            StartCoroutine(ShakeCameraRoutine());
-            var bladeStorms = SpawnBladeStorm();
+            var cameraFollow = Camera.main != null ? Camera.main.GetComponent<CameraFollow>() : null;
+            if (cameraFollow != null) cameraFollow.Shake(shakeDuration, shakeMagnitude);
+
+            // 등 뒤 맵 끝에서 출발해 바라보는 쪽 맵 끝까지 duration 동안 쓸고 간다. 카메라는 폭풍 무리 한가운데를 따라간다.
+            Rect bounds = GameBootstrap.CurrentMapBounds;
+            float facing = movement.FacingDirection.x < 0f ? -1f : 1f;
+            float startX = facing > 0f ? bounds.xMin + sweepEdgeInset : bounds.xMax - sweepEdgeInset;
+            float endX = facing > 0f ? bounds.xMax - sweepEdgeInset : bounds.xMin + sweepEdgeInset;
+            float y = bounds.yMin + bladeStormHeight;
+            var front = new GameObject("BladeStormFront").transform;
+            front.position = new Vector3(startX, y, 0f);
+            var bladeStorms = SpawnBladeStorm(front);
+            if (cameraFollow != null) cameraFollow.SetTarget(front, cameraSweepSmoothTime);
 
             float elapsed = 0f;
+            float nextTick = 0f;
             while (elapsed < duration)
             {
-                DealDamage();
-
-                yield return new WaitForSeconds(tickInterval);
-                elapsed += tickInterval;
+                front.position = new Vector3(Mathf.Lerp(startX, endX, Mathf.SmoothStep(0f, 1f, elapsed / duration)), y, 0f);
+                if (elapsed >= nextTick)
+                {
+                    DealDamage();
+                    nextTick += tickInterval;
+                }
+                yield return null;
+                elapsed += Time.deltaTime;
             }
 
             foreach (var blade in bladeStorms)
             {
                 if (blade != null) Destroy(blade.gameObject);
+            }
+            Destroy(front.gameObject);
+            if (cameraFollow != null)
+            {
+                cameraFollow.SetTarget(transform, cameraReturnSmoothTime);
+                StartCoroutine(ResetCameraSmoothing(cameraFollow));
             }
 
             if (visualRenderer != null) visualRenderer.enabled = true;
@@ -111,25 +137,18 @@ namespace Aethoria.Characters
             isActive = false;
         }
 
-        // 캐릭터가 숨어있는 동안, 맵 중앙을 기준으로 나란히 칼날폭풍 이펙트를 띄운다.
-        // 카메라가 주인공을 따라가며 화면을 제한하므로, 맵 전체에 무작위로 뿌리면 화면 밖으로
-        // 잘려서 잘 안 보인다 — 대신 맵 중앙 한 군데에 몰아서 확실히 보이게 한다.
-        // 맵의 세로 중앙(bounds.center.y)은 타일맵 전체의 중간일 뿐, 실제로는 하늘 쪽이라
-        // 바닥(yMin) 기준으로 약간 띄운 높이를 써야 캐릭터/몬스터가 있는 화면 안에 보인다.
-        private List<FlipbookSpriteEffect> SpawnBladeStorm()
+        // 폭풍 무리 한가운데(front)에 나란히 칼날폭풍 이펙트를 붙인다. front가 움직이면 함께 쓸려 간다.
+        // 맵의 세로 중앙은 하늘 쪽이라, 바닥(yMin) 기준으로 약간 띄운 높이(front의 높이)를 쓴다.
+        private List<FlipbookSpriteEffect> SpawnBladeStorm(Transform front)
         {
             var effects = new List<FlipbookSpriteEffect>(bladeStormCount);
-            Rect bounds = GameBootstrap.CurrentMapBounds;
-            float centerX = bounds.center.x;
-            float y = bounds.yMin + bladeStormHeight;
-
             float totalWidth = bladeStormSpacing * (bladeStormCount - 1);
-            float startX = centerX - totalWidth / 2f;
 
             for (int i = 0; i < bladeStormCount; i++)
             {
-                Vector2 position = new Vector2(startX + bladeStormSpacing * i, y);
+                Vector2 position = (Vector2)front.position + new Vector2(-totalWidth / 2f + bladeStormSpacing * i, 0f);
                 var blade = FlipbookSpriteEffect.Create("BladeStorm", bladeStormEffectPath, position, bladeStormFrameDuration, loop: true);
+                blade.transform.SetParent(front, true);
                 blade.transform.localScale = Vector3.one * bladeStormScale;
                 effects.Add(blade);
             }
@@ -137,26 +156,11 @@ namespace Aethoria.Characters
             return effects;
         }
 
-        // 카메라를 짧게 흔들어 궁극기 발동 임팩트를 준다. 끝나면 원래 위치로 정확히 되돌린다.
-        private IEnumerator ShakeCameraRoutine()
+        // 카메라가 캐릭터에게 다 돌아온 뒤 원래 따라가는 속도로 되돌린다.
+        private IEnumerator ResetCameraSmoothing(CameraFollow cameraFollow)
         {
-            var mainCamera = Camera.main;
-            if (mainCamera == null) yield break;
-
-            Vector3 basePosition = mainCamera.transform.position;
-            float elapsed = 0f;
-
-            while (elapsed < shakeDuration)
-            {
-                elapsed += Time.deltaTime;
-                float damper = 1f - Mathf.Clamp01(elapsed / shakeDuration);
-                float offsetX = Random.Range(-1f, 1f) * shakeMagnitude * damper;
-                float offsetY = Random.Range(-1f, 1f) * shakeMagnitude * damper;
-                mainCamera.transform.position = basePosition + new Vector3(offsetX, offsetY, 0f);
-                yield return null;
-            }
-
-            mainCamera.transform.position = basePosition;
+            yield return new WaitForSeconds(cameraReturnSmoothTime * 2f);
+            if (cameraFollow != null) cameraFollow.ResetSmoothTime();
         }
 
         // 맵 전역 궁극기이므로 캐릭터 주변이 아니라 현재 맵에 있는 모든 몬스터를 매 틱마다 타격한다.

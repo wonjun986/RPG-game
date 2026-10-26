@@ -9,7 +9,8 @@ namespace Aethoria.Stages
 {
     // 새 게임 튜토리얼(어둠의 숲). 도입 스토리(StoryIntroUI)가 끝나면 네크로시아가 숲에서 눈을 뜨고,
     // 화면 위쪽 안내(TutorialUI)를 따라 이동 → 점프 → 이단 점프 → 대시를 차례로 해 본다. 다 해내면 숲의 정령 한 마리가
-    // 나타나고, 리듬 전투 안내창을 본 뒤 직접 싸운다. 정령을 잡으면 숲 출구 포탈이 열린다(onCleared).
+    // 나타나고, 전투 안내창을 본 뒤 기본 공격으로 싸운다. 정령은 기본 공격으로는 쓰러지지 않아서(TutorialSkillFinish)
+    // 체력이 절반 아래로 떨어지면 스킬로 마무리하라고 알려 준다. 정령을 잡으면 숲 출구 포탈이 열린다(onCleared).
     // 독백은 네크로시아 대화창(UI/Player_Talk)에 띄우고 [Z]/Enter로 넘긴다.
     public class ForestTutorial : MonoBehaviour
     {
@@ -36,13 +37,13 @@ namespace Aethoria.Stages
 
         private static readonly string[] BeforeBattleLines =
         {
-            "저 녀석의 움직임... 박자가 보인다.",
-            "적의 리듬을 읽는 힘. 아직 남아 있었군.",
+            "숲의 정령인가. 상대로는 나쁘지 않군.",
+            "낫을 쥐는 감각부터 되찾아야겠다.",
         };
 
         private static readonly string[] ClearLines =
         {
-            "리듬은 아직 이 몸 안에 남아 있다.",
+            "몸이 기억하고 있다. 낫도, 사슬도.",
             "루나벨... 이번에는 내가 이긴다. 잃어버린 모든 것을 되찾겠다.",
         };
 
@@ -52,7 +53,6 @@ namespace Aethoria.Stages
         private NpcDialogueUI dialogueUI;
         private TutorialUI tutorialUI;
         private StoryIntroUI storyUI;
-        private RhythmBattleUI battleUI;
         private System.Func<float, Monster> spawnMonster;
         private System.Action onCleared;
         private float mapXMin, mapXMax;
@@ -76,7 +76,7 @@ namespace Aethoria.Stages
             tutorialUI.SetEyesClosed(true);
             if (movement != null)
             {
-                movement.SetInputLocked(true);
+                movement.SetCutsceneLocked(true);
                 movement.Face(Vector2.right);
                 movement.OnDoubleJump += HandleDoubleJump;
             }
@@ -84,7 +84,6 @@ namespace Aethoria.Stages
 
         private void Start()
         {
-            battleUI = Object.FindFirstObjectByType<RhythmBattleUI>();
             StartCoroutine(Run());
         }
 
@@ -102,12 +101,6 @@ namespace Aethoria.Stages
         }
 
         private void HandleDoubleJump() => doubleJumped = true;
-
-        private void Update()
-        {
-            // 리듬 전투 화면이 떠 있는 동안에는 위쪽 안내가 전투 화면을 가리지 않게 숨긴다.
-            if (tutorialUI != null) tutorialUI.SetGuideHidden(battleUI != null && battleUI.IsOpen);
-        }
 
         private IEnumerator Run()
         {
@@ -161,7 +154,7 @@ namespace Aethoria.Stages
             // ---- 전투 ----
             yield return Monologue(EncounterLines);
             var enemy = spawnMonster(PickMonsterX());
-            // 독백과 안내창을 보는 동안 다가와서 전투가 먼저 시작되지 않게 잠깐 세워 둔다.
+            // 독백과 안내창을 보는 동안 다가와서 먼저 공격하지 않게 잠깐 세워 둔다.
             var enemyAI = enemy != null ? enemy.GetComponent<MonsterAI>() : null;
             if (enemyAI != null) enemyAI.enabled = false;
             yield return Monologue(BeforeBattleLines);
@@ -171,12 +164,17 @@ namespace Aethoria.Stages
             while (!pagesClosed) yield return null;
             if (enemyAI != null) enemyAI.enabled = true;
 
-            tutorialUI.ShowGuide("숲의 정령에게 다가가 리듬 전투를 시작하자");
+            tutorialUI.ShowGuide("Z 키로 숲의 정령을 공격하자");
             bool enemyDead = enemy == null || enemy.IsDead;
             if (enemy != null) enemy.OnDied += _ => enemyDead = true;
-            while (!enemyDead) yield return null;
-            // 전투 결과 화면이 닫히고 필드로 돌아올 때까지 기다린다.
-            while (battleUI != null && battleUI.IsOpen) yield return null;
+            while (!enemyDead && enemy.CurrentHp > enemy.MaxHp * TutorialSkillFinish.HintHealthFraction) yield return null;
+
+            if (!enemyDead)
+            {
+                yield return tutorialUI.CompleteGuide();
+                tutorialUI.ShowGuide("약해졌다! 스킬(X · A · S · D · Q · W · E)로 마무리하자");
+                while (!enemyDead) yield return null;
+            }
             yield return tutorialUI.CompleteGuide();
 
             yield return Monologue(ClearLines);
@@ -208,7 +206,7 @@ namespace Aethoria.Stages
 
         private void SetInputLocked(bool locked)
         {
-            if (movement != null) movement.SetInputLocked(locked);
+            if (movement != null) movement.SetCutsceneLocked(locked);
         }
 
         private static bool AdvancePressed()

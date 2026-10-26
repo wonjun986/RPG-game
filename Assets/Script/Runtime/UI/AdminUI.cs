@@ -9,7 +9,7 @@ using Aethoria.Quests;
 
 namespace Aethoria.UI
 {
-    // 테스트용 관리자 모드. F1로 화면 오른쪽에 명령 목록을 여닫고, 열려 있는 동안 F2~F11로 바로 실행한다.
+    // 테스트용 관리자 모드. F1로 화면 오른쪽에 명령 목록을 여닫고, 열려 있는 동안 F2~F12로 바로 실행한다.
     // 숫자/Z/X 키는 NPC 대화·리듬 전투와 겹치므로 기능 키만 쓴다. 순간이동(F8)은 목록을 펼친 뒤
     // PageUp/PageDown 으로 고르고 F8을 한 번 더 눌러 이동한다. 창이 떠 있어도 게임은 멈추지 않는다.
     public class AdminUI : MonoBehaviour
@@ -172,6 +172,10 @@ namespace Aethoria.UI
                 Bestiary.AdminUnlockAll = !Bestiary.AdminUnlockAll;
                 ShowMessage(Bestiary.AdminUnlockAll ? "도감 전부 열림(비밀 메모 포함)" : "도감을 처치 기록대로 되돌림");
             }
+            else if (keyboard.f12Key.wasPressedThisFrame)
+            {
+                JumpBossToPhaseTwo();
+            }
             else if (warpListOpen && keyboard.pageDownKey.wasPressedThisFrame)
             {
                 warpIndex = (warpIndex + 1) % GameBootstrap.AdminWarpCount;
@@ -205,6 +209,46 @@ namespace Aethoria.UI
                 killed++;
             }
             ShowMessage(killed > 0 ? $"몬스터 {killed}마리 처치" : "이 맵에는 몬스터가 없어요", killed > 0);
+        }
+
+        // 이 맵의 보스를 2페이즈 직전까지 깎아 곧바로 2페이즈 연출을 보게 한다(보스방은 [F8] 순간이동으로 간다).
+        // 알리아스: 체력을 절반 아래로 깎으면 하던 패턴 뒤에 검을 꽂고 분노한다.
+        // 루나벨: 1페이즈 체력을 다 깎으면(체력 1로 버틴다) 그 자리에서 변신한다.
+        // 등장 연출 중이면 연출이 끝나자마자 이어진다.
+        private void JumpBossToPhaseTwo()
+        {
+            foreach (var monster in FindObjectsByType<Monster>(FindObjectsSortMode.None))
+            {
+                if (monster.IsDead || monster.IsMinigameOpponent) continue;
+
+                var knight = monster.GetComponent<BossAI>();
+                if (knight != null)
+                {
+                    if (knight.IsPhaseTwo)
+                    {
+                        ShowMessage("알리아스는 이미 2페이즈예요", false);
+                        return;
+                    }
+                    float goal = monster.MaxHp * 0.5f - 1f;
+                    if (monster.CurrentHp > goal) monster.TakeDamage(monster.CurrentHp - goal);
+                    ShowMessage("알리아스 2페이즈(분노)로");
+                    return;
+                }
+
+                var lunabel = monster.GetComponent<FinalBossAI>();
+                if (lunabel != null)
+                {
+                    if (lunabel.PhaseTwoStarted)
+                    {
+                        ShowMessage("루나벨은 이미 2페이즈예요", false);
+                        return;
+                    }
+                    monster.TakeDamage(monster.CurrentHp);
+                    ShowMessage("루나벨 2페이즈(변신)로");
+                    return;
+                }
+            }
+            ShowMessage("이 맵에는 2페이즈가 있는 보스가 없어요 — [F8]로 보스방에 가 주세요", false);
         }
 
         private static string StatusName(QuestStatus status)
@@ -241,6 +285,7 @@ namespace Aethoria.UI
             sb.AppendLine($"[F9] 월드맵 전 지역 열기   {(WorldMapUI.AdminUnlockAll ? "<color=#73F27F>ON</color>" : "<color=#888888>OFF</color>")}");
             sb.AppendLine("[F10] 메인 퀘스트 한 단계 진행 <size=13>(수락→달성→보고)</size>");
             sb.AppendLine($"[F11] 도감 전부 열기   {(Bestiary.AdminUnlockAll ? "<color=#73F27F>ON</color>" : "<color=#888888>OFF</color>")}");
+            sb.AppendLine("[F12] 보스 2페이즈로 <size=13>(알리아스 분노 / 루나벨 변신)</size>");
             sb.AppendLine(warpListOpen ? "[F8] 선택한 곳으로 이동   <size=13>PgUp/PgDn 고르기</size>" : "[F8] 순간이동 목록 열기");
 
             if (warpListOpen)

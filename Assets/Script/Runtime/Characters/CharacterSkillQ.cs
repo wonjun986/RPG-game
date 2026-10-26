@@ -42,6 +42,8 @@ namespace Aethoria.Characters
                 cooldownRemaining = Mathf.Max(0f, cooldownRemaining - Time.deltaTime);
             }
 
+            if (movement.IsInputLocked) return;
+
             var keyboard = Keyboard.current;
             if (keyboard != null && keyboard.qKey.wasPressedThisFrame)
             {

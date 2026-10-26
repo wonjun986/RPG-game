@@ -45,31 +45,34 @@ namespace Aethoria.EditorTools
             ("Art/Monsters/BossKnight/SpecialRaise/", 178f), ("Art/Monsters/BossKnight/SpecialCharge/", 178f),
             ("Art/Monsters/BossKnight/Die/", 178f),
             ("Art/Monsters/BossKnight/Attack/", 117f), ("Art/Monsters/BossKnight/JumpAttack/", 126f),
+            // 루나벨 시트들은 시트마다 그린 크기가 제각각이라(2페이즈/순간이동/패배 장면이 서로 커졌다 작아졌다 했다),
+            // 의자에 앉은 모습을 뺀 모든 시트를 얼굴 가운데~부츠 끝 키가 1페이즈 대기와 같은 약 2.08유닛이 되도록 환산했다
+            // (시트마다 첫 장의 얼굴 위치와 발끝을 재서 맞춘 값). 아래 각 줄의 옛 설명은 처음 값을 정할 때의 기록이다.
             // 절망의 언덕 최종보스(붉은 여왕) 대기: 후광 끝까지 프레임 키 528px가 약 2.9유닛(보스 기사보다 조금 크게)이 되게 한다.
             ("Art/Monsters/FinalBoss/Idle/", 180f),
             // 첫 조우 때 의자에 앉아 있는 모습(First Encounter with Lunabel, 4프레임): 대기와 같은 180(약 3.4유닛)은
             // 주인공보다 너무 커 보인다는 피드백으로, 의자 꼭대기~받침 620px가 약 2.4유닛이 되게 줄였다.
             ("Art/Monsters/FinalBoss/Seated/", 258f),
             // 손 뻗기 공격 시트는 루나벨을 더 작게 그렸다(키 433px, 대기는 516px). 대기와 같은 키로 보이게 환산한 값.
-            ("Art/Monsters/FinalBoss/Attack/", 151f),
+            ("Art/Monsters/FinalBoss/Attack/", 155f),
             // 2페이즈 변신(Lunabel`s_Phase2, 12프레임 중 9프레임) 시트는 키 500px로, 대기와 같은 키로 환산한 값.
-            ("Art/Monsters/FinalBoss/Phase2/", 174f),
+            ("Art/Monsters/FinalBoss/Phase2/", 179f),
             // 2페이즈 대기/필살기/차지 시트는 각성한 느낌이 나도록 변신 마지막 프레임보다 1.2배 큰 키(머리~부츠 약 2.74유닛)로
             // 환산한 값. 공중 대기(Lunabel Aerial Motion)는 크게 그려서 머리~부츠 565px, 차지 322px.
             // 필살기 시트는 차지 시트보다 루나벨을 약 1.13배 크게 그렸다(몸을 겹쳐 맞춰 잰 값). 차지와 같은 크기로 보이게 환산한 값.
-            ("Art/Monsters/FinalBoss/Phase2Idle/", 207f),
-            ("Art/Monsters/FinalBoss/Special/", 133f), ("Art/Monsters/FinalBoss/Charge/", 118f),
+            ("Art/Monsters/FinalBoss/Phase2Idle/", 254f),
+            ("Art/Monsters/FinalBoss/Special/", 151f), ("Art/Monsters/FinalBoss/Charge/", 152f),
             // 구체 던지기(Lunabel's sphere-throwing motion)는 두 팔을 든 첫 프레임 머리~부츠 393px 기준.
-            ("Art/Monsters/FinalBoss/Throw/", 144f),
+            ("Art/Monsters/FinalBoss/Throw/", 196f),
             // 2페이즈 기본 공격(Lunable phase2 normal Attack)은 팔을 든 첫 프레임 머리~부츠 574px가 2페이즈 대기와 같은 키가 되게 한다.
-            ("Art/Monsters/FinalBoss/Phase2Attack/", 193f),
+            ("Art/Monsters/FinalBoss/Phase2Attack/", 237f),
             // 1페이즈 혈류 흡수(뱀파이어 엘프의 혈류 흡수 연속 동작)는 1페이즈 대기와 나란히 놓고 키를 맞춘 값.
-            ("Art/Monsters/FinalBoss/Absorb/", 144f),
+            ("Art/Monsters/FinalBoss/Absorb/", 151f),
             // 패배 모션(Lunabel_Defeat, 8프레임): 대기와 같은 키(166)로는 클리어 연출에서 너무 커 보인다는 피드백으로 두 번 줄여,
             // 프레임 키(후광 포함) 481px가 약 1.7유닛 — 네크로시아(대기 1.8)와 비슷한 키가 되게 했다.
-            ("Art/Monsters/FinalBoss/Defeat/", 280f),
+            ("Art/Monsters/FinalBoss/Defeat/", 205f), // 다른 시트와 같은 키(167)로 맞췄더니 쓰러지는 모션이 커 보여 약 0.8배로 줄였다.
             // 맞는 모션(Lunabel`s_Hit) 시트는 더 크게 그렸다(키 629px).
-            ("Art/Monsters/FinalBoss/Hit/", 219f),
+            ("Art/Monsters/FinalBoss/Hit/", 232f),
             // 루나벨이 날리는 피의 손(Lunabel's hand launch, 6프레임): 그림 폭 638px가 약 2.2유닛이 되게 한다.
             ("Art/Effects/BloodHand/", 290f),
             // 평야 발판 조각(Yard_scattfolding에서 잘라낸 것)은 폭 210~325px인데, 캐릭터가 여유 있게 올라설 수 있도록
@@ -109,6 +112,14 @@ namespace Aethoria.EditorTools
             ("Art/Props/SeaPortal/", 380f),
             // W스킬 악마의 손: 포탈에서 손끝까지 약 376px가 약 2.2유닛 사거리가 되게 한다.
             ("Art/Effects/DemonHand/", 170f),
+            // 모래룡 포효 회오리(여섯 프레임 마법의 모래 회오리): 키 491px가 약 6유닛. SandWhirlwind가 원하는 키로 다시 맞춘다.
+            ("Art/Effects/SandWhirlwind/", 80f),
+            // 루나벨 차원문 순간이동(붉은 차원문에 흡수되는 마녀): 서 있는 1프레임 머리~부츠 495px가 1페이즈 대기와 같은 키가 되게 한다.
+            ("Art/Monsters/FinalBoss/PortalEnter/", 182f),
+            // 알리아스 검 꽂기(보랏빛 기사의 검 꽂기 연속 동작): 서 있는 1프레임 키 455px가 대기와 같은 키가 되게 한다.
+            ("Art/Monsters/BossKnight/Plant/", 172f),
+            // 알리아스 분노 눈 실크(어둠 속 붉은 마력의 실크 웨이브): 길이 580px가 약 1.5유닛.
+            ("Art/Effects/AliasEyeSilk/", 380f),
         };
 
         // 대부분의 캐릭터/이펙트 스프라이트는 바닥에 서 있는 기준(BottomCenter)이 맞지만,
@@ -119,6 +130,8 @@ namespace Aethoria.EditorTools
             "Art/Effects/ChainThrow/",
             // 악마의 손도 포탈(왼쪽 끝)이 고정된 채 손이 앞쪽으로 뻗어나간다. 세로 가운데가 포탈 중심.
             "Art/Effects/DemonHand/",
+            // 알리아스 눈 실크: 왼쪽 끝이 눈에 붙고 나머지가 흩날린다.
+            "Art/Effects/AliasEyeSilk/",
         };
 
         // 그 밖에 기준점을 따로 지정해야 하는 폴더.
@@ -128,6 +141,10 @@ namespace Aethoria.EditorTools
         {
             ("Art/Props/Portal/", new Vector2(0.5f, 0.2f)),
             ("Art/Effects/ScytheSpin/", new Vector2(0.5f, 0.1f)),
+            // 루나벨 차원문 순간이동: 칸(512) 안에서 1프레임의 두 부츠 굽 사이 바닥(x 265, y 505)이 발 기준점.
+            ("Art/Monsters/FinalBoss/PortalEnter/", new Vector2(265f / 512f, 1f - 505f / 512f)),
+            // 붕괴하는 차원문: 프레임마다 소용돌이 한가운데를 캔버스 가운데에 맞춰 잘랐다.
+            ("Art/Effects/LunabelPortalCollapse/", new Vector2(0.5f, 0.5f)),
         };
 
         private void OnPreprocessTexture()

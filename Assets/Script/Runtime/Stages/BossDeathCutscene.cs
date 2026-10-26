@@ -6,7 +6,7 @@ using Aethoria.UI;
 
 namespace Aethoria.Stages
 {
-    // 보스 기사 사망 연출. 리듬전투에서 체력이 0이 되면 전투 화면이 닫히고 월드로 돌아온 뒤, 보스가 대기 모션으로
+    // 보스 기사 사망 연출. 체력이 0이 되면 보스가 멈춰 선 뒤 잠깐 쉬었다가, 대기 모션으로
     // 선 채 유언을 남기고(보스 대화창, [Z]로 넘김) 쓰러지는 모션(Art/Monsters/BossKnight/Die 8프레임)을 재생한다.
     // 마지막 프레임에서 잠깐 멈췄다가 서서히 사라지고, 그다음 onFinished(스테이지 클리어 창)를 부른 뒤 보스를 지운다.
     // 보상(경험치/골드/드랍/퀘스트)은 쓰러진 순간 Monster.OnDied/AnyDied로 이미 처리된다.
@@ -80,14 +80,11 @@ namespace Aethoria.Stages
             spriteRenderer.color = Color.white;
             HideHealthBar();
 
-            // 전투 화면이 닫히고(같은 OnDied에서 EndBattle) 월드가 다시 흐를 때까지 기다린다.
-            var battleUI = Object.FindAnyObjectByType<RhythmBattleUI>();
-            while (battleUI != null && battleUI.IsOpen) yield return null;
             yield return new WaitForSeconds(DelayAfterBattle);
 
             if (playerMovement != null)
             {
-                playerMovement.SetInputLocked(true);
+                playerMovement.SetCutsceneLocked(true);
                 playerMovement.Face(transform.position.x >= player.transform.position.x ? Vector2.right : Vector2.left);
             }
             spriteRenderer.flipX = player != null && player.transform.position.x < transform.position.x;
@@ -136,7 +133,7 @@ namespace Aethoria.Stages
         {
             if (finished) return;
             finished = true;
-            if (playerMovement != null) playerMovement.SetInputLocked(false);
+            if (playerMovement != null) playerMovement.SetCutsceneLocked(false);
         }
 
         // 연출 도중 스테이지가 다시 지어지면(사망 등) 보스와 함께 지워지므로, 막아 둔 것들을 풀고 나간다.

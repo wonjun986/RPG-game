@@ -21,6 +21,11 @@ namespace Aethoria.Stages
         private const float FrameDuration = 0.12f;
 
         private SpriteRenderer visualRenderer;
+        private Transform framedRoot;
+        private SpriteRenderer frameRenderer;
+        private SpriteRenderer floorGlow;
+        private Color floorGlowColor;
+        private static Sprite softEllipse;
         private Sprite[] frames;
         private int frameIndex;
         private float frameTimer;
@@ -103,6 +108,8 @@ namespace Aethoria.Stages
             var baseRenderer = baseGO.AddComponent<SpriteRenderer>();
             baseRenderer.sprite = baseSprite;
             baseRenderer.sortingOrder = -4;
+            framedRoot = go.transform;
+            frameRenderer = baseRenderer;
 
             var swirlFrames = Resources.LoadAll<Sprite>(swirlFolder);
             if (swirlFrames == null || swirlFrames.Length == 0) return;
@@ -126,10 +133,71 @@ namespace Aethoria.Stages
             frameDuration = swirlFrameDuration;
         }
 
+        // 문틀 포탈을 배경에 녹인다. 밝은 문틀을 배경 조명 색으로 살짝 눌러 주고, 발밑에 그림자를, 앞쪽 바닥과 뒤쪽 벽에
+        // 소용돌이 빛이 번진 듯한 옅은 빛을 깐다(그림을 그냥 얹으면 배경과 따로 노는 스티커처럼 보였다).
+        // groundLocalY: 포탈 오브젝트 기준 바닥 높이. CreateFramedVisual 다음에 부른다.
+        public void BlendIntoScene(Color frameTint, Color glowColor, float groundLocalY)
+        {
+            if (framedRoot == null) return;
+            frameRenderer.color = frameTint;
+            float width = frameRenderer.sprite.bounds.size.x;
+            float height = frameRenderer.sprite.bounds.size.y;
+            float x = framedRoot.localPosition.x;
+
+            CreateSoftEllipse("Shadow", new Vector2(x, groundLocalY + 0.02f), new Vector2(width * 1.15f, 0.5f),
+                new Color(0.03f, 0f, 0.06f, 0.6f), -6);
+            CreateSoftEllipse("WallGlow", new Vector2(x, groundLocalY + height * 0.5f), new Vector2(width * 1.6f, height * 1.1f),
+                new Color(glowColor.r, glowColor.g, glowColor.b, glowColor.a * 0.5f), -7);
+            floorGlowColor = glowColor;
+            floorGlow = CreateSoftEllipse("FloorGlow", new Vector2(x, groundLocalY - 0.1f), new Vector2(width * 1.7f, 0.9f), glowColor, -3);
+        }
+
+        private SpriteRenderer CreateSoftEllipse(string name, Vector2 localPosition, Vector2 size, Color color, int sortingOrder)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(transform, false);
+            go.transform.localPosition = localPosition;
+            go.transform.localScale = new Vector3(size.x, size.y, 1f);
+            var renderer = go.AddComponent<SpriteRenderer>();
+            renderer.sprite = SoftEllipseSprite();
+            renderer.color = color;
+            renderer.sortingOrder = sortingOrder;
+            return renderer;
+        }
+
+        // 가운데가 진하고 가장자리로 갈수록 부드럽게 사라지는 원(지름 1유닛). 늘려서 타원으로 쓴다.
+        private static Sprite SoftEllipseSprite()
+        {
+            if (softEllipse != null) return softEllipse;
+            const int size = 128;
+            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+            var pixels = new Color32[size * size];
+            float center = (size - 1) / 2f;
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float d = Mathf.Sqrt((x - center) * (x - center) + (y - center) * (y - center)) / center;
+                    float a = Mathf.Clamp01(1f - d * d);
+                    pixels[y * size + x] = new Color32(255, 255, 255, (byte)(a * a * 255f));
+                }
+            }
+            texture.SetPixels32(pixels);
+            texture.Apply();
+            softEllipse = Sprite.Create(texture, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), size);
+            return softEllipse;
+        }
+
         private float frameDuration = FrameDuration;
 
         private void Update()
         {
+            if (floorGlow != null)
+            {
+                // 소용돌이 빛이 바닥에서 천천히 일렁인다.
+                float pulse = 0.8f + 0.2f * Mathf.Sin(Time.time * 2.2f);
+                floorGlow.color = new Color(floorGlowColor.r, floorGlowColor.g, floorGlowColor.b, floorGlowColor.a * pulse);
+            }
             if (visualRenderer == null || frames == null || frames.Length < 2) return;
 
             frameTimer += Time.deltaTime;

@@ -16,6 +16,9 @@ namespace Aethoria.Characters
         private float floorY;
         private float maxRise;
         private Vector3 velocity;
+        // 흔들림을 뺀 실제 카메라 위치. 흔들림 값을 transform에 그대로 더하면 다음 프레임 SmoothDamp의 출발점에 쌓여서
+        // (특히 위쪽으로만 흔들 때) 카메라가 점점 밀려 날아갔다. 따라가기는 이 값으로 하고, 흔들림은 그릴 때만 더한다.
+        private Vector3 basePosition;
         private float defaultSmoothTime = -1f;
 
         // 연출용 클로즈업: orthographicSize를 zoomTarget까지 부드럽게 바꾼다. 바닥이 화면에서 같은 높이에 오도록 카메라 높이도
@@ -51,7 +54,9 @@ namespace Aethoria.Characters
             mapRight = mapXMax + 1f; // 타일 좌표는 왼쪽 끝 기준이라 오른쪽 벽은 +1 지점
             RecalculateBounds();
 
-            transform.position = new Vector3(Mathf.Clamp(target.position.x, minX, maxX), DesiredY(), transform.position.z);
+            basePosition = new Vector3(Mathf.Clamp(target.position.x, minX, maxX), DesiredY(), transform.position.z);
+            transform.position = basePosition;
+            velocity = Vector3.zero;
         }
 
         // 보스 등장 연출처럼 잠깐 다른 대상을 비출 때 쓴다. 맵 범위/높이는 그대로 두고 따라갈 대상과
@@ -118,8 +123,9 @@ namespace Aethoria.Characters
             }
 
             float desiredX = Mathf.Clamp(target.position.x, minX, maxX);
-            Vector3 desired = new Vector3(desiredX, DesiredY(), transform.position.z);
-            transform.position = Vector3.SmoothDamp(transform.position, desired, ref velocity, smoothTime);
+            Vector3 desired = new Vector3(desiredX, DesiredY(), basePosition.z);
+            basePosition = Vector3.SmoothDamp(basePosition, desired, ref velocity, smoothTime);
+            transform.position = basePosition;
 
             if (shakeTime > 0f)
             {

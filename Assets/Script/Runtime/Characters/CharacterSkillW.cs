@@ -6,6 +6,7 @@ using Aethoria.Monsters;
 namespace Aethoria.Characters
 {
     // W = 악마의 손. 바라보는 방향 앞에 포탈을 열어 악마의 손을 뻗어내, 일정 시간 동안 전방 범위의 적을 연타한다.
+    // 손은 시전한 자리에 남아 혼자 연타하므로, 시전 모션만 끝나면 플레이어는 바로 움직일 수 있다.
     [RequireComponent(typeof(Character))]
     [RequireComponent(typeof(CharacterMovement2D))]
     [RequireComponent(typeof(WSkillSpriteAnimator))]
@@ -82,6 +83,8 @@ namespace Aethoria.Characters
             StartCoroutine(CastRoutine());
         }
 
+        // 시전 모션(포탈을 열고 손을 뻗었다 거두는 동작)이 한 번 끝나면 바로 다시 움직일 수 있다.
+        // 악마의 손은 시전한 자리에 남아 혼자 연타하고(HandRoutine), 플레이어가 떠나도 그 자리를 계속 때린다.
         private IEnumerator CastRoutine()
         {
             isBusy = true;
@@ -91,32 +94,39 @@ namespace Aethoria.Characters
             float sign = facing.x < 0f ? -1f : 1f;
             skillAnimator.Play(facing);
 
-            yield return new WaitForSeconds(skillAnimator.FrameDuration * handSpawnFrame);
+            float spawnDelay = skillAnimator.FrameDuration * handSpawnFrame;
+            yield return new WaitForSeconds(spawnDelay);
 
-            Vector2 feet = transform.position;
-            var hand = DemonHandEffect.Create(handEffectPath, feet + new Vector2(sign * handOffset.x, handOffset.y), sign,
+            Vector2 anchor = transform.position;
+            var hand = DemonHandEffect.Create(handEffectPath, anchor + new Vector2(sign * handOffset.x, handOffset.y), sign,
                 handFrameDuration, handLoopStart, handLoopEnd, sortingOrder: 3);
+            StartCoroutine(HandRoutine(hand, anchor, sign));
 
-            // 손이 다 뻗어나온 뒤부터 연타한다.
-            yield return new WaitForSeconds(handFrameDuration * handLoopStart);
-
-            for (int i = 0; i < hitCount; i++)
-            {
-                DealDamage(sign);
-                yield return new WaitForSeconds(hitInterval);
-            }
-
-            if (hand != null) hand.Release();
+            // 손을 뻗은 자세에 머물지 않고 거두는 프레임까지 이어서 재생한 뒤 조작을 돌려준다.
             skillAnimator.Release();
-            yield return new WaitForSeconds(skillAnimator.OutroDuration);
+            yield return new WaitForSeconds(Mathf.Max(0f, skillAnimator.IntroDuration - spawnDelay) + skillAnimator.OutroDuration);
 
             movement.SetInputLocked(false);
             isBusy = false;
         }
 
-        private void DealDamage(float sign)
+        private IEnumerator HandRoutine(DemonHandEffect hand, Vector2 anchor, float sign)
         {
-            Vector2 center = (Vector2)transform.position + new Vector2(sign * hitBoxCenter.x, hitBoxCenter.y);
+            // 손이 다 뻗어나온 뒤부터 연타한다.
+            yield return new WaitForSeconds(handFrameDuration * handLoopStart);
+
+            for (int i = 0; i < hitCount; i++)
+            {
+                DealDamage(anchor, sign);
+                yield return new WaitForSeconds(hitInterval);
+            }
+
+            if (hand != null) hand.Release();
+        }
+
+        private void DealDamage(Vector2 anchor, float sign)
+        {
+            Vector2 center = anchor + new Vector2(sign * hitBoxCenter.x, hitBoxCenter.y);
             var hits = Physics2D.OverlapBoxAll(center, hitBoxSize, 0f);
 
             foreach (var hit in hits)

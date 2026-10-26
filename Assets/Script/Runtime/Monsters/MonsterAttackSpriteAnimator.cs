@@ -23,6 +23,8 @@ namespace Aethoria.Monsters
         public bool HasFrames => frames != null && frames.Length > 0;
         // 리듬 전투 화면이 몬스터 공격 모션으로 그대로 가져다 쓴다(기본 클립만).
         public Sprite[] Frames => frames;
+        // Configure로 정한 기본 공격 모션 길이. 일반 몬스터 AI가 피해 타이밍을 이 길이에 맞춘다.
+        public float DefaultDuration => defaultDuration;
 
         private void Awake()
         {
@@ -82,10 +84,30 @@ namespace Aethoria.Monsters
             StartPlaying(clips[clipName], duration);
         }
 
+        // 기를 모으는 모션처럼 끝나지 않고 계속 도는 클립. Stop이나 다른 Play를 부를 때까지 반복한다.
+        public void PlayClipLoop(string clipName, float cycleDuration)
+        {
+            if (!HasClip(clipName)) return;
+            if (playRoutine != null) StopCoroutine(playRoutine);
+            playRoutine = StartCoroutine(LoopRoutine(clips[clipName], cycleDuration));
+        }
+
         private void StartPlaying(Sprite[] clip, float duration)
         {
             if (playRoutine != null) StopCoroutine(playRoutine);
             playRoutine = StartCoroutine(PlayRoutine(clip, duration));
+        }
+
+        private IEnumerator LoopRoutine(Sprite[] clip, float cycleDuration)
+        {
+            if (walkAnimator != null) walkAnimator.enabled = false;
+
+            float frameDuration = cycleDuration / clip.Length;
+            for (int i = 0; ; i = (i + 1) % clip.Length)
+            {
+                spriteRenderer.sprite = clip[i];
+                yield return new WaitForSeconds(frameDuration);
+            }
         }
 
         // 경직 등으로 패턴이 중간에 끊겼을 때 호출해서, 즉시 걷기 애니메이터에 제어권을 돌려준다.

@@ -55,6 +55,8 @@ namespace Aethoria.Characters
                 }
             }
 
+            if (movement.IsInputLocked) return;
+
             var keyboard = Keyboard.current;
             if (keyboard != null && keyboard.aKey.wasPressedThisFrame)
             {

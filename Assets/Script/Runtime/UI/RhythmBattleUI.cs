@@ -644,6 +644,12 @@ namespace Aethoria.UI
         // 스킬을 마음껏 시험해 보도록 내 턴마다 필살 게이지를 가득 채우고, 몬스터 체력 대신 누적 피해를 보여준다.
         private bool isPractice;
         private float practiceDamageTotal;
+        // 릴리의 리듬 대결(미니게임). 상대는 GameBootstrap.CreateMinigameOpponent가 만든 화면 밖의 몬스터라 경험치/드랍이 없다.
+        // 플레이어는 체력을 가득 채우고 시작하고, 쓰러질 만큼 맞으면 체력 1로 버티며 진 것으로 끝난다(Character.SurviveLethalHit).
+        // 끝나면 대결 전 체력으로 되돌리고 상대를 지운 뒤 결과(이겼는지)를 알려 준다. 루나벨전이어도 도주할 수 있고, 아이템은 쓸 수 없다.
+        private bool isMinigame;
+        private float minigameSavedHp;
+        private System.Action<bool> minigameFinished;
         private float telegraphDuration;
         private float blockWindow;
         private float perfectWindow;
@@ -748,7 +754,24 @@ namespace Aethoria.UI
             var dash = targetPlayer.GetComponent<CharacterSkillDash>();
             if (dash != null && dash.IsDashing) return false;
 
+            isMinigame = false;
             Begin(targetMonster, targetPlayer);
+            return true;
+        }
+
+        // 릴리의 리듬 대결을 연다. onFinished(won)은 대결 창이 닫힌 뒤 불린다(도주하거나 지면 false).
+        public bool BeginMinigame(Monster opponent, Character targetPlayer, System.Action<bool> onFinished)
+        {
+            if (IsOpen) return false;
+            if (opponent == null || opponent.IsDead) return false;
+            if (targetPlayer == null || targetPlayer.IsDead) return false;
+
+            isMinigame = true;
+            minigameFinished = onFinished;
+            minigameSavedHp = targetPlayer.CurrentHp;
+            targetPlayer.SurviveLethalHit = true;
+            targetPlayer.Heal(targetPlayer.MaxHp);
+            Begin(opponent, targetPlayer);
             return true;
         }
 
@@ -765,7 +788,7 @@ namespace Aethoria.UI
             sandDragonEnemyTurns = 0;
             battleBackground.gameObject.SetActive(isLunabelBattle && battleBackground.texture != null);
             laneBackdrop.gameObject.SetActive(battleBackground.gameObject.activeSelf);
-            fleeLocked = isLunabelBattle;
+            fleeLocked = isLunabelBattle && !isMinigame;
             fleeLockAnimated = false;
             lunabelPhaseOneTurns = 0;
             useLunabelNotes = false;
@@ -787,6 +810,7 @@ namespace Aethoria.UI
 
             monsterNameLabel.text = monster.Data != null ? monster.Data.monsterName : "몬스터";
             if (isPractice) monsterNameLabel.text += " (연습)";
+            if (isMinigame) monsterNameLabel.text += " (리듬 대결)";
             SetupMonsterAnimation();
 
             // 플레이어는 왼쪽, 몬스터는 오른쪽에서 서로 마주 본다. 대기 애니메이션은 매 프레임
@@ -870,14 +894,7 @@ namespace Aethoria.UI
 
             if (isLunabelBattle && lunabelSplashFrames.Length > 0)
             {
-                lunabelSplashImage.gameObject.SetActive(true);
-                foreach (var frame in lunabelSplashFrames)
-                {
-                    lunabelSplashImage.sprite = frame;
-                    yield return new WaitForSecondsRealtime(LunabelSplashFrameInterval);
-                }
-                yield return new WaitForSecondsRealtime(LunabelSplashHold);
-                lunabelSplashImage.gameObject.SetActive(false);
+                yield return PlayLunabelSplash();
             }
             else if (battleSplashFrames.Length > 0)
             {
@@ -1086,7 +1103,12 @@ namespace Aethoria.UI
                 turnRoutine = null;
             }
 
-            if (fled && monster != null && player != null)
+            bool wasMinigame = isMinigame;
+            bool wonMinigame = monster != null && monster.IsDead;
+            Monster minigameOpponent = monster;
+            Character minigamePlayer = player;
+
+            if (fled && monster != null && player != null && !isMinigame)
             {
                 lastMonster = monster;
                 cooldownUntil = Time.unscaledTime + FleeCooldown;
@@ -1116,6 +1138,20 @@ namespace Aethoria.UI
             monster = null;
             player = null;
             playerMovement = null;
+
+            if (wasMinigame)
+            {
+                isMinigame = false;
+                if (minigamePlayer != null)
+                {
+                    minigamePlayer.SurviveLethalHit = false;
+                    minigamePlayer.RestoreHp(minigameSavedHp);
+                }
+                if (minigameOpponent != null) Destroy(minigameOpponent.gameObject);
+                var finished = minigameFinished;
+                minigameFinished = null;
+                finished?.Invoke(wonMinigame);
+            }
         }
 
         // 도주 직후 유예 시간 동안 그 몬스터를 깜빡이게 하고, 플레이어와 몸이 부딪히지 않게 해서
@@ -1145,9 +1181,28 @@ namespace Aethoria.UI
 
         // 플레이어/몬스터 대기 애니메이션만 여기서 돈다. 입력(↑/↓ 판정, 행동 선택)은 각 코루틴이 직접 읽는다.
         // Esc로 바로 도망치던 것은 없앴다 — 전투에서 빠져나가려면 내 턴의 행동 선택에서 도주를 골라야 한다.
+        // 전투 화면(고정 크기)을 지금 캔버스 안에 비율 그대로 꽉 차게 맞춘다. 남는 위아래/양옆은 암전 판이 가린다.
+        private void FitContentToScreen()
+        {
+            if (contentRoot == null || panel == null) return;
+            var parentRect = ((RectTransform)panel.transform).rect;
+            var contentRect = (RectTransform)contentRoot.transform;
+            Vector2 size = contentRect.sizeDelta;
+            if (size.x <= 0f || size.y <= 0f || parentRect.width <= 0f || parentRect.height <= 0f) return;
+            float scale = Mathf.Min(parentRect.width / size.x, parentRect.height / size.y);
+            contentRect.localScale = new Vector3(scale, scale, 1f);
+        }
+
         private void Update()
         {
-            if (!IsOpen) return;
+            if (IsOpen) FitContentToScreen();
+            if (!IsOpen || playingFieldIntro) return;
+
+            if (MinigameLost)
+            {
+                EndBattle(fled: false);
+                return;
+            }
 
             if (!isPlayingAttackAnim && playerIdleFrames.Length > 1)
             {
@@ -1273,7 +1328,10 @@ namespace Aethoria.UI
             SetMonsterFrame(monsterIdleFrames[monsterFrameIndex]);
         }
 
-        private bool BattleEnded() => !IsOpen || monster == null || monster.IsDead || player == null || player.IsDead;
+        private bool BattleEnded() => !IsOpen || monster == null || monster.IsDead || player == null || player.IsDead || MinigameLost;
+
+        // 리듬 대결에서는 쓰러지지 않고 체력 1로 버티므로, 체력이 1까지 떨어지면 진 것이다.
+        private bool MinigameLost => isMinigame && player != null && player.CurrentHp <= 1f;
 
         // 턴 시작마다 그 턴의 로고 배너를 잠깐 띄웠다 지운다.
         private IEnumerator ShowTurnBanner(Sprite sprite)
@@ -2309,7 +2367,8 @@ namespace Aethoria.UI
         private const float FleeBlockedLinePause = 0.9f;
         private const float FleeBlockedWaveDamageMultiplier = 2f;
 
-        private bool BossBlocksFlee => isBossBattle && monster.GetComponent<BossAI>() != null && swordWaveFrames.Length > 0;
+        // 리듬 대결(미니게임)에서는 도주가 곧 그만두기라 막지 않는다.
+        private bool BossBlocksFlee => isBossBattle && !isMinigame && monster.GetComponent<BossAI>() != null && swordWaveFrames.Length > 0;
 
         private IEnumerator BossBlockFlee()
         {
@@ -2815,6 +2874,57 @@ namespace Aethoria.UI
             StartCoroutine(FleeLockRoutine());
         }
 
+        private IEnumerator PlayLunabelSplash()
+        {
+            lunabelSplashImage.gameObject.SetActive(true);
+            foreach (var frame in lunabelSplashFrames)
+            {
+                lunabelSplashImage.sprite = frame;
+                yield return new WaitForSecondsRealtime(LunabelSplashFrameInterval);
+            }
+            yield return new WaitForSecondsRealtime(LunabelSplashHold);
+            lunabelSplashImage.gameObject.SetActive(false);
+        }
+
+        // ---- 필드 루나벨전 등장 연출 ----
+        // 리듬 전투는 이제 릴리의 미니게임에서만 열리므로, 필드 루나벨전에서는 등장 연출(LunabelIntroCutscene)이 가시 폭풍 뒤에
+        // 이걸 불러 리듬 전투 화면의 연출 부분만 빌려 쓴다: 암전 → 루나벨 이름 카드 → FINAL BATTLE → 암전이 걷힌다.
+        // 전투 UI(contentRoot)는 열지 않고, 월드 시간도 멈추지 않는다(연출이 조작과 보스 AI를 이미 잡아 두고 있다).
+        private const float FieldIntroFadeOut = 0.35f;
+        private bool playingFieldIntro;
+
+        public IEnumerator PlayLunabelFieldIntro()
+        {
+            if (panel == null || IsOpen) yield break;
+            playingFieldIntro = true;
+
+            contentRoot.SetActive(false);
+            battleSplashImage.gameObject.SetActive(false);
+            Color baseColor = dimBackdrop.color;
+            panel.SetActive(true);
+            panel.transform.SetAsLastSibling();
+
+            for (float t = 0f; t < BlackoutFadeDuration; t += Time.unscaledDeltaTime)
+            {
+                dimBackdrop.color = new Color(baseColor.r, baseColor.g, baseColor.b, t / BlackoutFadeDuration);
+                yield return null;
+            }
+            dimBackdrop.color = new Color(baseColor.r, baseColor.g, baseColor.b, 1f);
+
+            yield return LunabelNameCard();
+            if (lunabelSplashFrames.Length > 0) yield return PlayLunabelSplash();
+
+            for (float t = 0f; t < FieldIntroFadeOut; t += Time.unscaledDeltaTime)
+            {
+                dimBackdrop.color = new Color(baseColor.r, baseColor.g, baseColor.b, 1f - t / FieldIntroFadeOut);
+                yield return null;
+            }
+            panel.SetActive(false);
+            dimBackdrop.color = new Color(baseColor.r, baseColor.g, baseColor.b, 1f);
+            contentRoot.SetActive(true);
+            playingFieldIntro = false;
+        }
+
         // ---- 루나벨 이름 카드 ----
         // 루나벨전이 열리면 암전 직후, BATTLE 연출 전에 나온다: 화면 가득 루나벨 일러스트(UI/LunabelIntro, 16:9)가 서서히
         // 떠오르고, 아래쪽 어두운 띠 위 가운데에 핏빛 풀네임 "Lunabel Cruora"(Sprite/UI/Lunabel Curora를 글자별로 자른 UI/LunabelName/letter_01~13)가
@@ -3194,6 +3304,7 @@ namespace Aethoria.UI
         // 포션을 하나 마셔 체력을 회복한다. 마셨으면 null, 못 마시면 그 이유(선택 창에 띄울 안내)를 돌려준다.
         private string TryDrinkPotion()
         {
+            if (isMinigame) return "리듬 대결에서는 아이템을 쓸 수 없어요";
             var potion = ItemDatabase.Potion;
             var inventory = PlayerInventory;
             if (inventory == null || inventory.GetCount(potion.id) <= 0) return "포션이 없어요";
@@ -3762,13 +3873,16 @@ namespace Aethoria.UI
             dimBackdrop.color = new Color(0.03f, 0.02f, 0.05f, 1f);
             dimBackdrop.raycastTarget = true;
 
+            // 전투 화면은 배경 그림(1672x941) 비율 그대로, 캔버스 높이 720 기준 크기(PxToCanvas)로 고정해 가운데에 둔다.
+            // 예전에는 화면 전체에 늘려 깔아서, 16:9가 아닌 화면(16:10 전체화면, 가로로 긴 창 등)에서는 틀/레인은 늘어나는데
+            // 날아오는 노드는 고정 배율(PxToCanvas)로 자리를 잡아 레인/판정 원과 어긋났다. 이제 화면에 맞춰 통째로 확대/축소한다(FitContentToScreen).
             contentRoot = new GameObject("Content", typeof(RectTransform));
             var contentRect = (RectTransform)contentRoot.transform;
             contentRect.SetParent(rect, false);
-            contentRect.anchorMin = Vector2.zero;
-            contentRect.anchorMax = Vector2.one;
-            contentRect.offsetMin = Vector2.zero;
-            contentRect.offsetMax = Vector2.zero;
+            contentRect.anchorMin = contentRect.anchorMax = new Vector2(0.5f, 0.5f);
+            contentRect.pivot = new Vector2(0.5f, 0.5f);
+            contentRect.sizeDelta = new Vector2(ImageWidth, ImageHeight) * PxToCanvas;
+            contentRect.anchoredPosition = Vector2.zero;
 
             // 최종보스(루나벨)전에서만 전투 틀 뒤에 깔리는 배경(절망의 언덕). 틀 가운데가 투명해서 그 사이로 비친다.
             // 노드/초상화가 묻히지 않게 어둡게 깔고, 화면 비율이 달라도 빈틈 없이 덮는다(EnvelopeParent).

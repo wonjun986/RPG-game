@@ -130,7 +130,7 @@ namespace Aethoria.Data
             description = "강한 적이 쓰러지며 남긴 기운이 굳어 생긴 수정구.\n깎인 면마다 보랏빛 광채가 일렁인다.",
         };
 
-        // 리듬 전투 소모품. 내 턴에 "아이템"으로 마시면 체력을 회복하고 그 턴이 끝난다(RhythmBattleUI).
+        // 회복 소모품. 필드에서 F로 마시면 체력을 회복한다(CharacterPotionUse).
         // 새 캐릭터는 몇 개 들고 시작하고(GameBootstrap), 노아의 상점 기타 탭에서도 산다.
         public static readonly ItemData Potion = new ItemData
         {
@@ -140,7 +140,7 @@ namespace Aethoria.Data
             category = ItemCategory.Misc,
             rarity = ItemRarity.Common,
             flavorText = "보랏빛 약물이 찰랑이는 회복 포션.",
-            description = "전투 중 내 턴에 \"아이템\"으로 마시면 체력을 40 회복한다.\n마시고 나면 그 턴은 끝난다.",
+            description = "F 키로 마시면 체력을 40 회복한다.",
             healAmount = 40f,
             forSale = true,
             shopPrice = 50,

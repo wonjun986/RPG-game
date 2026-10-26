@@ -9,8 +9,9 @@ namespace Aethoria.Stages
 {
     // 보스방 등장 연출. 보스 기사는 맵 오른쪽 끝에서 대기 모션으로 서 있고, 방에 들어오면 플레이어 조작을 막은 채
     // 카메라가 보스 쪽으로 천천히 넘어간다. 보스 대화창(UI/BossKnight_Talk)으로 대사를 [Z]/Enter로 넘기다가,
-    // 마지막 대사가 끝나면 카메라가 플레이어에게 돌아오고 보스가 맵을 가로질러 점프 내려찍기로 뛰어든다.
-    // 내려찍기 피해 없이 플레이어 바로 앞에 닿는 순간 조작을 풀고 곧바로 리듬전투가 열린다(BossAI.BeginFightWithJump).
+    // 마지막 대사가 끝나면 카메라가 플레이어에게 돌아오고 보스가 맵을 가로질러 네크로시아 머리 위로 날아든다.
+    // 떨어져 내리기 직전 네크로시아가 대시로 보스 밑을 빠져나가 피하고, 보스가 빈 자리를 내려찍는 순간
+    // 땅이 울리며 조작이 풀리고 곧바로 실시간 전투가 시작된다(BossAI.BeginFightWithJump, 내려찍기 피해 없음).
     // 이 연출을 이미 본 세이브(두 번째 만남부터)는 Esc를 누르면 남은 대사를 건너뛰고 바로 점프로 넘어간다.
     public class BossIntroCutscene : MonoBehaviour
     {
@@ -39,6 +40,12 @@ namespace Aethoria.Stages
         private const float DelayBeforeJump = 0.6f;
         // 맵을 거의 끝에서 끝까지 뛰어오는 거리라 평소 점프(1.4초)보다 길게 체공한다.
         private const float IntroJumpDuration = 1.9f;
+        // 보스가 공중에 머무는 시간 중 이만큼 지났을 때 대시로 피한다(착지 직전에 빠져나가야 아슬아슬해 보인다).
+        private const float DodgeAtAirFraction = 0.6f;
+        private const float DodgeDashDistance = 4.5f;
+        private const float DodgeDashDuration = 0.25f;
+        private const float LandingShakeDuration = 0.35f;
+        private const float LandingShakeMagnitude = 0.25f;
 
         private static readonly string[] Lines =
         {
@@ -46,6 +53,13 @@ namespace Aethoria.Stages
             "숲의 기사들을 쓰러뜨린 것이 너인가. 그 낫에서 죽음의 냄새가 나는구나.",
             "나는 숲의 기사단장 알리아스. 이 숲의 끝은 내가 지킨다. 지나가고 싶다면, 내 검을 넘어서라.",
             "자, 와라!",
+        };
+
+        // 체력이 절반 아래로 떨어져 땅에 검을 꽂은 알리아스의 대사(BossAI.EnrageRoutine이 이 대사가 끝나길 기다렸다가 검을 치켜든다).
+        private static readonly string[] EnrageLines =
+        {
+            "...크윽. 이 내가, 무릎을 꿇다니.",
+            "좋다, 사신이여. 기사단장의 이름을 걸고... 지금부터는 전력이다!",
         };
 
         private BossAI boss;
@@ -69,6 +83,19 @@ namespace Aethoria.Stages
             this.skippable = skippable;
             this.onShown = onShown;
             boss.HoldForIntro();
+            boss.EnrageTalk = PlayEnrageLines;
+        }
+
+        private IEnumerator PlayEnrageLines()
+        {
+            foreach (var line in EnrageLines)
+            {
+                ShowBossLine(dialogueUI, line);
+                // 대사가 바뀐 그 프레임의 입력으로 바로 다음 대사가 넘어가지 않게 한 프레임 쉰다.
+                yield return null;
+                while (!AdvancePressed()) yield return null;
+            }
+            dialogueUI?.Hide();
         }
 
         private void Start()
@@ -82,7 +109,7 @@ namespace Aethoria.Stages
         {
             if (playerMovement != null)
             {
-                playerMovement.SetInputLocked(true);
+                playerMovement.SetCutsceneLocked(true);
                 playerMovement.Face(Vector2.right);
             }
             if (cameraFollow != null) cameraFollow.SetTarget(boss.transform, CameraPanSmoothTime);
@@ -119,10 +146,28 @@ namespace Aethoria.Stages
 
             yield return new WaitForSeconds(DelayBeforeJump);
 
-            boss.BeginFightWithJump(IntroJumpDuration, Finish);
+            boss.BeginFightWithJump(IntroJumpDuration, OnBossLanded);
+
+            // 보스가 네크로시아 머리 위로 떨어져 내리는 순간, 네크로시아가 대시로 보스 밑을 빠져나가 내려찍기를 피한다.
+            float airStart = IntroJumpDuration * BossAI.JumpTakeoffFraction;
+            float airTime = IntroJumpDuration * (BossAI.JumpImpactFraction - BossAI.JumpTakeoffFraction);
+            yield return new WaitForSeconds(airStart + airTime * DodgeAtAirFraction);
+            var dash = player != null ? player.GetComponent<CharacterSkillDash>() : null;
+            if (dash != null)
+            {
+                playerMovement?.Face(Vector2.right);
+                dash.PlayCutsceneDash(DodgeDashDistance, DodgeDashDuration);
+            }
 
             // 점프가 도중에 끊겨 착지 콜백이 안 오더라도 조작이 영영 잠기지 않게 한다.
             yield return new WaitForSeconds(IntroJumpDuration + 0.5f);
+            Finish();
+        }
+
+        // 보스가 네크로시아가 서 있던 자리에 내려찍는 순간 땅이 울리고, 곧바로 전투가 시작된다.
+        private void OnBossLanded()
+        {
+            if (cameraFollow != null) cameraFollow.Shake(LandingShakeDuration, LandingShakeMagnitude);
             Finish();
         }
 
@@ -146,7 +191,7 @@ namespace Aethoria.Stages
             if (finished) return;
             finished = true;
 
-            if (playerMovement != null) playerMovement.SetInputLocked(false);
+            if (playerMovement != null) playerMovement.SetCutsceneLocked(false);
             if (cameraFollow != null)
             {
                 if (player != null) cameraFollow.SetTarget(player.transform, CameraPanSmoothTime);

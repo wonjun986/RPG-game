@@ -41,18 +41,29 @@ namespace Aethoria.Monsters
             transform.position += (Vector3)(direction * step);
             remainingDistance -= step;
 
-            Vector2 hitCenter = (Vector2)transform.position + hitOffset;
-            foreach (var hit in Physics2D.OverlapCircleAll(hitCenter, hitRadius))
+            // 플레이어 충돌 판정은 발밑(높이 0.5)뿐이라 물리 질의로는 허리 높이로 날아가는 손이 그 위로 스쳐 지나갔다.
+            // 그림 속 몸통(발밑에서 BodyHeight까지)과 손 판정 원이 겹치는지 직접 잰다.
+            if (target == null) target = Object.FindAnyObjectByType<Character>();
+            if (target != null && !target.IsDead && TouchesBody(target.transform.position))
             {
-                var character = hit.GetComponent<Character>();
-                if (character == null || character.IsDead) continue;
-
-                character.TakeDamage(CombatMath.PhysicalDamage(damageAttack, character.Stats.defense), transform.position);
+                target.TakeDamage(CombatMath.PhysicalDamage(damageAttack, target.Stats.defense), transform.position);
                 Destroy(gameObject);
                 return;
             }
 
             if (remainingDistance <= 0f) Destroy(gameObject);
+        }
+
+        private const float BodyWidth = 0.6f;
+        private const float BodyHeight = 1.5f; // 네크로시아 그림 키
+        private Character target;
+
+        private bool TouchesBody(Vector2 feet)
+        {
+            Vector2 hitCenter = (Vector2)transform.position + hitOffset;
+            float closestX = Mathf.Clamp(hitCenter.x, feet.x - BodyWidth * 0.5f, feet.x + BodyWidth * 0.5f);
+            float closestY = Mathf.Clamp(hitCenter.y, feet.y, feet.y + BodyHeight);
+            return (new Vector2(closestX, closestY) - hitCenter).sqrMagnitude <= hitRadius * hitRadius;
         }
     }
 }

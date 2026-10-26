@@ -229,6 +229,18 @@ namespace Aethoria.UI
                 LunabelPlateX0, LunabelPlateY0, LunabelPlateX1, LunabelPlateY1, null, LunabelTextBottom, LunabelTextRight);
         }
 
+        // 전투 도중 루나벨이 외치는 대사를 화면 한가운데에 띄운다(2페이즈 개막의 광기 어린 웃음).
+        // 다음 Show/ShowLunabel 때는 FitBoxToFrame이 원래 자리(화면 아래)로 되돌린다.
+        public void ShowLunabelCentered(string line)
+        {
+            ShowLunabel(line);
+            var parent = boxRect.parent as RectTransform;
+            if (parent == null) return;
+            float centeredY = (parent.rect.height - boxRect.sizeDelta.y) * 0.5f;
+            boxRect.anchoredPosition = new Vector2(boxRect.anchoredPosition.x, centeredY);
+            BringToFront();
+        }
+
         // 같은 캔버스에서 나중에 켜진 창(리듬 전투 화면 등)보다 위에 대화창을 그린다.
         public void BringToFront()
         {

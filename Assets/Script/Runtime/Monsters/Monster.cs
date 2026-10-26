@@ -31,6 +31,13 @@ namespace Aethoria.Monsters
         // true면 쓰러질 만큼의 피해를 받아도 체력 1로 버틴다(루나벨이 1페이즈에서 한 방에 죽지 않고 2페이즈로 넘어가게).
         public bool SurviveLethalHit { get; set; }
 
+        // true면 스킬이 아닌 공격(기본 공격)으로는 체력 1에서 버티고, 스킬 피해로만 쓰러진다(튜토리얼 숲의 정령).
+        public bool SkillFinishOnly { get; set; }
+
+        // 릴리의 리듬 대결(미니게임)에 쓰려고 잠깐 만든 상대. 쓰러져도 AnyDied를 알리지 않아서
+        // 경험치/골드/드랍/퀘스트/도감에 잡히지 않고, 각 AI도 필드에서 움직이거나 공격하지 않는다.
+        public bool IsMinigameOpponent { get; set; }
+
         public event Action<Monster> OnDied;
         // 어느 몬스터든 죽으면 발생한다. 퀘스트처럼 스테이지와 상관없이 처치 수를 세야 하는 쪽에서 구독한다.
         public static event Action<Monster> AnyDied;
@@ -58,11 +65,12 @@ namespace Aethoria.Monsters
         public bool LastHitWasCritical { get; private set; }
 
         // 치명타면 데미지 숫자를 주황색으로 크게 띄운다.
-        public void TakeDamage(float finalDamage, bool isCritical = false)
+        public void TakeDamage(float finalDamage, bool isCritical = false, bool isSkill = false)
         {
             if (IsDead || finalDamage <= 0f) return;
 
-            currentHp = Mathf.Max(SurviveLethalHit ? Mathf.Min(1f, currentHp) : 0f, currentHp - finalDamage);
+            bool survive = SurviveLethalHit || (SkillFinishOnly && !isSkill);
+            currentHp = Mathf.Max(survive ? Mathf.Min(1f, currentHp) : 0f, currentHp - finalDamage);
             LastHitWasCritical = isCritical;
             OnDamaged?.Invoke(this, finalDamage);
             if (isCritical) DamagePopup.Create(transform.position, finalDamage, CriticalPopupColor, 1.4f);
@@ -71,7 +79,7 @@ namespace Aethoria.Monsters
             if (currentHp <= 0f)
             {
                 OnDied?.Invoke(this);
-                AnyDied?.Invoke(this);
+                if (!IsMinigameOpponent) AnyDied?.Invoke(this);
                 if (DestroyOnDeath) Destroy(gameObject);
             }
         }

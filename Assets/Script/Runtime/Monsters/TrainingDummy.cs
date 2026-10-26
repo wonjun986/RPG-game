@@ -1,11 +1,9 @@
 using System.Collections;
 using UnityEngine;
-using Aethoria.Characters;
-using Aethoria.UI;
 
 namespace Aethoria.Monsters
 {
-    // 연습장 허수아비. 플레이어가 닿으면 일반 몬스터처럼 리듬 전투(연습 전투)가 시작된다.
+    // 연습장 허수아비. 기본 공격과 스킬을 마음껏 시험해 보는 과녁이다.
     // Monster로 만들어 두어 데미지 계산/숫자가 실제 전투와 똑같이 적용되지만,
     // 맞을 때마다 체력을 가득 되돌려서 절대 쓰러지지 않는다(처치 경험치/퀘스트 카운트도 없음).
     // - 맞으면 흔들리는 프레임(2~4)을 한 번 재생하고 기본 자세(1)로 돌아온다.
@@ -20,20 +18,14 @@ namespace Aethoria.Monsters
         [SerializeField] private float returnDelay = 0.8f;
         [SerializeField] private float returnSpeed = 4f;
         [SerializeField] private float labelHeight = 2.7f;
-        // 플레이어 중심이 이 거리 안으로 들어오면 접촉으로 보고 연습 전투를 건다(몸통 폭 1.2 + 여유).
-        [SerializeField] private float contactRange = 1.2f;
-        // 플레이어가 이만큼 위에 있으면(점프로 넘어가는 중) 접촉으로 치지 않는다(MonsterAI와 같은 기준).
-        [SerializeField] private float jumpOverHeight = 2f;
 
         private Monster monster;
         private SpriteRenderer spriteRenderer;
         private Sprite[] frames;
-        // 리듬 전투 화면이 기본 자세(0번)와 맞을 때 흔들리는 프레임(1번~)으로 가져다 쓴다.
+        // 0번은 기본 자세, 1번부터는 맞을 때 흔들리는 프레임이다.
         public Sprite[] Frames => frames;
         private Coroutine wobbleRoutine;
         private TextMesh totalLabel;
-        private Character player;
-        private RhythmBattleUI rhythmBattleUI;
 
         private Vector3 homePosition;
         private float totalDamage;
@@ -58,8 +50,6 @@ namespace Aethoria.Monsters
         {
             homePosition = transform.position;
             monster.OnDamaged += HandleDamaged;
-            player = Object.FindFirstObjectByType<Character>();
-            rhythmBattleUI = Object.FindFirstObjectByType<RhythmBattleUI>();
         }
 
         private void OnDestroy()
@@ -114,8 +104,6 @@ namespace Aethoria.Monsters
 
         private void Update()
         {
-            TryStartPracticeBattle();
-
             if (totalLabel.gameObject.activeSelf && Time.time - lastHitTime > comboResetDelay)
             {
                 totalLabel.gameObject.SetActive(false);
@@ -126,16 +114,6 @@ namespace Aethoria.Monsters
             {
                 transform.position = Vector3.MoveTowards(transform.position, homePosition, returnSpeed * Time.deltaTime);
             }
-        }
-
-        private void TryStartPracticeBattle()
-        {
-            if (rhythmBattleUI == null || rhythmBattleUI.IsOpen || player == null || player.IsDead) return;
-
-            Vector3 offset = player.transform.position - transform.position;
-            if (offset.y > jumpOverHeight || Mathf.Abs(offset.x) > contactRange) return;
-
-            rhythmBattleUI.TryBegin(monster, player);
         }
     }
 }

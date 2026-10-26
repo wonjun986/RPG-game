@@ -11,7 +11,7 @@ namespace Aethoria.Stages
     // 네크로시아가 일정 거리까지 걸어오면: 조작을 막고 땅이 울린다 → 카메라가 빈 땅을 클로즈업 → 모래가 터지며
     // 모래룡이 땅 밑에서 솟아오른다(지하 분출 8프레임, Emerge) → 포효(포효 6프레임, Roar — 입을 크게 벌리는 순간
     // 화면이 크게 흔들리고 입에서 모래빛 충격파 고리가 연달아 퍼지며 화면이 번쩍인다 + "크아아아앙!!") →
-    // 카메라가 네크로시아를 클로즈업 → 네크로시아 대사 → 화면이 원래대로 돌아오며 네크로시아가 모래룡을 향해 대시 → 리듬전투.
+    // 카메라가 네크로시아를 클로즈업 → 네크로시아 대사 → 화면이 원래대로 돌아오며 네크로시아가 모래룡을 향해 대시 → 전투 시작.
     // 이 연출을 이미 본 세이브(두 번째 만남부터)는 Esc로 건너뛰면 모래룡이 바로 나타나고 곧장 전투가 열린다.
     public class SandDragonIntroCutscene : MonoBehaviour
     {
@@ -21,7 +21,9 @@ namespace Aethoria.Stages
         private const float RumbleDuration = 1.0f;
         private const float RumbleMagnitude = 0.06f;
         private const float CameraPanSmoothTime = 0.5f;
-        private const float DragonCloseUpSize = 2.6f;
+        // 모래룡을 두 배로 키운 뒤로는 솟아오르는 모습(키 약 7유닛)이 다 들어오도록, 기본 화면(4)보다 살짝 넓게 잡는다.
+        // 카메라는 바닥 높이를 화면에서 그대로 두므로 넓히면 위쪽이 더 보인다.
+        private const float DragonCloseUpSize = 5.2f;
         private const float PlayerCloseUpSize = 2.2f;
         private const float ZoomDuration = 0.7f;
 
@@ -31,7 +33,10 @@ namespace Aethoria.Stages
         private const float EmergeShakeMagnitude = 0.12f;
 
         // 포효(Roar 6프레임). 입을 크게 벌리는 4번째 프레임쯤(RoarImpactTiming)에 충격파가 터진다.
-        private const string RoarPath = "Art/Monsters/SandDragon/Roar";
+        // 전투 중 포효(SandDragonAI.RoarRoutine)도 같은 그림을 쓰고, 입을 벌리는 순간 BattleRoarImpact로 효과만 받아 띄운다.
+        private const string RoarPath = SandDragonAI.RoarPath;
+        private const float BattleRoarShakeDuration = 1.0f;
+        private const float BattleRoarShakeMagnitude = 0.3f;
         private const float RoarDuration = 1.3f;
         private const float RoarImpactTiming = 0.45f;
         private const float RoarHold = 1.4f;             // 충격 뒤 흔들림이 가라앉을 때까지
@@ -48,7 +53,7 @@ namespace Aethoria.Stages
         private const string RoarText = "크아아아앙!!";
 
         private const float DashDurationPerUnit = 0.03f;
-        private const float BattleGap = 2.2f; // 모래룡 몸 앞에서 멈추는 거리
+        private const float BattleGap = 4.0f; // 모래룡 몸 앞에서 멈추는 거리
 
         private static readonly string[] NecrosiaLines =
         {
@@ -96,6 +101,7 @@ namespace Aethoria.Stages
                 dragonAttack.AddClip("Roar", RoarPath);
             }
 
+            dragon.OnRoarImpact += BattleRoarImpact;
             dragon.HoldForIntro(true);
             restPosition = dragon.transform.position;
             SetDragonVisible(false);
@@ -127,7 +133,7 @@ namespace Aethoria.Stages
         {
             if (playerMovement != null)
             {
-                playerMovement.SetInputLocked(true);
+                playerMovement.SetCutsceneLocked(true);
                 playerMovement.Face(Vector2.right);
             }
             onShown?.Invoke();
@@ -248,8 +254,6 @@ namespace Aethoria.Stages
         {
             Finish();
             if (dragon != null) dragon.HoldForIntro(false);
-            var battle = Object.FindFirstObjectByType<RhythmBattleUI>();
-            if (battle != null && dragonMonster != null && player != null) battle.TryBegin(dragonMonster, player);
         }
 
         // ---- 보이기/가리기 ----
@@ -276,6 +280,29 @@ namespace Aethoria.Stages
             StartCoroutine(Shockwaves());
         }
 
+        // 전투 중 포효: 클로즈업은 하지 않고, 화면을 흔들고 번쩍이고 충격파 고리와 "크아아아앙!!"만 띄운다.
+        private void BattleRoarImpact()
+        {
+            if (cameraFollow != null) cameraFollow.Shake(BattleRoarShakeDuration, BattleRoarShakeMagnitude);
+            StartCoroutine(ScreenFlash());
+            StartCoroutine(Shockwaves());
+            StartCoroutine(FadeRoarText(CreateRoarText()));
+        }
+
+        private IEnumerator FadeRoarText(GameObject textGO)
+        {
+            var text = textGO.GetComponent<TextMesh>();
+            Color color = text.color;
+            const float duration = 1.2f;
+            for (float t = 0f; t < duration && textGO != null; t += Time.deltaTime)
+            {
+                text.color = new Color(color.r, color.g, color.b, 1f - t / duration);
+                textGO.transform.position += Vector3.up * (0.6f * Time.deltaTime);
+                yield return null;
+            }
+            if (textGO != null) Destroy(textGO);
+        }
+
         private IEnumerator ZoomPunch()
         {
             cameraFollow.ZoomTo(DragonCloseUpSize * RoarZoomPunch, 0.06f);
@@ -283,11 +310,11 @@ namespace Aethoria.Stages
             cameraFollow.ZoomTo(DragonCloseUpSize, 0.5f);
         }
 
-        // 모래룡 입 위치(원화가 오른쪽을 보므로, 뒤집혀 있으면 왼쪽). 머리는 피벗에서 약 1.6유닛 옆, 2유닛 위에 있다.
+        // 모래룡 입 위치(원화가 오른쪽을 보므로, 뒤집혀 있으면 왼쪽). 머리는 피벗에서 약 3유닛 옆, 4유닛 위에 있다.
         private Vector3 MouthPosition()
         {
             float facing = dragonRenderer != null && dragonRenderer.flipX ? -1f : 1f;
-            return restPosition + new Vector3(facing * 1.5f, 2f, 0f);
+            return dragon.transform.position + new Vector3(facing * 3f, 4f, 0f);
         }
 
         private IEnumerator Shockwaves()
@@ -370,7 +397,7 @@ namespace Aethoria.Stages
         {
             var go = new GameObject("SandDragonRoar");
             go.transform.SetParent(dragon.transform.parent, false);
-            go.transform.position = restPosition + new Vector3(0f, 3.6f, 0f);
+            go.transform.position = dragon.transform.position + new Vector3(0f, 6.4f, 0f);
             var text = go.AddComponent<TextMesh>();
             text.text = RoarText;
             text.characterSize = 0.16f;
@@ -404,7 +431,7 @@ namespace Aethoria.Stages
         {
             if (finished) return;
             finished = true;
-            if (playerMovement != null) playerMovement.SetInputLocked(false);
+            if (playerMovement != null) playerMovement.SetCutsceneLocked(false);
             if (cameraFollow != null)
             {
                 if (player != null) cameraFollow.SetTarget(player.transform, CameraPanSmoothTime);

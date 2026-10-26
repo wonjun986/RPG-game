@@ -1,13 +1,19 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using Aethoria.Bootstrap;
 using Aethoria.Characters;
+using Aethoria.Data;
+using Aethoria.Monsters;
 using Aethoria.UI;
 
 namespace Aethoria.Stages
 {
     // 엔스룸 마을 분수 광장의 릴리. 여행자들에게 들은 이야기를 적어 두는 엔스룸의 이야기꾼이라 몬스터 도감을 갖고 있다.
     // 대기 애니메이션(6프레임, 눈 깜빡임)을 반복하다가 플레이어가 가까이 오면 머리 위에 "[Z] 대화하기"를 띄운다.
-    // Z를 누르면 선택지가 뜬다: [1] 도감 보기(BestiaryUI), [2] 이야기하기(말을 걸 때마다 다음 대사), Z = 닫기(엘리와 같은 방식).
+    // Z를 누르면 선택지가 뜬다: [1] 도감 보기(BestiaryUI), [2] 이야기하기(말을 걸 때마다 다음 대사),
+    // [3] 리듬 대결(미니게임), Z = 닫기(엘리와 같은 방식).
+    // 리듬 대결: 도감에 기록된(한 번이라도 쓰러뜨린) 몬스터 중 하나를 ← →로 골라 리듬 전투(RhythmBattleUI.BeginMinigame)로 겨룬다.
+    // 이기면 그 몬스터의 골드 보상을 릴리가 준다. 지거나 도망쳐도 잃는 것은 없다(체력도 대결 전으로 돌아온다).
     // 대사는 전용 대화 프레임(UI/Lily_Talk)에 쓰고, 그림이 없으면 기본 대사 칸에 이름을 첫 줄로 붙여 쓴다.
     [RequireComponent(typeof(SpriteRenderer))]
     public class LilyNpc : MonoBehaviour
@@ -56,10 +62,18 @@ namespace Aethoria.Stages
         private BestiaryUI bestiaryUI;
         private TextMesh promptText;
         private bool hasTalkFrame;
+        private Character playerCharacter;
+        private RhythmBattleUI rhythmBattleUI;
 
-        private enum TalkState { None, Choice, Line }
+        private enum TalkState { None, Choice, Line, SelectOpponent, Battle }
 
-        private const string ChoiceLine = "무슨 이야기 할까?   [1] 도감 보기   [2] 이야기하기   [Z] 닫기";
+        private const string ChoiceLine = "무슨 이야기 할까?   [1] 도감 보기   [2] 이야기하기   [3] 리듬 대결   [Z] 닫기";
+        // 대결이 끝난 그 프레임의 Z(마지막 노드)로 결과 대사가 바로 닫히지 않게, 결과 대사는 잠깐 동안 Z를 받지 않는다.
+        private const float LineInputDelay = 0.3f;
+
+        // 리듬 대결로 고를 수 있는 상대(GameBootstrap.MinigameOpponents의 번호)와 지금 고른 칸.
+        private readonly System.Collections.Generic.List<int> opponentChoices = new System.Collections.Generic.List<int>();
+        private int opponentCursor;
 
         private bool inRange;
         private TalkState state;
@@ -72,6 +86,7 @@ namespace Aethoria.Stages
         {
             player = playerTransform;
             playerMovement = playerTransform != null ? playerTransform.GetComponent<CharacterMovement2D>() : null;
+            playerCharacter = playerTransform != null ? playerTransform.GetComponent<Character>() : null;
             dialogueUI = dialogue;
             bestiaryUI = bestiary;
         }
@@ -96,6 +111,11 @@ namespace Aethoria.Stages
             }
 
             CreatePrompt();
+        }
+
+        private void Start()
+        {
+            rhythmBattleUI = Object.FindFirstObjectByType<RhythmBattleUI>();
         }
 
         // 루트를 TargetHeight에 맞춰 줄였으니, 자식 프롬프트는 부모 배율의 역수로 되돌려 다른 NPC와 같은 크기/높이로 보이게 한다.
@@ -161,8 +181,9 @@ namespace Aethoria.Stages
         // 입력은 한 프레임에 한 번만 소비한다(다른 마을 NPC와 같은 방식).
         private void UpdateInteraction()
         {
-            // 도감이 떠 있는 동안의 입력은 그쪽 몫이다.
+            // 도감이나 리듬 대결 화면이 떠 있는 동안의 입력은 그쪽 몫이다.
             if (bestiaryUI != null && bestiaryUI.IsOpen) return;
+            if (state == TalkState.Battle || (rhythmBattleUI != null && rhythmBattleUI.IsOpen)) return;
 
             if (talking && !inRange)
             {
@@ -193,13 +214,104 @@ namespace Aethoria.Stages
                     {
                         ShowNextLine();
                     }
+                    else if (keyboard != null && keyboard.digit3Key.wasPressedThisFrame)
+                    {
+                        OpenOpponentSelect();
+                    }
                     break;
 
                 case TalkState.Line:
                     talkTimer += Time.deltaTime;
-                    if (zPressed || talkTimer >= talkDuration) EndTalk();
+                    if ((zPressed && talkTimer >= LineInputDelay) || talkTimer >= talkDuration) EndTalk();
+                    break;
+
+                case TalkState.SelectOpponent:
+                    if (keyboard == null) break;
+                    if (keyboard.leftArrowKey.wasPressedThisFrame)
+                    {
+                        opponentCursor = (opponentCursor - 1 + opponentChoices.Count) % opponentChoices.Count;
+                        ShowOpponentSelect();
+                    }
+                    else if (keyboard.rightArrowKey.wasPressedThisFrame)
+                    {
+                        opponentCursor = (opponentCursor + 1) % opponentChoices.Count;
+                        ShowOpponentSelect();
+                    }
+                    else if (zPressed || keyboard.enterKey.wasPressedThisFrame)
+                    {
+                        StartMinigame(opponentChoices[opponentCursor]);
+                    }
+                    else if (keyboard.xKey.wasPressedThisFrame)
+                    {
+                        EndTalk();
+                    }
                     break;
             }
+        }
+
+        // ---- 리듬 대결 ----
+
+        private void OpenOpponentSelect()
+        {
+            opponentChoices.Clear();
+            var opponents = GameBootstrap.MinigameOpponents;
+            for (int i = 0; i < opponents.Length; i++)
+            {
+                if (Bestiary.AdminUnlockAll || Bestiary.Kills(opponents[i].name) > 0) opponentChoices.Add(i);
+            }
+
+            if (opponentChoices.Count == 0 || rhythmBattleUI == null)
+            {
+                ShowResultLine("아직 겨룰 상대가 없네. 밖에서 몬스터를 쓰러뜨리면 도감에 적어 둘게. 그 녀석들이랑 리듬 대결을 할 수 있어!");
+                return;
+            }
+
+            state = TalkState.SelectOpponent;
+            opponentCursor = Mathf.Clamp(opponentCursor, 0, opponentChoices.Count - 1);
+            ShowOpponentSelect();
+        }
+
+        private void ShowOpponentSelect()
+        {
+            string name = GameBootstrap.MinigameOpponents[opponentChoices[opponentCursor]].name;
+            ShowLily($"누구랑 리듬 대결 해 볼래? 이기면 상금을 줄게!\n◀  {name}  ▶   [←][→] 고르기   [Z] 시작   [X] 그만두기");
+        }
+
+        private void StartMinigame(int opponentIndex)
+        {
+            var opponent = GameBootstrap.CreateMinigameOpponent(opponentIndex);
+            int reward = opponent.Data != null ? opponent.Data.goldReward : 0;
+            string name = GameBootstrap.MinigameOpponents[opponentIndex].name;
+
+            state = TalkState.Battle;
+            dialogueUI?.Hide();
+            if (!rhythmBattleUI.BeginMinigame(opponent, playerCharacter, won => FinishMinigame(won, name, reward)))
+            {
+                Destroy(opponent.gameObject);
+                ShowResultLine("음... 지금은 대결할 수 없을 것 같아. 조금 있다가 다시 와 줘!");
+            }
+        }
+
+        private void FinishMinigame(bool won, string opponentName, int reward)
+        {
+            // 대결 창이 닫히면서 조작 잠금이 풀리므로, 결과 대사를 보는 동안 다시 잠근다.
+            if (playerMovement != null) playerMovement.SetInputLocked(true);
+            if (won)
+            {
+                if (playerCharacter != null) playerCharacter.AddGold(reward);
+                ShowResultLine($"우와, {opponentName}의 리듬을 완벽하게 읽었네! 약속한 상금 {reward:N0}골드야. 또 놀러 와!");
+            }
+            else
+            {
+                ShowResultLine("아깝다~ 조금만 더 하면 됐는데! 다음엔 꼭 이길 수 있을 거야. 다시 도전해 볼래?");
+            }
+        }
+
+        private void ShowResultLine(string line)
+        {
+            state = TalkState.Line;
+            talkTimer = 0f;
+            ShowLily(line);
         }
 
         private void BeginTalk()

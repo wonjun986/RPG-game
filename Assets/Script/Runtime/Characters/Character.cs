@@ -70,6 +70,9 @@ namespace Aethoria.Characters
         public bool IsInvincible => isInvincible || postHitInvincibleRemaining > 0f;
         // 관리자 모드(AdminUI)의 무적. 스킬 무적/피격 무적과 따로 놀아서 그쪽 타이머가 끝나도 풀리지 않는다.
         public bool GodMode { get; set; }
+        // 릴리의 리듬 대결(미니게임) 동안 켜진다. 쓰러질 만큼 맞아도 체력 1로 버텨서 진짜로 쓰러지지 않는다
+        // (체력 1이 되면 대결에서 진 것으로 친다 — RhythmBattleUI).
+        public bool SurviveLethalHit { get; set; }
         public bool IsCombatLocked => isCombatLocked;
         public int CurrentExp => currentExp;
         public int ExpToNextLevel => ExperienceMath.RequiredExpForLevel(level);
@@ -208,7 +211,7 @@ namespace Aethoria.Characters
             if (isCritical) damage *= CritDamagePercent / 100f;
             damage = CombatMath.Finish(damage);
 
-            target.TakeDamage(damage, isCritical);
+            target.TakeDamage(damage, isCritical, isSkill);
             return damage;
         }
 
@@ -244,7 +247,7 @@ namespace Aethoria.Characters
             bool blocked = hitReaction ? IsInvincible : isInvincible;
             if (IsDead || blocked || GodMode || finalDamage <= 0f) return;
 
-            currentHp = Mathf.Max(0f, currentHp - finalDamage);
+            currentHp = Mathf.Max(SurviveLethalHit ? Mathf.Min(1f, currentHp) : 0f, currentHp - finalDamage);
             OnDamaged?.Invoke(this, finalDamage);
             DamagePopup.Create(transform.position, finalDamage, Color.red);
 
@@ -284,6 +287,13 @@ namespace Aethoria.Characters
 
             movement.SetInputLocked(false);
             knockbackRoutine = null;
+        }
+
+        // 릴리의 리듬 대결이 끝나면 대결 전 체력으로 되돌린다(대결 중의 피해/회복은 남기지 않는다).
+        public void RestoreHp(float hp)
+        {
+            if (IsDead) return;
+            currentHp = Mathf.Clamp(hp, 1f, MaxHp);
         }
 
         public void Heal(float amount)

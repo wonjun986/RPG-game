@@ -427,6 +427,7 @@ namespace Aethoria.Bootstrap
             ("광활한 평야 1", PlainsStage1),
             ("광활한 평야 보스 (슬라임)", PlainsStage3),
             ("잊혀진 폐허 1", RuinsStage1),
+            ("잊혀진 폐허 보스 (황금 모래룡)", RuinsStage3),
             ("푸른 바다 1", BlueSeaStage1),
             ("엔스룸 마을", EnsroomStage),
             ("천상의 신전", TempleStage),
@@ -605,15 +606,12 @@ namespace Aethoria.Bootstrap
 
         // 어둠의 숲 발판: 원화(DrakForest_scattfolding) 속 이끼 낀 바위섬/구름다리를 조각내 전용
         // 스프라이트(Art/Props/Forest)로 만들고 실제로 밟을 수 있게 올려준다.
-        // 평야/폐허와 달리 바닥이 끊김 없이 쭉 이어진 평지라, 플레이어가 아무 발판 바로 밑까지
-        // 걸어가서 제자리에서 2단 점프로 올라탈 수 있어야 한다. 2단 점프 최고 높이는
-        // jumpForce(11.3)/gravityScale(4)로 계산하면 약 3.25유닛이라 바닥 기준 2.7을 넘기지 않는다.
-        // 또한 MonsterAI.jumpOverHeight(2)보다 높이 있어야 발판 위에 서 있는 동안 바로 아래를
-        // 지나가는 기사와 부딪히지 않고 피할 수 있다 — 그래서 전부 바닥 기준 2.1~2.7 사이로 맞췄다
-        // (기사 세 마리가 한데 뭉쳐 나와도 발판으로 피해 지나갈 길을 주기 위함, SpawnKnights 쪽
-        // minSpacing도 같이 넓혔다). 가로 폭 20유닛 맵에 8개(보스 맵은 7개)를 촘촘히 깔아 거의 끊김
-        // 없이 발판을 타고 넘어갈 수 있게 했다. 보스 맵은 보스가 서는 x=5 바닥 자리 위로는 큰 발판만
-        // 높이 띄워 지나가고, 나머지는 양옆에 둔다.
+        // 바닥이 끊김 없이 쭉 이어진 평지라, 아래층 발판은 바닥에서 제자리 2단 점프(최고 약 3.25)로 오르도록 바닥 기준
+        // 2.1~2.7에 두고(MonsterAI.jumpOverHeight 2보다 높아 기사 무리를 발판 위로 피할 수 있다), 위층 발판은 아래층에서
+        // 다시 2단 점프로 오르는 4.4~5.2에 둔다(카메라가 따라 올라가 보인다). 맵마다 생김새를 다르게 했다:
+        //   1: 아래층 징검다리 + 위층 섬 세 개(처음 맵이라 길이 쉽다)
+        //   2: 가운데로 갈수록 높아지는 계단 — 위층 구름다리를 지나 맨 꼭대기 섬(6.6)까지
+        //   보스 맵: 알리아스와 땅에서 싸우도록 낮은 발판 네 개만(높이 올라가도 대각선 검기가 날아온다)
         private static void SpawnForestPlatforms(Transform parent, int floorY, int stageIndex)
         {
             switch (stageIndex)
@@ -627,25 +625,31 @@ namespace Aethoria.Bootstrap
                     SpawnPlatform(parent, "forest_platform_4", 2.1f, floorY + 2.3f, 72, ForestPropFolder);
                     SpawnPlatform(parent, "forest_platform_3", 4.3f, floorY + 2.5f, 50, ForestPropFolder);
                     SpawnPlatform(parent, "forest_platform_2", 6.6f, floorY + 2.1f, 44, ForestPropFolder);
+                    // 위층
+                    SpawnPlatform(parent, "forest_platform_6", -6.6f, floorY + 4.6f, 47, ForestPropFolder);
+                    SpawnPlatform(parent, "forest_bridge", -0.9f, floorY + 4.9f, 99, ForestPropFolder);
+                    SpawnPlatform(parent, "forest_platform_3", 5.4f, floorY + 4.7f, 50, ForestPropFolder);
                     break;
                 case 2:
-                    SpawnPlatform(parent, "forest_platform_7", -7.6f, floorY + 2.2f, 40, ForestPropFolder);
-                    SpawnPlatform(parent, "forest_platform_9", -5.8f, floorY + 2.6f, 58, ForestPropFolder);
-                    SpawnPlatform(parent, "forest_platform_5", -4.0f, floorY + 2.1f, 53, ForestPropFolder);
-                    SpawnPlatform(parent, "forest_platform_8", -2.1f, floorY + 2.5f, 29, ForestPropFolder);
-                    SpawnPlatform(parent, "forest_platform_4", 0.0f, floorY + 2.3f, 72, ForestPropFolder);
-                    SpawnPlatform(parent, "forest_bridge", 2.3f, floorY + 2.7f, 99, ForestPropFolder);
-                    SpawnPlatform(parent, "forest_platform_1", 4.9f, floorY + 2.2f, 79, ForestPropFolder);
-                    SpawnPlatform(parent, "forest_platform_6", 7.2f, floorY + 2.4f, 47, ForestPropFolder);
+                    // 양 끝 낮은 섬 → 가운데로 갈수록 높아지는 계단, 맨 위 가운데 섬.
+                    SpawnPlatform(parent, "forest_platform_7", -8.2f, floorY + 2.1f, 40, ForestPropFolder);
+                    SpawnPlatform(parent, "forest_platform_4", -5.9f, floorY + 2.5f, 72, ForestPropFolder);
+                    SpawnPlatform(parent, "forest_platform_8", -2.6f, floorY + 2.2f, 29, ForestPropFolder);
+                    SpawnPlatform(parent, "forest_platform_5", 1.6f, floorY + 2.4f, 53, ForestPropFolder);
+                    SpawnPlatform(parent, "forest_platform_6", 4.6f, floorY + 2.6f, 47, ForestPropFolder);
+                    SpawnPlatform(parent, "forest_platform_2", 7.6f, floorY + 2.2f, 44, ForestPropFolder);
+                    SpawnPlatform(parent, "forest_platform_9", -7.0f, floorY + 4.7f, 58, ForestPropFolder);
+                    SpawnPlatform(parent, "forest_platform_3", -4.2f, floorY + 5.0f, 50, ForestPropFolder);
+                    SpawnPlatform(parent, "forest_bridge", -0.6f, floorY + 4.6f, 99, ForestPropFolder);
+                    SpawnPlatform(parent, "forest_platform_1", 3.4f, floorY + 5.1f, 79, ForestPropFolder);
+                    SpawnPlatform(parent, "forest_platform_7", 6.8f, floorY + 4.6f, 40, ForestPropFolder);
+                    SpawnPlatform(parent, "forest_platform_8", 1.2f, floorY + 6.6f, 29, ForestPropFolder);
                     break;
                 default:
                     SpawnPlatform(parent, "forest_platform_7", -7.6f, floorY + 2.2f, 40, ForestPropFolder);
-                    SpawnPlatform(parent, "forest_platform_9", -5.8f, floorY + 2.5f, 58, ForestPropFolder);
-                    SpawnPlatform(parent, "forest_platform_8", -3.9f, floorY + 2.1f, 29, ForestPropFolder);
-                    SpawnPlatform(parent, "forest_platform_5", -1.8f, floorY + 2.6f, 53, ForestPropFolder);
+                    SpawnPlatform(parent, "forest_platform_5", -3.8f, floorY + 2.5f, 53, ForestPropFolder);
                     SpawnPlatform(parent, "forest_platform_6", 0.3f, floorY + 2.3f, 47, ForestPropFolder);
-                    SpawnPlatform(parent, "forest_platform_3", 2.6f, floorY + 2.4f, 50, ForestPropFolder);
-                    SpawnPlatform(parent, "forest_platform_wide", 7.0f, floorY + 2.6f, 82, ForestPropFolder);
+                    SpawnPlatform(parent, "forest_platform_3", 4.4f, floorY + 2.4f, 50, ForestPropFolder);
                     break;
             }
         }
@@ -688,6 +692,8 @@ namespace Aethoria.Bootstrap
             // 월드맵 화면을 띄운다. 취소하면 포탈이 다시 발동하도록 풀어준다(ResetTrigger).
             var exitPortal = SpawnPortal(stageRoot.transform, xMax - 0.5f, yMin, backward: false, framed: VillagePortalStyle);
             exitPortal.SetCustomTrigger(() => worldMapUI.Show(exitPortal));
+            // 은빛 문틀이 어두운 밤 마을 배경에서 혼자 떠 보여서, 배경 조명 색으로 눌러 주고 발밑 그림자와 보랏빛 번짐을 깐다.
+            exitPortal.BlendIntoScene(new Color(0.72f, 0.66f, 0.85f), new Color(0.62f, 0.32f, 1f, 0.45f), -PortalHeightAboveFloor);
 
             SaveGame();
             Debug.Log("Aethoria: 마을 진입");
@@ -731,14 +737,7 @@ namespace Aethoria.Bootstrap
 
         private static Monster SpawnForestSpirit(Transform parent, int floorY, float x)
         {
-            var data = ScriptableObject.CreateInstance<MonsterData>();
-            data.monsterName = "숲의 정령";
-            data.level = 1;
-            data.maxHp = 100f;
-            data.attack = 1f;
-            data.defense = 0f;
-            data.expReward = 10;
-            data.goldReward = 8;
+            var data = ForestSpiritData();
 
             var go = new GameObject("ForestSpirit");
             go.transform.position = new Vector3(x, floorY, 0f);
@@ -860,6 +859,8 @@ namespace Aethoria.Bootstrap
         // 6프레임으로 애니메이션한다(통째로 갈아 끼우면 테두리까지 떨려 보였다).
         private const string EnsroomPortalBase = "Art/Props/EnsroomPortal/ensroom_portal_base";
         private const string EnsroomPortalSwirlFolder = "Art/Props/EnsroomPortal/Swirl";
+        // 테두리 그림 맨 아래 약 34px(240px = 1칸)가 비어 있어 돌계단이 광장 바닥 위에 떠 보였다. 그만큼 묻는다.
+        private const float EnsroomPortalSink = 0.15f;
 
         private static void BuildEnsroom()
         {
@@ -907,8 +908,8 @@ namespace Aethoria.Bootstrap
             PlacePlayerAtSpawn(xMin + 4f, yMin);
             FitCamera(xMin, xMax, yMin);
 
-            // 들어오면 곧바로 루나벨과의 결전이라 돌아가는 포탈은 두지 않는다(이기면 스테이지 클리어 창,
-            // 지면 마을로 돌아간다). 그래서 루나벨전은 도주도 막혀 있다(RhythmBattleUI).
+            // 들어오면 곧바로 루나벨과의 결전이라 돌아가는 포탈은 두지 않는다(이기면 마을로 돌아가는 처치 연출,
+            // 지면 마을로 돌아간다).
             SpawnLunabel(stageRoot.transform, yMin, xMax);
 
             var stageManagerGO = new GameObject("StageManager");
@@ -1137,6 +1138,23 @@ namespace Aethoria.Bootstrap
             renderer.sortingOrder = -8; // 배경(-10)보다 앞, 발판/포탈(-5)보다 뒤
         }
 
+        // 배경 그림 속 돌단처럼 그림은 이미 있고 밟는 면만 필요한 곳에 까는 보이지 않는 한쪽 방향 발판(윗면 = topY).
+        private static void SpawnInvisibleLedge(Transform parent, float x0, float x1, float topY)
+        {
+            const float thickness = 0.2f;
+            var go = new GameObject("Ledge", typeof(BoxCollider2D));
+            go.transform.SetParent(parent);
+            go.transform.position = new Vector3((x0 + x1) / 2f, topY - thickness / 2f, 0f);
+
+            var collider = go.GetComponent<BoxCollider2D>();
+            collider.size = new Vector2(x1 - x0, thickness);
+            collider.usedByEffector = true;
+
+            var effector = go.AddComponent<PlatformEffector2D>();
+            effector.useOneWay = true;
+            effector.surfaceArc = 160f;
+        }
+
         // 입구 맵에서는 높은 돌단 위에서도 화면이 잘리지 않게 카메라가 이만큼까지 따라 올라간다.
         private const float RuinsEntranceCameraRise = 3f;
 
@@ -1185,6 +1203,9 @@ namespace Aethoria.Bootstrap
                 // 배경을 줄이며 양끝 포탈 자리가 계단/아치 구멍 위가 됐다 — 돌담 띠로 땅을 깔아 준다.
                 SpawnRuinsGroundStrip(stageRoot.transform, xMin - 1f, -17f, yMin + 2.59f, fadeOnLeft: false);
                 SpawnRuinsGroundStrip(stageRoot.transform, 11.5f, xMax + 2f, yMin, fadeOnLeft: true);
+                // 오른쪽 배경 이음매(원화 오른쪽 끝 + 좌우 반전 복사본)의 아치 밑 돌단. 밟을 수 있어 보이는데 판정이 없어
+                // 그 앞을 걸으면 벽 속에 들어간 것처럼 어색했다. 돌단 윗면(원화 y 722 = 바닥 위 약 0.88)에 발판을 깐다.
+                SpawnInvisibleLedge(stageRoot.transform, 8.25f, 15.15f, yMin + 0.88f);
             }
 
             player.SetCombatLocked(false);
@@ -1269,7 +1290,10 @@ namespace Aethoria.Bootstrap
                     SpawnPlatform(parent, "ruin_rock_5", 14.4f, floorY + 6.6f, 41, RuinsPropFolder);
                     break;
                 default:
-                    // 마당 2: 탑이 솟은 성문 섬과 밧줄 다리 섬이 번갈아 나오는 높낮이 큰 코스.
+                    // 마당 2(모래룡 보스 맵): 탑이 솟은 성문 섬과 밧줄 다리 섬이 번갈아 나오는 높낮이 큰 코스.
+                    // 커다란 모래룡과 땅에서 싸우도록 공중 발판은 줄였다(윗길 디딤돌과 모래룡 자리의 기둥 섬은 뺐다).
+                    // 대신 보스 구역(x 6~19)에는 모래룡(몸통 높이 약 4.4)을 넘어 반대편으로 건너갈 수 있게, 양쪽 디딤돌과
+                    // 모래룡 머리 위를 가로지르는 긴 공중 다리(높이 5.7, 폭 약 4)를 깐다. 인접 발판 높이 차는 2단 점프(약 3.2) 안.
                     SpawnPlatform(parent, "ruin_pillar_1", -15.2f, floorY + 1.3f, 126, RuinsPropFolder);
                     SpawnPlatform(parent, "ruin_mound_1", -10.6f, floorY + 2.8f, 86, RuinsPropFolder);
                     SpawnPlatform(parent, "ruin_rock_2", -6.4f, floorY + 4.3f, 51, RuinsPropFolder);
@@ -1277,15 +1301,10 @@ namespace Aethoria.Bootstrap
                     SpawnPlatform(parent, "ruin_rope", 4.2f, floorY + 3.4f, 95, RuinsPropFolder);
                     SpawnPlatform(parent, "ruin_mound_2", 8.6f, floorY + 4.8f, 61, RuinsPropFolder);
                     SpawnPlatform(parent, "ruin_slab_1", 12.6f, floorY + 3.2f, 56, RuinsPropFolder);
-                    SpawnPlatform(parent, "ruin_pillar_4", 16.4f, floorY + 1.2f, 188, RuinsPropFolder);
-                    // 더 촘촘하게: 섬 사이 디딤돌과 맨 윗길(모래룡과 싸우기 전 둘러볼 곳).
-                    SpawnPlatform(parent, "ruin_rock_4", -13.0f, floorY + 4.6f, 34, RuinsPropFolder);
-                    SpawnPlatform(parent, "ruin_rock_6", -8.4f, floorY + 6.2f, 34, RuinsPropFolder);
-                    SpawnPlatform(parent, "ruin_rock_8", -4.0f, floorY + 6.4f, 46, RuinsPropFolder);
-                    SpawnPlatform(parent, "ruin_rock_3", 0.6f, floorY + 5.4f, 41, RuinsPropFolder);
-                    SpawnPlatform(parent, "ruin_mound_3", 2.0f, floorY + 1.6f, 53, RuinsPropFolder);
-                    SpawnPlatform(parent, "ruin_rock_7", 6.4f, floorY + 6.6f, 20, RuinsPropFolder);
-                    SpawnPlatform(parent, "ruin_rock_5", 10.6f, floorY + 6.4f, 41, RuinsPropFolder);
+                    SpawnPlatform(parent, "ruin_rock_1", 6.2f, floorY + 2.4f, 55, RuinsPropFolder);
+                    SpawnPlatform(parent, "ruin_bridge_long", 13.6f, floorY + 5.7f, 97, RuinsPropFolder);
+                    SpawnPlatform(parent, "ruin_rock_2", 17.6f, floorY + 3.8f, 51, RuinsPropFolder);
+                    SpawnPlatform(parent, "ruin_slab_4", 19.0f, floorY + 1.9f, 49, RuinsPropFolder);
                     break;
             }
         }
@@ -1648,6 +1667,8 @@ namespace Aethoria.Bootstrap
         private static void BuildMapBackground(Transform parent, int xMin, int xMax, int yMin,
             string backgroundResourcePath, float groundFraction, float fixedScale = 0f, int sortingOrder = -10)
         {
+            bool isMainBackground = sortingOrder == -10;
+            if (isMainBackground) backgroundTopAboveFloor = 0f;
             var sprite = Resources.Load<Sprite>(backgroundResourcePath);
             if (sprite == null) return;
 
@@ -1666,6 +1687,7 @@ namespace Aethoria.Bootstrap
             float scaledWidth = nativeSize.x * scale;
             float scaledHeight = nativeSize.y * scale;
             float centerY = yMin + scaledHeight * (groundFraction - 0.5f);
+            if (isMainBackground) backgroundTopAboveFloor = scaledHeight * groundFraction;
 
             // 가운데 한 장 + 맵 끝까지 덮는 데 필요한 만큼 양옆으로(홀수 번째는 좌우 반전).
             int sideTiles = Mathf.Max(0, Mathf.CeilToInt((width / scaledWidth - 1f) / 2f));
@@ -1713,6 +1735,10 @@ namespace Aethoria.Bootstrap
         }
 
         // maxRise > 0이면 플레이어가 바닥보다 높은 곳(언덕/계단 위)에 올라갔을 때 카메라도 그만큼까지 따라 올라간다.
+        // 지금 맵의 배경 그림이 바닥 위로 얼마나 높이까지 덮는지(BuildMapBackground가 기록). 카메라가 올라갈 수 있는 한계.
+        private static float backgroundTopAboveFloor;
+        private const float CameraRiseMargin = 0.2f;
+
         private static void FitCamera(int xMin, int xMax, int floorY, float maxRise = 0f)
         {
             var mainCamera = Camera.main;
@@ -1730,6 +1756,10 @@ namespace Aethoria.Bootstrap
             mainCamera.backgroundColor = new Color(0.03f, 0.02f, 0.05f);
 
             float cameraY = floorY + orthoSize * 0.6f;
+            // 이단 점프나 높은 발판 위에서도 플레이어가 화면 밖으로 나가지 않게, 모든 맵에서 카메라가 위로 따라 올라간다.
+            // 배경 그림 위끝을 넘어 빈 하늘(배경색)이 보이지 않을 만큼까지만 오른다(화면 위끝 = 바닥 + 크기 x 1.4).
+            float viewTopAboveFloor = orthoSize * 1.4f;
+            maxRise = Mathf.Max(maxRise, backgroundTopAboveFloor - viewTopAboveFloor - CameraRiseMargin);
             var follow = mainCamera.GetComponent<CameraFollow>();
             if (follow == null) follow = mainCamera.gameObject.AddComponent<CameraFollow>();
             follow.Follow(player.transform, xMin, xMax, cameraY, floorY, maxRise);
@@ -1783,8 +1813,8 @@ namespace Aethoria.Bootstrap
             bestiaryUI = canvasGO.AddComponent<BestiaryUI>();
             bestiaryUI.Initialize(player.GetComponent<CharacterMovement2D>());
 
-            // 몬스터가 접촉하면 실시간 전투 대신 이 화면으로 전환된다(MonsterAI/BossAI/BossSlimeAI가
-            // Awake에서 FindFirstObjectByType으로 알아서 찾아 쓰므로 별도로 넘겨줄 필요 없다).
+            // 리듬 전투 화면. 필드 전투는 실시간이고, 이 화면은 엔스룸 릴리의 리듬 대결(미니게임)에서만 열린다
+            // (LilyNpc가 FindFirstObjectByType으로 찾아 쓴다).
             canvasGO.AddComponent<RhythmBattleUI>().Initialize();
 
             questManager = canvasGO.AddComponent<QuestManager>();
@@ -1852,10 +1882,18 @@ namespace Aethoria.Bootstrap
             character.AssignData(data);
             go.AddComponent<HitReactSpriteAnimator>();
             go.AddComponent<Inventory>();
-            // 전투는 몬스터와 닿으면 시작되는 리듬 전투(RhythmBattleUI)로만 진행하므로,
-            // 필드에서 쓰던 기본 공격/스킬(CharacterAttack2D, CharacterSkill*)은 붙이지 않는다.
-            // 대시만 몹을 피해 지나가는 회피기로 남긴다(피해 없음).
+            // 필드에서 직접 싸우는 실시간 전투: 기본 공격 + 스킬(마나/쿨타임은 PlayerHUD에 표시).
+            go.AddComponent<CharacterAttack2D>();
             go.AddComponent<CharacterSkillDash>();
+            go.AddComponent<CharacterSkillX>();
+            go.AddComponent<CharacterSkillQ>();
+            go.AddComponent<CharacterSkillA>();
+            go.AddComponent<CharacterSkillS>();
+            go.AddComponent<CharacterSkillD>();
+            go.AddComponent<CharacterSkillW>();
+            go.AddComponent<CharacterSkillE>();
+            go.AddComponent<CharacterSkillR>();
+            go.AddComponent<CharacterPotionUse>();
 
             return character;
         }
@@ -1868,15 +1906,7 @@ namespace Aethoria.Bootstrap
 
         private static void SpawnSlimes(Transform parent, int floorY, IEnumerable<float> xOffsets)
         {
-            var data = ScriptableObject.CreateInstance<MonsterData>();
-            data.monsterName = "슬라임";
-            data.level = 1;
-            // 플레이어(공격력 15) 노드 한 타 약 15, 일반 채보(약 9노드) 전부 Perfect면 약 160 — 한두 턴에 잡힌다.
-            data.maxHp = 150f;
-            data.attack = 3f; // 놓친 노드마다 (3-1) x 0.7 + 5 = 약 6
-            data.defense = 1f;
-            data.expReward = 10;
-            data.goldReward = 8;
+            var data = SlimeData();
 
             foreach (var x in xOffsets)
             {
@@ -1901,15 +1931,7 @@ namespace Aethoria.Bootstrap
         // 평야 오른쪽 끝의 필드 보스. 평야에 들어올 때마다 다시 나타난다.
         private static void SpawnBossSlime(Transform parent, int floorY)
         {
-            var data = ScriptableObject.CreateInstance<MonsterData>();
-            data.monsterName = "보스 슬라임";
-            data.level = 6;
-            // 보스 채보(약 17노드) 한 턴 전부 Perfect면 약 265 — 서너 턴은 버틴다.
-            data.maxHp = 800f;
-            data.attack = 10f; // 놓친 노드마다 (10-1) x 0.7 + 5 = 약 11
-            data.defense = 4f;
-            data.expReward = 300;
-            data.goldReward = 200;
+            var data = BossSlimeData();
 
             var go = new GameObject("Boss_Slime");
             go.transform.position = new Vector3(16f, floorY, 0f);
@@ -1934,25 +1956,22 @@ namespace Aethoria.Bootstrap
         }
 
         // 잊혀진 폐허의 필드 보스 황금 모래룡(황금 모래룡 애니메이션 스프라이트 시트, 8프레임). 마지막 폐허 맵 오른쪽 끝에서
-        // 다가오다 몸에 닿으면 보스 리듬전투. 전투에서는 두 번째 적 턴마다 대지 강타 → 꼬리 대지 폭발을 쓴다(RhythmBattleUI). 3장 순서(알리아스 다음)라 알리아스보다 조금 단단하다.
+        // 천천히 다가오다 가까이 붙으면 대지 강타로 앞쪽 바닥을 내려찍는다(SandDragonAI).
         // 잡으면 스테이지 클리어 창이 뜨고, 다시 도전하면 폐허 입구부터 시작한다.
         private const string SandDragonWalkPath = "Art/Monsters/SandDragon/Walk";
         private const string SandDragonAttackPath = "Art/Monsters/SandDragon/Attack";
+        private const float SandDragonScale = 2f;
 
         private static void SpawnSandDragon(Transform parent, int floorY, int xMax)
         {
-            var data = ScriptableObject.CreateInstance<MonsterData>();
-            data.monsterName = "황금 모래룡";
-            data.level = 11;
-            data.maxHp = 2000f;
-            data.attack = 15f; // 놓친 노드마다 (15-1) x 0.7 + 5 = 약 15
-            data.defense = 6f;
-            data.expReward = 700;
-            data.goldReward = 450;
+            var data = SandDragonData();
 
             var go = new GameObject("Boss_SandDragon");
-            go.transform.position = new Vector3(xMax - 3f, floorY, 0f);
+            go.transform.position = new Vector3(xMax - 4f, floorY, 0f);
             go.transform.SetParent(parent);
+            // 그림(150px = 1칸)대로면 네크로시아와 키가 비슷해서, 오브젝트째 두 배로 키워 네크로시아의 약 두 배로 보이게 한다.
+            // 몸통 판정/체력바도 자식·로컬 크기라 함께 커진다(아래 값은 키우기 전 기준).
+            go.transform.localScale = new Vector3(SandDragonScale, SandDragonScale, 1f);
             go.AddComponent<SpriteRenderer>().flipX = true; // 원화가 오른쪽을 보므로 처음엔 플레이어 쪽(왼쪽)을 보게
             go.AddComponent<CharacterPlaceholderVisual>().Configure(new Color(0.85f, 0.65f, 0.25f), 56, 40);
 
@@ -1965,12 +1984,13 @@ namespace Aethoria.Bootstrap
             var walk = go.AddComponent<MonsterWalkSpriteAnimator>();
             walk.Configure(SandDragonWalkPath);
             walk.ConfigureIdle(SandDragonWalkPath, 6f);
-            // 대지 강타(모래룡 대지 강타 연속 장면, 6프레임). 리듬전투 화면의 모래룡 공격 모션으로 쓴다.
+            // 대지 강타(모래룡 대지 강타 연속 장면, 6프레임). 필드 공격 모션이자 리듬 대결의 모래룡 공격 모션이다.
             go.AddComponent<MonsterAttackSpriteAnimator>().Configure(SandDragonAttackPath, 1.2f);
             var monster = go.AddComponent<Monster>();
             monster.AssignData(data);
             var dragonAI = go.AddComponent<SandDragonAI>();
-            go.AddComponent<MonsterHealthBar>().Configure(newWidth: 2.6f, newVerticalOffset: 0.15f);
+            dragonAI.SetArenaBounds(mapXMin, mapXMax + 1f);
+            go.AddComponent<MonsterHealthBar>().Configure(newWidth: 2.25f, newVerticalOffset: 0.08f);
 
             monster.OnDied += _ => stageClearUI.Show(() => RetryDungeon(RuinsStage1));
             // 처음엔 땅속에 숨어 있다가, 가까이 오면 등장 연출(땅에서 솟아오름 → 포효 → 네크로시아 대사 → 대시)로 전투가 열린다.
@@ -1987,14 +2007,7 @@ namespace Aethoria.Bootstrap
 
         private static void SpawnSeaSpirits(Transform parent, int floorY, IEnumerable<float> xOffsets)
         {
-            var data = ScriptableObject.CreateInstance<MonsterData>();
-            data.monsterName = "심해 정령";
-            data.level = 5;
-            data.maxHp = 380f;
-            data.attack = 10f; // 놓친 노드마다 (10-1) x 0.7 + 5 = 약 11
-            data.defense = 6f;
-            data.expReward = 45;
-            data.goldReward = 32;
+            var data = SeaSpiritData();
 
             foreach (var x in xOffsets)
             {
@@ -2018,15 +2031,7 @@ namespace Aethoria.Bootstrap
 
         private static void SpawnColossi(Transform parent, System.Func<float, float> groundYAt, IEnumerable<float> xOffsets)
         {
-            var data = ScriptableObject.CreateInstance<MonsterData>();
-            data.monsterName = "콜로서스";
-            data.level = 4;
-            // 플레이어 노드 한 타 약 12(방어력 5), 일반 채보 전부 Perfect면 약 130 — 두세 턴은 버틴다.
-            data.maxHp = 300f;
-            data.attack = 8f; // 놓친 노드마다 (8-1) x 0.7 + 5 = 약 10
-            data.defense = 5f;
-            data.expReward = 35;
-            data.goldReward = 26;
+            var data = ColossusData();
 
             foreach (var x in xOffsets)
             {
@@ -2051,15 +2056,7 @@ namespace Aethoria.Bootstrap
 
         private static void SpawnKnights(Transform parent, int floorY, IEnumerable<float> xOffsets)
         {
-            var data = ScriptableObject.CreateInstance<MonsterData>();
-            data.monsterName = "기사";
-            data.level = 1;
-            // 플레이어 노드 한 타 약 13(방어력 3), 일반 채보 전부 Perfect면 약 145 — 슬라임보다 조금 질기다.
-            data.maxHp = 170f;
-            data.attack = 5f; // 놓친 노드마다 (5-1) x 0.7 + 5 = 약 8
-            data.defense = 3f;
-            data.expReward = 20; // 보스 전 일반 스테이지가 줄어든 만큼(4→2) 마리당 경험치를 2배로 올려 보정
-            data.goldReward = 15;
+            var data = KnightData();
 
             foreach (var x in xOffsets)
             {
@@ -2086,15 +2083,7 @@ namespace Aethoria.Bootstrap
         // 대사가 끝나면 점프 내려찍기로 뛰어든다.
         private static void SpawnBoss(Transform parent, int floorY, int xMax)
         {
-            var data = ScriptableObject.CreateInstance<MonsterData>();
-            data.monsterName = "알리아스";
-            data.level = 10;
-            // 최종 보스. 보스 채보 한 턴 전부 Perfect면 약 245(방어력 5) — 1레벨 기준 일곱 턴 남짓.
-            data.maxHp = 1800f;
-            data.attack = 15f; // 놓친 노드마다 (15-1) x 0.7 + 5 = 약 15
-            data.defense = 5f;
-            data.expReward = 600;
-            data.goldReward = 400;
+            var data = AliasData();
 
             var go = new GameObject("Boss_Knight");
             go.transform.position = new Vector3(xMax - 1.5f, floorY, 0f);
@@ -2127,19 +2116,12 @@ namespace Aethoria.Bootstrap
         }
 
         // 절망의 언덕의 최종보스 루나벨. 걷지 않고 언덕 오른쪽 끝에 서서 플레이어를 바라보며, 중거리에서는 손을 뻗어
-        // 피의 손을 날리고, 몸에 닿으면 리듬전투(보스 패턴)로 싸운다(FinalBossAI). 보스 기사보다 단단하고 아프다.
+        // 피의 손을 날리고, 몸에 닿으면 접촉 피해를 준다(FinalBossAI). 보스 기사보다 단단하고 아프다.
         // 언덕에 들어오면 의자에 앉은 루나벨과 대사를 주고받고(LunabelIntroCutscene), 피의 기둥이 플레이어 발밑까지
-        // 솟구친 뒤 루나벨이 일어서며 곧바로 리듬전투가 열린다.
+        // 솟구친 뒤 루나벨이 일어서며 곧바로 전투가 시작된다.
         private static void SpawnLunabel(Transform parent, int floorY, int xMax)
         {
-            var data = ScriptableObject.CreateInstance<MonsterData>();
-            data.monsterName = "루나벨";
-            data.level = 15;
-            data.maxHp = 2600f;
-            data.attack = 20f; // 놓친 노드마다 (20-1) x 0.7 + 5 = 약 18
-            data.defense = 7f;
-            data.expReward = 1000;
-            data.goldReward = 700;
+            var data = LunabelData();
 
             var go = new GameObject("Boss_Lunabel");
             go.transform.position = new Vector3(xMax - 3f, floorY, 0f);
@@ -2174,6 +2156,233 @@ namespace Aethoria.Bootstrap
         // 오른쪽을 보도록 좌우 반전해 잘라 두었다. 공격 시퀀스는 검은 배경을 지우고 8프레임으로 나눴다.
         private const string LunabelIdlePath = FinalBossAI.IdlePath;
         private const string LunabelAttackPath = "Art/Monsters/FinalBoss/Attack";
+
+        // ---- 몬스터 능력치 ----
+        // 필드 스폰과 릴리의 리듬 대결(CreateMinigameOpponent)이 같은 값을 쓰도록 여기 한곳에 모아 둔다.
+        // 피해 = (공격력 - 방어력) x 0.7 + 5 (CombatMath). 1레벨 네크로시아(공격력 15)의 기본 공격 한 대는 약 12~15.
+        // 일반 몬스터 체력은 실시간 전투 기준(기본 공격 서너 대 남짓)이고, 리듬 대결에서는 MinigameOpponents의
+        // 체력(리듬 채보 한두 턴 기준)으로 바꿔 쓴다. 보스는 두 곳 모두 같은 체력을 쓴다.
+        private static MonsterData ForestSpiritData()
+        {
+            var data = ScriptableObject.CreateInstance<MonsterData>();
+            data.monsterName = "숲의 정령";
+            data.level = 1;
+            // 튜토리얼 상대. 기본 공격 두세 대면 절반, 그 뒤로는 스킬로만 쓰러진다(TutorialSkillFinish).
+            data.maxHp = 40f;
+            data.attack = 1f;
+            data.defense = 0f;
+            data.expReward = 10;
+            data.goldReward = 8;
+            return data;
+        }
+
+        private static MonsterData SlimeData()
+        {
+            var data = ScriptableObject.CreateInstance<MonsterData>();
+            data.monsterName = "슬라임";
+            data.level = 1;
+            // 기본 공격 서너 대. 몸으로 부딪혀 한 번에 약 6.
+            data.maxHp = 45f;
+            data.attack = 3f;
+            data.defense = 1f;
+            data.expReward = 10;
+            data.goldReward = 8;
+            return data;
+        }
+
+        private static MonsterData BossSlimeData()
+        {
+            var data = ScriptableObject.CreateInstance<MonsterData>();
+            data.monsterName = "보스 슬라임";
+            data.level = 6;
+            // 몸통 접촉 약 11, 물대포(x1.5) 약 15.
+            data.maxHp = 800f;
+            data.attack = 10f;
+            data.defense = 4f;
+            data.expReward = 300;
+            data.goldReward = 200;
+            return data;
+        }
+
+        private static MonsterData SandDragonData()
+        {
+            var data = ScriptableObject.CreateInstance<MonsterData>();
+            data.monsterName = "황금 모래룡";
+            data.level = 11;
+            // 대지 강타(x1.3) 약 19. 3장 순서(알리아스 다음)라 알리아스보다 조금 단단하다.
+            data.maxHp = 2000f;
+            data.attack = 15f;
+            data.defense = 6f;
+            data.expReward = 700;
+            data.goldReward = 450;
+            return data;
+        }
+
+        private static MonsterData SeaSpiritData()
+        {
+            var data = ScriptableObject.CreateInstance<MonsterData>();
+            data.monsterName = "심해 정령";
+            data.level = 5;
+            // 몸으로 부딪혀 한 번에 약 11. 폐허의 콜로서스보다 한 단계 강하다.
+            data.maxHp = 140f;
+            data.attack = 10f;
+            data.defense = 6f;
+            data.expReward = 45;
+            data.goldReward = 32;
+            return data;
+        }
+
+        private static MonsterData ColossusData()
+        {
+            var data = ScriptableObject.CreateInstance<MonsterData>();
+            data.monsterName = "콜로서스";
+            data.level = 4;
+            // 돌주먹 한 방 약 10. 기사보다 크고 단단하다.
+            data.maxHp = 110f;
+            data.attack = 8f;
+            data.defense = 5f;
+            data.expReward = 35;
+            data.goldReward = 26;
+            return data;
+        }
+
+        private static MonsterData KnightData()
+        {
+            var data = ScriptableObject.CreateInstance<MonsterData>();
+            data.monsterName = "기사";
+            data.level = 1;
+            // 칼 한 번 약 8. 슬라임보다 조금 질기다.
+            data.maxHp = 60f;
+            data.attack = 5f;
+            data.defense = 3f;
+            data.expReward = 20;
+            data.goldReward = 15;
+            return data;
+        }
+
+        private static MonsterData AliasData()
+        {
+            var data = ScriptableObject.CreateInstance<MonsterData>();
+            data.monsterName = "알리아스";
+            data.level = 10;
+            // 돌진/휩쓸기 3연타 한 대 약 15, 점프 내려찍기(x1.6) 약 24.
+            data.maxHp = 1800f;
+            data.attack = 15f;
+            data.defense = 5f;
+            data.expReward = 600;
+            data.goldReward = 400;
+            return data;
+        }
+
+        private static MonsterData LunabelData()
+        {
+            var data = ScriptableObject.CreateInstance<MonsterData>();
+            data.monsterName = "루나벨";
+            data.level = 15;
+            // 몸통 접촉 약 18, 피의 손(x1.4) 약 23. 1페이즈 체력을 다 깎으면 변신해 체력을 모두 채운다(FinalBossAI).
+            data.maxHp = 2600f;
+            data.attack = 20f;
+            data.defense = 7f;
+            data.expReward = 1000;
+            data.goldReward = 700;
+            return data;
+        }
+
+        // ---- 릴리의 리듬 대결(미니게임) ----
+        // 고를 수 있는 상대와 리듬 대결용 체력(0이면 필드와 같은 체력). 도감에 한 번이라도 기록된(쓰러뜨린) 상대만 고를 수 있다(LilyNpc).
+        public static readonly (string name, float rhythmHp)[] MinigameOpponents =
+        {
+            ("숲의 정령", 100f),
+            ("슬라임", 150f),
+            ("기사", 170f),
+            ("콜로서스", 300f),
+            ("심해 정령", 380f),
+            ("보스 슬라임", 0f),
+            ("알리아스", 0f),
+            ("황금 모래룡", 0f),
+            ("루나벨", 0f),
+        };
+
+        // 리듬 대결 상대를 만든다. 화면 밖 멀리에 보이지 않게, 움직이지 않게 세워 둔다(Monster.IsMinigameOpponent).
+        // 전투 화면은 이 몬스터의 대기/공격 프레임과 붙어 있는 보스 AI 종류만 보고 채보와 보스 패턴을 고른다(RhythmBattleUI).
+        // 대결이 끝나면 RhythmBattleUI가 지운다.
+        public static Monster CreateMinigameOpponent(int index)
+        {
+            var go = new GameObject("MinigameOpponent");
+            go.transform.position = new Vector3(0f, -500f, 0f);
+            go.AddComponent<SpriteRenderer>().enabled = false;
+            go.AddComponent<Rigidbody2D>().bodyType = RigidbodyType2D.Kinematic;
+
+            MonsterData data;
+            switch (index)
+            {
+                case 0:
+                    data = ForestSpiritData();
+                    go.AddComponent<MonsterWalkSpriteAnimator>().Configure(ForestSpiritWalkPath);
+                    break;
+                case 1:
+                    data = SlimeData();
+                    go.AddComponent<MonsterWalkSpriteAnimator>().Configure("Art/Monsters/Slime/Walk");
+                    break;
+                case 2:
+                    data = KnightData();
+                    go.AddComponent<MonsterWalkSpriteAnimator>();
+                    go.AddComponent<MonsterAttackSpriteAnimator>().Configure("Art/Monsters/Knight/Attack", 0.6f);
+                    break;
+                case 3:
+                    data = ColossusData();
+                    go.AddComponent<MonsterWalkSpriteAnimator>().Configure("Art/Monsters/Colossus/Walk");
+                    go.AddComponent<MonsterAttackSpriteAnimator>().Configure("Art/Monsters/Colossus/Attack", 0.9f);
+                    break;
+                case 4:
+                    data = SeaSpiritData();
+                    go.AddComponent<MonsterWalkSpriteAnimator>().Configure(SeaSpiritWalkPath);
+                    break;
+                case 5:
+                    data = BossSlimeData();
+                    go.AddComponent<MonsterWalkSpriteAnimator>().Configure("Art/Monsters/BossSlime/Walk");
+                    go.AddComponent<MonsterAttackSpriteAnimator>().Configure("Art/Monsters/BossSlime/Attack", 1.4f);
+                    break;
+                case 6:
+                    data = AliasData();
+                    var aliasWalk = go.AddComponent<MonsterWalkSpriteAnimator>();
+                    aliasWalk.Configure("Art/Monsters/BossKnight/Walk");
+                    aliasWalk.ConfigureIdle("Art/Monsters/BossKnight/Idle", 5f);
+                    go.AddComponent<MonsterAttackSpriteAnimator>();
+                    break;
+                case 7:
+                    data = SandDragonData();
+                    var dragonWalk = go.AddComponent<MonsterWalkSpriteAnimator>();
+                    dragonWalk.Configure(SandDragonWalkPath);
+                    dragonWalk.ConfigureIdle(SandDragonWalkPath, 6f);
+                    go.AddComponent<MonsterAttackSpriteAnimator>().Configure(SandDragonAttackPath, 1.2f);
+                    break;
+                default:
+                    data = LunabelData();
+                    var lunabelWalk = go.AddComponent<MonsterWalkSpriteAnimator>();
+                    lunabelWalk.Configure(LunabelIdlePath);
+                    lunabelWalk.ConfigureIdle(LunabelIdlePath, 6f);
+                    go.AddComponent<MonsterAttackSpriteAnimator>().Configure(LunabelAttackPath, 1.0f);
+                    break;
+            }
+
+            float rhythmHp = index >= 0 && index < MinigameOpponents.Length ? MinigameOpponents[index].rhythmHp : 0f;
+            if (rhythmHp > 0f) data.maxHp = rhythmHp;
+
+            var monster = go.AddComponent<Monster>();
+            monster.IsMinigameOpponent = true;
+            monster.AssignData(data);
+
+            // 보스 AI는 전투 화면이 보스 패턴을 고르는 표시이자 필살기/2페이즈 상태를 들고 있다. 필드 행동은 IsMinigameOpponent로 멈춘다.
+            switch (index)
+            {
+                case 5: go.AddComponent<BossSlimeAI>(); break;
+                case 6: go.AddComponent<BossAI>(); break;
+                case 7: go.AddComponent<SandDragonAI>(); break;
+                case 8: go.AddComponent<FinalBossAI>(); break;
+            }
+            return monster;
+        }
 
         // 강화석 드랍: 일반 몬스터는 25% 확률로 1개, 보스(기사/슬라임)는 항상 3개.
         private const float EnhanceStoneDropChance = 0.25f;
@@ -2261,7 +2470,7 @@ namespace Aethoria.Bootstrap
             portal.Configure(backward, player.transform);
             if (framed != null) portal.CreateFramedVisual(framed.InwardOffset, PortalHeightAboveFloor + framed.Sink, framed.BasePath, framed.SwirlFolder,
                 framed.SwirlBottomCenterPx, framed.SwirlPixelScale, framed.SwirlFrameDuration);
-            else if (overlayFramesPath != null) portal.CreateLayeredVisual(PortalVisualInwardOffset, PortalHeightAboveFloor, framesPath, overlayFramesPath);
+            else if (overlayFramesPath != null) portal.CreateLayeredVisual(PortalVisualInwardOffset, PortalHeightAboveFloor + EnsroomPortalSink, framesPath, overlayFramesPath);
             else if (framesPath != null) portal.CreateVisual(PortalVisualInwardOffset, PortalHeightAboveFloor, framesPath);
             else portal.CreateVisual(PortalVisualInwardOffset, PortalHeightAboveFloor);
             return portal;

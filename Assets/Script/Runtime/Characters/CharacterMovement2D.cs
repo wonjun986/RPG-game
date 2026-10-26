@@ -34,8 +34,16 @@ namespace Aethoria.Characters
         public Vector2 FacingDirection { get; private set; } = Vector2.right;
         public bool IsMoving => Mathf.Abs(horizontalInput) > 0.01f;
         public bool IsGrounded => isGrounded;
-        public bool IsInputLocked => inputLocked;
+        // 연출(보스 등장/처치, 튜토리얼 독백 등) 중에는 따로 잠근다. 스킬(대시/W 등)이 끝나며 SetInputLocked(false)를
+        // 불러도 연출 잠금은 풀리지 않아서, 대사를 넘기는 [Z]가 기본 공격으로 나가지 않는다.
+        // 연출이 끝나는 그 프레임에 누른 [Z]도 공격으로 이어지지 않게 그 프레임까지는 잠긴 것으로 친다.
+        private bool cutsceneLocked;
+        private int cutsceneUnlockFrame = -1;
+        public bool IsInputLocked => inputLocked || cutsceneLocked || Time.frameCount == cutsceneUnlockFrame;
         public float VerticalVelocity => body.linearVelocity.y;
+        // 보스 패턴이 플레이어를 한쪽으로 끌어당길 때 걷기 속도에 더해지는 가로 속도(루나벨 2페이즈 개막의 흡입).
+        // 대시/넉백처럼 물리 이동을 직접 쥐는 동안(inputLocked)에는 더해지지 않아서, 대시로는 끌림을 뿌리칠 수 있다.
+        public float ExternalPullX { get; set; }
 
         // 공중 점프(2단 점프 이상)를 쓸 때만 발생한다. 첫 점프(땅에서 뛰는 점프)는 발생시키지 않는다.
         public event System.Action OnDoubleJump;
@@ -50,7 +58,20 @@ namespace Aethoria.Characters
 
         private void Update()
         {
-            if (!inputLocked) ReadInput();
+            if (!IsInputLocked) ReadInput();
+        }
+
+        // 연출 잠금. 풀 때는 연출 도중 스킬(연출용 대시 등)이 걸어 둔 일반 잠금도 함께 푼다(연출 전과 같은 상태로 돌려준다).
+        public void SetCutsceneLocked(bool locked)
+        {
+            cutsceneLocked = locked;
+            if (locked)
+            {
+                horizontalInput = 0f;
+                return;
+            }
+            inputLocked = false;
+            cutsceneUnlockFrame = Time.frameCount;
         }
 
         // 돌진기 등 스킬이 물리 이동을 직접 제어하는 동안 평소 좌우/점프 입력을 잠근다.
@@ -77,7 +98,7 @@ namespace Aethoria.Characters
                 return;
             }
 
-            body.linearVelocity = new Vector2(horizontalInput * moveSpeed, body.linearVelocity.y);
+            body.linearVelocity = new Vector2(horizontalInput * moveSpeed + ExternalPullX, body.linearVelocity.y);
 
             if (dropRequested && isGrounded) TryDropThrough();
             dropRequested = false;

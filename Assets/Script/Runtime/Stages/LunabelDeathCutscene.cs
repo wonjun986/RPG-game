@@ -10,7 +10,7 @@ namespace Aethoria.Stages
 {
     // 루나벨(최종보스) 처치 연출. 2페이즈 체력이 0이 되는 순간 루나벨을 네크로시아 바로 앞으로 옮기고 패배 모션의 첫 프레임으로
     // 바꿔 둔다(전투가 열린 자리는 언덕 왼쪽이라 원래 자리에 두면 화면에 안 보이고, 2페이즈 모습이 먼저 비치는 것도 막는다).
-    // 전투 화면이 닫혀 필드로 돌아오면:
+    // 그다음:
     //   1) 패배 모션(Art/Monsters/FinalBoss/Defeat, Lunabel_Defeat 8프레임)을 끝까지 재생해 쓰러지고,
     //   2) 쓰러진 채 네크로시아와 마지막 대화를 나눈 뒤([Z]/Enter로 넘김),
     //   3) 서서히 사라지고,
@@ -133,10 +133,7 @@ namespace Aethoria.Stages
 
         private IEnumerator Run()
         {
-            // 전투 화면이 닫히고(같은 OnDied에서 EndBattle) 월드가 다시 흐를 때까지 기다린다.
-            var battleUI = Object.FindAnyObjectByType<RhythmBattleUI>();
-            while (battleUI != null && battleUI.IsOpen) yield return null;
-            if (playerMovement != null) playerMovement.SetInputLocked(true);
+            if (playerMovement != null) playerMovement.SetCutsceneLocked(true);
             yield return new WaitForSeconds(DelayAfterBattle);
 
             // 1) 쓰러지는 모션을 끝까지 재생하고 마지막 프레임(쓰러진 모습)에 멈춘다.
@@ -192,7 +189,7 @@ namespace Aethoria.Stages
         {
             if (finished) return;
             finished = true;
-            if (playerMovement != null) playerMovement.SetInputLocked(false);
+            if (playerMovement != null) playerMovement.SetCutsceneLocked(false);
         }
 
         // 연출 도중 스테이지가 다시 지어지면 루나벨과 함께 지워지므로, 막아 둔 것들을 풀고 나간다.

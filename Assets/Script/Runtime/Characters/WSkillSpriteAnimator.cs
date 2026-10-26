@@ -28,6 +28,8 @@ namespace Aethoria.Characters
 
         public bool HasFrames => frames != null && frames.Length > 0;
         public float FrameDuration => frameDuration;
+        // 반복 구간 전까지(포탈을 열고 손을 뻗는) 프레임들의 재생 시간.
+        public float IntroDuration => HasFrames ? loopStart * frameDuration : 0f;
         // 반복 구간 이후(손을 거둬들이는) 프레임들의 재생 시간.
         public float OutroDuration => HasFrames ? Mathf.Max(0, frames.Length - 1 - loopEnd) * frameDuration : 0f;
 

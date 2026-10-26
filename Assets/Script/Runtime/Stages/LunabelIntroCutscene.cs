@@ -10,7 +10,8 @@ namespace Aethoria.Stages
     // 절망의 언덕 등장 연출. 언덕에 들어오면 플레이어 조작을 막은 채 카메라가 언덕 끝의 루나벨에게 천천히 넘어간다.
     // 루나벨은 의자에 앉은 모습(Seated)으로 기다리고 있고, 루나벨(UI/Lunabel_Talk)과 네크로시아(UI/Player_Talk)가
     // 대사를 주고받는다([Z]/Enter로 넘김). 대화가 끝나면 루나벨 앞에서부터 플레이어 발밑까지 피의 기둥(BloodPillarRise)이
-    // 차례로 솟구쳐 오르고, 카메라가 그 물결을 따라 플레이어에게 돌아온 뒤 루나벨이 일어서며 곧바로 리듬전투가 열린다.
+    // 차례로 솟구쳐 오르고, 가시가 플레이어에게 닿는 순간 암전 → 루나벨 일러스트 이름 카드 → FINAL BATTLE(RhythmBattleUI의
+    // 연출을 빌려 씀) → 네크로시아의 한마디 → 루나벨이 일어서며 최종장 전투가 시작된다.
     // 이 연출을 이미 본 세이브(두 번째 만남부터)는 Esc를 누르면 남은 대사와 피의 기둥을 건너뛴다.
     public class LunabelIntroCutscene : MonoBehaviour
     {
@@ -58,6 +59,18 @@ namespace Aethoria.Stages
             new Line(false, "그럼 보여 줘. 그 리듬이 이번엔 얼마나 버티는지. 네 피의 맛, 다시 한번 맛보게 해 줘."),
         };
 
+        // 1페이즈 체력을 다 깎았을 때, 변신하기 직전에 주고받는 대사(FinalBossAI.TransformRoutine이 기다린다).
+        private static readonly Line[] PhaseTwoLines =
+        {
+            new Line(false, "...후후, 아하하! 좋아, 아주 좋아. 날 여기까지 몰아붙인 건 네가 처음이야."),
+            new Line(true, "웃을 여유가 있나. 이번에야말로 끝을 내 주지."),
+            new Line(false, "끝? 이제 막 시작인걸. 이 붉은 달 아래에서... 내 진짜 모습을 보여 줄게."),
+        };
+
+        // 가시 폭풍을 맞고 이름 카드/FINAL BATTLE이 지나간 뒤, 전투에 들어가기 직전 네크로시아의 한마디.
+        private static readonly Line BattleEntryLine =
+            new Line(true, "...이 정도 가시로 날 멈출 수 있을 거라 생각했나. 루나벨, 이번이 마지막이다.");
+
         private FinalBossAI boss;
         private Monster bossMonster;
         private MonsterWalkSpriteAnimator bossWalk;
@@ -85,6 +98,8 @@ namespace Aethoria.Stages
             this.skippable = skippable;
             this.onShown = onShown;
             boss.HoldForIntro();
+            boss.PhaseTwoTalk = PlayPhaseTwoLines;
+            boss.ChargeLaugh = PlayChargeLaugh;
             SitDown();
         }
 
@@ -122,7 +137,7 @@ namespace Aethoria.Stages
         {
             if (playerMovement != null)
             {
-                playerMovement.SetInputLocked(true);
+                playerMovement.SetCutsceneLocked(true);
                 playerMovement.Face(Vector2.right);
             }
             if (cameraFollow != null) cameraFollow.SetTarget(boss.transform, CameraPanSmoothTime);
@@ -157,9 +172,19 @@ namespace Aethoria.Stages
 
             if (!skipped && player != null)
             {
-                // 마지막 가시가 네크로시아에게 닿는 그 순간에 곧바로 전투 화면으로 넘어간다(따로 기다리지 않는다).
+                // 마지막 가시가 네크로시아에게 닿는 순간 화면이 암전되며 루나벨 이름 카드 → FINAL BATTLE이 나오고,
+                // 암전이 걷히면 네크로시아가 한마디 한 뒤 최종장 전투가 시작된다.
                 yield return new WaitForSeconds(DelayBeforePillars);
                 yield return PillarWave();
+                if (cameraFollow != null) cameraFollow.SetTarget(player.transform, CameraPanSmoothTime);
+
+                var battleUI = Object.FindAnyObjectByType<RhythmBattleUI>();
+                if (battleUI != null) yield return battleUI.PlayLunabelFieldIntro();
+
+                ShowLine(BattleEntryLine);
+                yield return null;
+                while (!AdvancePressed()) yield return null;
+                dialogueUI?.Hide();
             }
             else
             {
@@ -168,8 +193,6 @@ namespace Aethoria.Stages
             }
 
             Finish();
-            var battle = Object.FindFirstObjectByType<RhythmBattleUI>();
-            if (battle != null && bossMonster != null && player != null) battle.TryBegin(bossMonster, player);
         }
 
         // 루나벨 앞에서 플레이어 발밑까지 피의 기둥을 차례로 솟구치게 한다. 카메라는 맨 앞 기둥을 따라간다.
@@ -245,6 +268,38 @@ namespace Aethoria.Stages
             dialogueUI?.ShowLunabel(text + NextHint);
         }
 
+        // 2페이즈 개막에서 거대한 피의 구체를 모으는 동안 화면 가운데에 뜨는 광기 어린 웃음. 플레이어는 빨려 들어가는 중이라
+        // [Z]로 넘기지 않고 정해진 시간만큼 보여 준 뒤 저절로 사라진다(한 글자씩 떨리듯 커지는 대신 줄을 바꿔 가며 몰아친다).
+        private static readonly string[] ChargeLaughLines =
+        {
+            "아하... 아하하하하하!!",
+            "도망쳐 봐, 어서! 이 붉은 달 아래에서 넌 어디로도 못 가!!",
+        };
+        private const float ChargeLaughLineTime = 1.4f;
+
+        private IEnumerator PlayChargeLaugh()
+        {
+            foreach (var line in ChargeLaughLines)
+            {
+                dialogueUI?.ShowLunabelCentered("<color=#FF5A6E>" + line + "</color>");
+                yield return new WaitForSeconds(ChargeLaughLineTime);
+            }
+            dialogueUI?.Hide();
+        }
+
+        private IEnumerator PlayPhaseTwoLines()
+        {
+            foreach (var line in PhaseTwoLines)
+            {
+                if (line.isPlayer) dialogueUI?.ShowNecrosia(line.text + PlayerNextHint);
+                else dialogueUI?.ShowLunabel(line.text + NextHint);
+                // 대사가 바뀐 그 프레임의 입력으로 바로 다음 대사가 넘어가지 않게 한 프레임 쉰다.
+                yield return null;
+                while (!AdvancePressed()) yield return null;
+            }
+            dialogueUI?.Hide();
+        }
+
         private bool SkipPressed()
         {
             var keyboard = Keyboard.current;
@@ -269,7 +324,7 @@ namespace Aethoria.Stages
             StandUp();
             if (pillarFront != null) Destroy(pillarFront.gameObject);
             if (boss != null) boss.EndIntro();
-            if (playerMovement != null) playerMovement.SetInputLocked(false);
+            if (playerMovement != null) playerMovement.SetCutsceneLocked(false);
             if (cameraFollow != null)
             {
                 if (player != null) cameraFollow.SetTarget(player.transform, CameraPanSmoothTime);

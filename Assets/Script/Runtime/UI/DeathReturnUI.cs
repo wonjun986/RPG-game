@@ -43,8 +43,8 @@ namespace Aethoria.UI
 
             cinematic.Show();
 
-            // 리듬 전투 중에 쓰러졌다면 같은 OnDied를 받은 RhythmBattleUI가 창을 닫으면서 timeScale과
-            // 입력 잠금을 되돌리므로, 한 프레임 뒤에 다시 잠그고 연출 동안 월드를 멈춘다.
+            // 스킬처럼 같은 OnDied 프레임에 입력 잠금을 풀어 버리는 쪽이 있을 수 있으므로,
+            // 한 프레임 뒤에 다시 잠그고 연출 동안 월드를 멈춘다.
             yield return null;
             if (movement != null) movement.SetInputLocked(true);
             Time.timeScale = 0f;

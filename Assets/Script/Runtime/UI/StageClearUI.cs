@@ -31,14 +31,13 @@ namespace Aethoria.UI
 
         // 기준 해상도(1280x720) 높이에 거의 꽉 차게 그린다. 너비는 그림 비율대로.
         private const float WindowHeight = 700f;
-        // 보스가 쓰러진 뒤 리듬 전투 창이 닫히고 나서 이만큼(게임 시간) 쓰러지는 모습을 보여준 뒤 창을 띄운다.
+        // 보스가 쓰러진 뒤 이만큼(게임 시간) 쓰러지는 모습을 보여준 뒤 창을 띄운다.
         private const float ShowDelaySeconds = 1.2f;
         private const float FadeInDuration = 0.3f;
 
         private Character player;
         private CharacterMovement2D playerMovement;
         private Inventory inventory;
-        private RhythmBattleUI rhythmBattle;
 
         private GameObject panel;
         private CanvasGroup panelGroup;
@@ -238,9 +237,6 @@ namespace Aethoria.UI
 
         private IEnumerator ShowAfterBattle()
         {
-            // 리듬 전투 중에는 timeScale이 0이라 게임 시간 대기는 전투 창이 닫힌 뒤부터 흐른다.
-            if (rhythmBattle == null) rhythmBattle = FindFirstObjectByType<RhythmBattleUI>();
-            while (rhythmBattle != null && rhythmBattle.IsOpen) yield return null;
             yield return new WaitForSeconds(ShowDelaySeconds);
 
             // 그 사이 플레이어가 쓰러졌다면 사망 연출(DeathReturnUI)이 우선이다.
