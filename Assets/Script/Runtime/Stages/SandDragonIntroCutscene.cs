@@ -11,8 +11,9 @@ namespace Aethoria.Stages
     // 네크로시아가 일정 거리까지 걸어오면: 조작을 막고 땅이 울린다 → 카메라가 빈 땅을 클로즈업 → 모래가 터지며
     // 모래룡이 땅 밑에서 솟아오른다(지하 분출 8프레임, Emerge) → 포효(포효 6프레임, Roar — 입을 크게 벌리는 순간
     // 화면이 크게 흔들리고 입에서 모래빛 충격파 고리가 연달아 퍼지며 화면이 번쩍인다 + "크아아아앙!!") →
-    // 카메라가 네크로시아를 클로즈업 → 네크로시아 대사 → 화면이 원래대로 돌아오며 네크로시아가 모래룡을 향해 대시 → 전투 시작.
-    // 이 연출을 이미 본 세이브(두 번째 만남부터)는 Esc로 건너뛰면 모래룡이 바로 나타나고 곧장 전투가 열린다.
+    // 카메라가 네크로시아를 클로즈업 → 네크로시아 대사 → 모래룡이 땅을 내려찍어 출구(뒤쪽 포탈) 밑에서 꼬리를 솟구쳐 출구를
+    // 부순다(카메라가 출구로 넘어가 보여 줌) → 다시 네크로시아 클로즈업 → 대사 → 화면이 원래대로 돌아오며 모래룡을 향해 대시 → 전투 시작.
+    // 이 연출을 이미 본 세이브(두 번째 만남부터)는 Esc로 건너뛰면 모래룡이 바로 나타나고(출구는 부서진 채로) 곧장 전투가 열린다.
     public class SandDragonIntroCutscene : MonoBehaviour
     {
         // 모래룡과 이만큼 가까워지면 연출이 시작된다.
@@ -60,6 +61,27 @@ namespace Aethoria.Stages
             "...땅 밑에서 깨어난 건가. 폐허의 오래된 기록을 지켜 온 수호룡.",
             "미안하지만 비켜 줘야겠다. 그 문 너머의 기록, 내가 확인해야 하니까.",
         };
+
+        // 대사가 끝나면 모래룡이 땅을 내려찍어, 네크로시아가 들어온 출구(뒤쪽 포탈) 밑에서 꼬리를 솟구쳐 출구를 부순다.
+        // 카메라가 출구로 넘어가 부서지는 모습을 보여 주고, 네크로시아에게 돌아와 한마디 한 뒤 전투가 열린다.
+        private const float ExitWarnTime = 0.9f;           // 출구 밑 모래가 들썩이는 시간(그 사이 카메라가 출구로 넘어간다)
+        private const float ExitCameraSmoothTime = 0.3f;
+        private const float ExitBreakHold = 1.3f;          // 부서진 뒤 잠깐 보여 주는 시간
+        private const float ExitShatterDuration = 0.35f;
+        private const float ExitShakeDuration = 0.6f;
+        private const float ExitShakeMagnitude = 0.3f;
+
+        private static readonly string[] AfterExitLines =
+        {
+            "...퇴로를 끊었나.",
+            "상관없다. 어차피 물러설 생각은 없었으니까.",
+        };
+
+        private Portal exitPortal;
+        private bool exitBroken;
+
+        // 보스 맵의 뒤쪽 포탈(유일한 출구). 모래룡을 만든 뒤에 생기므로 GameBootstrap이 따로 알려 준다.
+        public void SetExitPortal(Portal portal) => exitPortal = portal;
         private const string PlayerNextHint = "   <color=#B98CE8>[Z]</color>";
         private const string PlayerSkipHint = "   <color=#B98CE8>[Esc] 스킵</color>";
 
@@ -79,7 +101,6 @@ namespace Aethoria.Stages
         private bool finished;
 
         private Vector3 restPosition;
-        private static Sprite ringSprite;
 
         public void Initialize(SandDragonAI dragonAI, Character targetPlayer, NpcDialogueUI dialogue,
             bool skippable, System.Action onShown, System.Action onReveal)
@@ -178,7 +199,41 @@ namespace Aethoria.Stages
             yield return Wait(ZoomDuration + 0.2f);
             if (skipped) { yield return SkipToBattle(); yield break; }
 
-            foreach (var line in NecrosiaLines)
+            yield return Monologue(NecrosiaLines);
+            if (skipped) { yield return SkipToBattle(); yield break; }
+
+            // 5) 모래룡이 꼬리로 출구를 부순다 → 다시 네크로시아 클로즈업 → 대사.
+            if (exitPortal != null && dragon != null)
+            {
+                yield return SmashExit();
+                if (skipped) { yield return SkipToBattle(); yield break; }
+
+                if (cameraFollow != null && player != null)
+                {
+                    cameraFollow.SetTarget(player.transform, CameraPanSmoothTime);
+                    cameraFollow.ZoomTo(PlayerCloseUpSize, ZoomDuration);
+                }
+                yield return Wait(ZoomDuration + 0.2f);
+                if (skipped) { yield return SkipToBattle(); yield break; }
+
+                yield return Monologue(AfterExitLines);
+                if (skipped) { yield return SkipToBattle(); yield break; }
+            }
+
+            // 6) 화면을 되돌리며 모래룡을 향해 대시 → 전투.
+            if (cameraFollow != null)
+            {
+                cameraFollow.SetTarget(player.transform, 0.12f);
+                cameraFollow.ResetZoom(0.35f);
+            }
+            yield return DashIntoBattle();
+        }
+
+        private bool skipped;
+
+        private IEnumerator Monologue(string[] lines)
+        {
+            foreach (var line in lines)
             {
                 dialogueUI?.ShowNecrosia(line + (skippable ? PlayerSkipHint : "") + PlayerNextHint);
                 yield return null; // 대사가 바뀐 그 프레임의 입력으로 바로 넘어가지 않게
@@ -190,18 +245,109 @@ namespace Aethoria.Stages
                 if (skipped) break;
             }
             dialogueUI?.Hide();
-            if (skipped) { yield return SkipToBattle(); yield break; }
-
-            // 5) 화면을 되돌리며 모래룡을 향해 대시 → 전투.
-            if (cameraFollow != null)
-            {
-                cameraFollow.SetTarget(player.transform, 0.12f);
-                cameraFollow.ResetZoom(0.35f);
-            }
-            yield return DashIntoBattle();
         }
 
-        private bool skipped;
+        // 화면을 넓혀 모래룡을 비춘 채 땅을 내려찍게 하고, 앞발이 닿는 순간 카메라를 출구로 넘긴다.
+        // 출구 밑 모래가 들썩이다 꼬리가 솟는 순간 출구가 부서진다.
+        private IEnumerator SmashExit()
+        {
+            if (cameraFollow != null)
+            {
+                cameraFollow.SetTarget(dragon.transform, CameraPanSmoothTime);
+                cameraFollow.ResetZoom(ZoomDuration);
+            }
+            yield return Wait(ZoomDuration);
+            if (skipped) yield break;
+
+            Vector2 exitGround = new Vector2(ExitVisualX(), dragon.transform.position.y);
+            float facing = exitGround.x < dragon.transform.position.x ? -1f : 1f;
+            yield return Wait(dragon.PlayCutsceneSlam(facing));
+            if (skipped) yield break;
+
+            if (cameraFollow != null)
+            {
+                cameraFollow.Shake(0.4f, 0.15f);
+                cameraFollow.SetTarget(exitPortal.transform, ExitCameraSmoothTime);
+            }
+            dragon.PlayCutsceneTail(exitGround, facing, ExitWarnTime, () => BreakExit(instant: false));
+            while (!exitBroken && !skipped)
+            {
+                if (SkipPressed()) skipped = true;
+                yield return null;
+            }
+            if (skipped) yield break;
+            yield return Wait(ExitBreakHold);
+        }
+
+        // 포탈 그림(테두리/소용돌이)은 콜라이더보다 맵 안쪽으로 물려 그려지므로, 그림 가운데에 꼬리를 세운다.
+        private float ExitVisualX()
+        {
+            var renderers = exitPortal.GetComponentsInChildren<SpriteRenderer>();
+            if (renderers.Length == 0) return exitPortal.transform.position.x;
+            Bounds bounds = renderers[0].bounds;
+            foreach (var r in renderers) bounds.Encapsulate(r.bounds);
+            return bounds.center.x;
+        }
+
+        // 출구를 부순다: 더는 밟아도 넘어가지 않게 판정을 끄고, 모래빛 충격파와 함께 오그라들며 사라진다.
+        // instant면(건너뛰기) 효과 없이 바로 없앤다. 두 번 불려도 안전하다.
+        private void BreakExit(bool instant)
+        {
+            if (exitBroken || exitPortal == null) { exitBroken = true; return; }
+            exitBroken = true;
+            foreach (var c in exitPortal.GetComponentsInChildren<Collider2D>()) c.enabled = false;
+            var portalGO = exitPortal.gameObject;
+            if (instant)
+            {
+                Destroy(portalGO);
+                return;
+            }
+
+            var renderers = portalGO.GetComponentsInChildren<SpriteRenderer>();
+            Vector3 center = portalGO.transform.position;
+            if (renderers.Length > 0)
+            {
+                Bounds bounds = renderers[0].bounds;
+                foreach (var r in renderers) bounds.Encapsulate(r.bounds);
+                center = bounds.center;
+            }
+            if (cameraFollow != null) cameraFollow.Shake(ExitShakeDuration, ExitShakeMagnitude);
+            ShockwaveBurst.Play(this, center, portalGO.transform.parent, new ShockwaveBurst.Settings
+            {
+                rings = 3,
+                interval = 0.1f,
+                duration = 0.6f,
+                maxSize = 6f,
+                squash = 0.8f,
+                ringColor = ShockwaveColor,
+                flashColor = new Color(1f, 0.9f, 0.65f, 0.3f),
+                flashDuration = 0.25f,
+                sortingOrder = 55,
+            });
+            StartCoroutine(ShatterPortal(portalGO, renderers));
+        }
+
+        private IEnumerator ShatterPortal(GameObject portalGO, SpriteRenderer[] renderers)
+        {
+            Vector3 startScale = portalGO.transform.localScale;
+            var startColors = new Color[renderers.Length];
+            for (int i = 0; i < renderers.Length; i++) startColors[i] = renderers[i].color;
+            for (float t = 0f; t < ExitShatterDuration && portalGO != null; t += Time.deltaTime)
+            {
+                float k = t / ExitShatterDuration;
+                // 옆으로 살짝 부풀었다가 위아래로 찌그러지며 오그라든다.
+                portalGO.transform.localScale = new Vector3(startScale.x * (1f + 0.25f * Mathf.Sin(k * Mathf.PI)) * (1f - k * 0.6f),
+                    startScale.y * (1f - k), startScale.z);
+                for (int i = 0; i < renderers.Length; i++)
+                {
+                    if (renderers[i] == null) continue;
+                    Color c = startColors[i];
+                    renderers[i].color = new Color(c.r, c.g, c.b, c.a * (1f - k));
+                }
+                yield return null;
+            }
+            if (portalGO != null) Destroy(portalGO);
+        }
 
         private IEnumerator Wait(float seconds)
         {
@@ -234,6 +380,7 @@ namespace Aethoria.Stages
             dialogueUI?.Hide();
             if (dragonAttack != null) dragonAttack.Stop();
             Reveal();
+            BreakExit(instant: true); // 건너뛰어도 출구는 부서진 채로 전투가 열린다
             if (cameraFollow != null && player != null)
             {
                 cameraFollow.SetTarget(player.transform, 0.12f);
@@ -276,16 +423,14 @@ namespace Aethoria.Stages
                 cameraFollow.Shake(RoarShakeDuration, RoarShakeMagnitude);
                 StartCoroutine(ZoomPunch());
             }
-            StartCoroutine(ScreenFlash());
-            StartCoroutine(Shockwaves());
+            Shockwaves();
         }
 
         // 전투 중 포효: 클로즈업은 하지 않고, 화면을 흔들고 번쩍이고 충격파 고리와 "크아아아앙!!"만 띄운다.
         private void BattleRoarImpact()
         {
             if (cameraFollow != null) cameraFollow.Shake(BattleRoarShakeDuration, BattleRoarShakeMagnitude);
-            StartCoroutine(ScreenFlash());
-            StartCoroutine(Shockwaves());
+            Shockwaves();
             StartCoroutine(FadeRoarText(CreateRoarText()));
         }
 
@@ -317,80 +462,21 @@ namespace Aethoria.Stages
             return dragon.transform.position + new Vector3(facing * 3f, 4f, 0f);
         }
 
-        private IEnumerator Shockwaves()
+        // 입에서 모래빛 충격파 고리를 연달아 퍼뜨리고 화면을 모래빛으로 번쩍인다(ShockwaveBurst).
+        private void Shockwaves()
         {
-            var sprite = RingSprite();
-            Vector3 origin = MouthPosition();
-            for (int i = 0; i < ShockwaveRings; i++)
+            ShockwaveBurst.Play(this, MouthPosition(), dragon.transform.parent, new ShockwaveBurst.Settings
             {
-                StartCoroutine(ExpandRing(sprite, origin, i == 0 ? 1.15f : 1f));
-                yield return new WaitForSeconds(ShockwaveInterval);
-            }
-        }
-
-        private IEnumerator ExpandRing(Sprite sprite, Vector3 origin, float sizeScale)
-        {
-            var go = new GameObject("RoarShockwave");
-            go.transform.SetParent(dragon.transform.parent, false);
-            go.transform.position = origin;
-            var renderer = go.AddComponent<SpriteRenderer>();
-            renderer.sprite = sprite;
-            renderer.sortingOrder = 55;
-            for (float t = 0f; t < ShockwaveDuration; t += Time.deltaTime)
-            {
-                float k = t / ShockwaveDuration;
-                float size = Mathf.Lerp(0.6f, ShockwaveMaxSize * sizeScale, 1f - (1f - k) * (1f - k)); // 처음에 빠르게 퍼진다
-                go.transform.localScale = new Vector3(size, size * 0.8f, 1f);
-                renderer.color = new Color(ShockwaveColor.r, ShockwaveColor.g, ShockwaveColor.b, ShockwaveColor.a * (1f - k));
-                yield return null;
-            }
-            Destroy(go);
-        }
-
-        // 가장자리가 부드러운 고리(지름 1유닛) 그림을 한 번만 만들어 둔다.
-        private static Sprite RingSprite()
-        {
-            if (ringSprite != null) return ringSprite;
-            const int size = 256;
-            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
-            var pixels = new Color32[size * size];
-            float center = (size - 1) / 2f;
-            for (int y = 0; y < size; y++)
-            {
-                for (int x = 0; x < size; x++)
-                {
-                    float d = Mathf.Sqrt((x - center) * (x - center) + (y - center) * (y - center)) / center; // 0~1
-                    float band = Mathf.Clamp01(1f - Mathf.Abs(d - 0.86f) / 0.12f);                      // 바깥쪽 굵은 띠
-                    float inner = Mathf.Clamp01(1f - Mathf.Abs(d - 0.6f) / 0.25f) * 0.25f;              // 안쪽 옅은 일렁임
-                    byte a = (byte)(Mathf.Clamp01(band + inner) * 255f);
-                    pixels[y * size + x] = new Color32(255, 255, 255, a);
-                }
-            }
-            texture.SetPixels32(pixels);
-            texture.Apply();
-            ringSprite = Sprite.Create(texture, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), size);
-            return ringSprite;
-        }
-
-        // 카메라 앞을 통째로 덮는 모래빛 번쩍임.
-        private IEnumerator ScreenFlash()
-        {
-            var cam = Camera.main;
-            if (cam == null) yield break;
-            var go = new GameObject("RoarFlash");
-            go.transform.SetParent(cam.transform, false);
-            go.transform.localPosition = new Vector3(0f, 0f, 1f);
-            go.transform.localScale = new Vector3(40f, 40f, 1f);
-            var renderer = go.AddComponent<SpriteRenderer>();
-            var texture = Texture2D.whiteTexture;
-            renderer.sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f), texture.width);
-            renderer.sortingOrder = 58;
-            for (float t = 0f; t < FlashDuration; t += Time.deltaTime)
-            {
-                renderer.color = new Color(1f, 0.9f, 0.65f, FlashAlpha * (1f - t / FlashDuration));
-                yield return null;
-            }
-            Destroy(go);
+                rings = ShockwaveRings,
+                interval = ShockwaveInterval,
+                duration = ShockwaveDuration,
+                maxSize = ShockwaveMaxSize,
+                squash = 0.8f,
+                ringColor = ShockwaveColor,
+                flashColor = new Color(1f, 0.9f, 0.65f, FlashAlpha),
+                flashDuration = FlashDuration,
+                sortingOrder = 55,
+            });
         }
 
         private GameObject CreateRoarText()

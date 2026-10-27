@@ -172,7 +172,7 @@ namespace Aethoria.Stages
             if (!enemyDead)
             {
                 yield return tutorialUI.CompleteGuide();
-                tutorialUI.ShowGuide("약해졌다! 스킬(X · A · S · D · Q · W · E)로 마무리하자");
+                tutorialUI.ShowGuide("약해졌다! 스킬(A · S · D · Q · W · E)로 마무리하자");
                 while (!enemyDead) yield return null;
             }
             yield return tutorialUI.CompleteGuide();

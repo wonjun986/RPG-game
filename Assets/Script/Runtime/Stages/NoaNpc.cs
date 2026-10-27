@@ -30,7 +30,7 @@ namespace Aethoria.Stages
             new QuestStoryLine(true, "붉은 달... 루나벨에 대해 아는 게 있나."),
             new QuestStoryLine(false, "...절망의 언덕의 피의 여왕 말이죠. 그 붉은 달이 뜬 뒤로 몬스터들이 날뛰기 시작했어요. 다들 언덕 쪽은 쳐다보지도 않아요."),
             new QuestStoryLine(false, "설마 그 언덕에 가시려고요? 지금 그 몸으로는 무리예요. 가까운 평야의 몬스터부터 상대하면서 힘을 되찾는 게 좋겠어요."),
-            new QuestStoryLine(true, "...그래. 지금의 나로는 그날의 리듬을 따라잡지 못한다."),
+            new QuestStoryLine(true, "...그래. 지금의 낫으로는 그 여자에게 닿지 못한다."),
             new QuestStoryLine(false, "그럼 제가 도울게요! 필요한 물건은 상점에서, 해야 할 일은 퀘스트로 알려 드릴게요. 대신 꼭 살아서 돌아오셔야 해요."),
         };
         private const string StoryNextHint = "   <color=#F2D94E>[Z]</color>";

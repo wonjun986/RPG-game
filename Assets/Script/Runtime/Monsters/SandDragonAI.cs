@@ -12,6 +12,7 @@ namespace Aethoria.Monsters
     // 플레이어가 발판 위 높은 곳에 오래 머물면 포효(Roar 6프레임)하며 거대한 모래 회오리 두 개로 플레이어를 앞뒤에서 조여 온다(SandWhirlwind).
     // 대지 강타가 닿지 않는 거리에서는 땅을 내려찍어 플레이어 발밑에서 꼬리를 솟구치게 한다(꼬리 대지 폭발 — 잠깐 모래가
     // 들썩이는 예고 뒤에 솟으니, 그 사이 자리를 피하면 된다).
+    // 체력이 절반 아래로 떨어지면 모래 폭풍이 일어, 다른 공격과 상관없이 짧은 주기로 맵 아무 곳에나 모래 회오리가 솟는다.
     [RequireComponent(typeof(Monster))]
     [RequireComponent(typeof(Rigidbody2D))]
     [RequireComponent(typeof(SpriteRenderer))]
@@ -55,8 +56,28 @@ namespace Aethoria.Monsters
         [SerializeField] private float beamThickness = 1.2f;     // 빔 그림 굵기 배율
         [SerializeField] private float beamHitHalfWidth = 0.55f;
         [SerializeField] private float beamImpactRadius = 1.4f;
-        [SerializeField] private int beamHits = 4;
-        [SerializeField] private float beamHitDamageMultiplier = 0.9f;
+        // 피격 무적 없이 짧은 간격으로 계속 깎는 연타(총 피해는 예전 4타 x 0.9배와 비슷하게).
+        [SerializeField] private float beamHitInterval = 0.15f;
+        [SerializeField] private float beamHitDamageMultiplier = 0.45f;
+
+        [Header("모래 폭풍 (체력 50% 미만)")]
+        // 체력이 이 비율 아래로 떨어지면, 다른 공격과 상관없이 짧은 주기로 맵 아무 곳에나 모래 회오리가 솟는다.
+        [SerializeField, Range(0f, 1f)] private float stormHealthFraction = 0.5f;
+        [SerializeField] private float stormInterval = 1.6f;        // 회오리가 하나씩 솟는 주기
+        [SerializeField] private float stormIntervalJitter = 0.4f;  // 주기를 ±이만큼 흔들어 박자가 읽히지 않게
+        [SerializeField] private float stormPlayerClearance = 2.2f; // 플레이어 바로 위에서는 솟지 않는다(솟는 걸 보고 피할 틈)
+        [SerializeField] private float stormSpeed = 1.8f;
+        [SerializeField] private float stormLifetime = 3.5f;
+        [SerializeField] private float stormHitWidth = 1.6f;
+        [SerializeField] private float stormHeight = 4.5f;          // 포효 회오리(6)보다 낮아 이단 점프로 넘을 수 있다
+        [SerializeField] private float stormHitInterval = 0.15f;
+        [SerializeField] private float stormDamageMultiplier = 0.2f;
+
+        [Header("몸통 접촉")]
+        [SerializeField] private float contactInterval = 1f;
+        [SerializeField] private float contactDamageMultiplier = 0.8f;
+        // 플레이어가 몸으로 밀어도 꿈쩍하지 않게 아주 무겁게 둔다.
+        [SerializeField] private float bodyMass = 1000f;
 
         [Header("포효 + 모래 회오리")]
         [SerializeField] private float highThreshold = 1.8f;     // 플레이어 발이 바닥보다 이만큼 높으면 '높은 곳'
@@ -69,8 +90,9 @@ namespace Aethoria.Monsters
         [SerializeField] private float whirlBeyondPlayer = 4f;   // 플레이어 너머 이만큼 떨어진 곳에서 두 번째 회오리가 솟는다
         [SerializeField] private float whirlSpeed = 2.5f;        // 두 회오리가 플레이어 쪽으로 밀려오는 속도
         [SerializeField] private float whirlLifetime = 5f;
-        [SerializeField] private float whirlHitInterval = 0.5f;
-        [SerializeField] private float whirlDamageMultiplier = 0.8f;
+        // 피격 무적 없이 짧은 간격으로 계속 깎는 연타(초당 피해는 예전 0.5초 x 0.8배와 비슷하게).
+        [SerializeField] private float whirlHitInterval = 0.15f;
+        [SerializeField] private float whirlDamageMultiplier = 0.25f;
         [SerializeField] private float whirlHitWidth = 2.0f;      // 대시 한 번(3유닛)으로 맞닿은 데서 반대편까지 빠져나갈 수 있는 폭
         // 회오리 그림 키. 화면 위끝(바닥 위 약 6.4)보다 살짝 낮게 세워 깔때기 윗부분까지 다 보이게 한다.
         [SerializeField] private float whirlHeight = 6.0f;
@@ -91,6 +113,11 @@ namespace Aethoria.Monsters
         public const string TailBurstPath = "Art/Effects/SandTailBurst";
         private float highTimer;
         private float roarTimer;
+        private float contactTimer;
+        private float stormTimer;
+        private readonly System.Collections.Generic.List<SandWhirlwind> stormWhirls = new System.Collections.Generic.List<SandWhirlwind>();
+        private Collider2D bodyCollider;
+        private Collider2D targetCollider;
         // 회오리가 솟을 수 있는 x 범위(맵 벽 안쪽). GameBootstrap이 모래룡을 만들 때 알려 준다.
         private float arenaMinX = float.NegativeInfinity;
         private float arenaMaxX = float.PositiveInfinity;
@@ -120,6 +147,13 @@ namespace Aethoria.Monsters
         private const float BeamCellPx = 512f;
         private const float BeamPixelsPerUnit = 240f;
         private const float BeamFrameInterval = 0.06f;
+        // 빔 그림(beam_01~06)마다 실제로 그려진 범위. 줄기 방향으로 출발점(0)~충돌점(1) 중 어디부터 어디까지,
+        // 줄기에서 수직으로 몇 px까지 퍼져 있는지(흩날리는 모래 조각까지, 칸 가장자리에 걸친 이웃 그림 조각은 빼고 잰 값).
+        private static readonly Vector3[] BeamFrameShapes =
+        {
+            new Vector3(0.04f, 0.84f, 79f), new Vector3(0.05f, 0.96f, 78f), new Vector3(0.05f, 0.99f, 81f),
+            new Vector3(0.00f, 0.96f, 112f), new Vector3(0.00f, 0.96f, 140f), new Vector3(0.02f, 1.00f, 95f),
+        };
         // 등장 연출(SandDragonIntroCutscene) 동안에는 움직이지도, 닿아도 전투를 열지도 않는다(연출이 직접 연다).
         private bool heldForIntro;
 
@@ -137,8 +171,11 @@ namespace Aethoria.Monsters
             spriteRenderer = GetComponent<SpriteRenderer>();
             body.gravityScale = gravityScale;
             body.freezeRotation = true;
+            body.mass = bodyMass;
 
             target = Object.FindFirstObjectByType<Character>();
+            if (target != null) targetCollider = target.GetComponent<Collider2D>();
+            monster.OnDied += _ => ClearSandStorm();
             attackAnimator = GetComponent<MonsterAttackSpriteAnimator>();
             beamTimer = beamFirstDelay;
             tailStrikeTimer = tailStrikeFirstDelay;
@@ -163,7 +200,7 @@ namespace Aethoria.Monsters
         // 모래룡은 땅 위에서만 싸운다. 커다란 몸이 낮은 공중 발판(한쪽 방향 발판)에 걸려 올라타지 않도록 발판과는 부딪히지 않게 한다.
         private void Start()
         {
-            var bodyCollider = GetComponent<Collider2D>();
+            bodyCollider = GetComponent<Collider2D>();
             if (bodyCollider == null) return;
             foreach (var effector in Object.FindObjectsByType<PlatformEffector2D>())
             {
@@ -180,6 +217,9 @@ namespace Aethoria.Monsters
             if (beamTimer > 0f && !isAttacking && !heldForIntro) beamTimer -= Time.deltaTime;
             if (tailStrikeTimer > 0f && !isAttacking && !heldForIntro) tailStrikeTimer -= Time.deltaTime;
             if (roarTimer > 0f && !isAttacking) roarTimer -= Time.deltaTime;
+            if (contactTimer > 0f) contactTimer -= Time.deltaTime;
+            TryContactDamage();
+            UpdateSandStorm();
 
             // 플레이어가 높은 곳에 머문 시간. 내려오거나 멀어지면 처음부터 다시 잰다.
             bool high = !heldForIntro && !isAttacking && target != null && !target.IsDead
@@ -188,10 +228,59 @@ namespace Aethoria.Monsters
             highTimer = high ? highTimer + Time.deltaTime : 0f;
         }
 
+        // 몸통에 닿아 있으면 contactInterval마다 피해. 공격 중에도 몸은 여전히 위험하다(땅속에 숨은 등장 연출 중엔 빼고).
+        private void TryContactDamage()
+        {
+            if (contactTimer > 0f || heldForIntro || monster.IsDead || monster.IsMinigameOpponent) return;
+            if (bodyCollider == null || targetCollider == null || target.IsDead) return;
+            if (bodyCollider.Distance(targetCollider).distance > 0.05f) return;
+
+            contactTimer = contactInterval;
+            float damage = CombatMath.Finish(CombatMath.BaseDamage(monster.Attack, target.Stats.defense) * contactDamageMultiplier);
+            target.TakeDamage(damage, transform.position);
+        }
+
+        // 모래 폭풍: 체력이 stormHealthFraction 아래로 떨어지면 다른 공격과 따로, stormInterval(±jitter)마다
+        // 맵 안 아무 곳에서나 모래 회오리가 하나씩 솟아 무작위 방향으로 밀려간다. 플레이어 바로 위에서는 솟지 않아서
+        // 솟아오르는 동안(맞지 않는 0.4초) 보고 피할 수 있다. 피격 무적 없이 연타로 깎인다.
+        private void UpdateSandStorm()
+        {
+            if (heldForIntro || monster.IsDead || monster.IsMinigameOpponent || target == null || target.IsDead) return;
+            if (monster.CurrentHp >= monster.MaxHp * stormHealthFraction) return;
+
+            stormTimer -= Time.deltaTime;
+            if (stormTimer > 0f) return;
+            stormTimer = stormInterval + Random.Range(-stormIntervalJitter, stormIntervalJitter);
+
+            // 맵 벽 안쪽(GameBootstrap이 SetArenaBounds로 알려 준 범위)에서만 솟는다.
+            if (float.IsInfinity(arenaMinX) || float.IsInfinity(arenaMaxX)) return;
+            float minX = arenaMinX + 1f;
+            float maxX = arenaMaxX - 1f;
+            if (maxX <= minX) return;
+            float playerX = target.transform.position.x;
+            float x = Random.Range(minX, maxX);
+            for (int i = 0; i < 6 && Mathf.Abs(x - playerX) < stormPlayerClearance; i++) x = Random.Range(minX, maxX);
+            if (Mathf.Abs(x - playerX) < stormPlayerClearance) return;
+
+            float direction = Random.value < 0.5f ? -1f : 1f;
+            var whirl = SandWhirlwind.Spawn(new Vector2(x, GroundY()), direction, monster.Attack, stormDamageMultiplier, stormSpeed,
+                stormLifetime, stormHitInterval, stormHitWidth, stormHeight, stormHeight, hitReaction: false);
+            stormWhirls.RemoveAll(w => w == null);
+            stormWhirls.Add(whirl);
+        }
+
+        // 모래룡이 쓰러지면 맵에 남은 모래 폭풍 회오리도 함께 걷힌다.
+        private void ClearSandStorm()
+        {
+            foreach (var whirl in stormWhirls) if (whirl != null) Destroy(whirl.gameObject);
+            stormWhirls.Clear();
+        }
+
         private void OnDestroy()
         {
             if (beamObject != null) Destroy(beamObject);
             foreach (var tail in tailObjects) if (tail != null) Destroy(tail);
+            ClearSandStorm();
         }
 
         private void FixedUpdate()
@@ -300,9 +389,12 @@ namespace Aethoria.Monsters
 
         // 꼬리가 땅을 뚫고 솟구쳤다가(4프레임) 잠깐 멈춘 뒤 거꾸로 감기며 땅속으로 들어간다.
         // warnTime > 0이면 먼저 첫 장(모래가 막 들썩이는 그림)을 흐리게 떨며 예고한다.
-        // dealsDamage면 꼬리가 솟는 순간 꼬리 기둥 범위에 피해를 준다(대지 강타에 딸린 꼬리는 강타가 이미 때려서 끈다).
+        // dealsDamage면 꼬리가 솟은 순간부터 다시 땅속으로 들어갈 때까지 꼬리 기둥 범위에 피격 판정이 남는다
+        // (대지 강타에 딸린 꼬리는 강타가 이미 때려서 끈다).
         // 꼬리 그림은 오른쪽으로 휘어 있어서, 왼쪽을 볼 때는 뒤집는다.
-        private IEnumerator TailBurst(Vector2 bottomCenter, float facing, float warnTime = 0f, bool dealsDamage = false)
+        // onRise: 꼬리가 땅을 뚫고 솟는 순간(두 번째 장) 불린다. 등장 연출이 출구를 부수는 타이밍에 쓴다.
+        private IEnumerator TailBurst(Vector2 bottomCenter, float facing, float warnTime = 0f, bool dealsDamage = false,
+            System.Action onRise = null)
         {
             var frames = Resources.LoadAll<Sprite>(TailBurstPath);
             if (frames.Length == 0) yield break;
@@ -331,28 +423,57 @@ namespace Aethoria.Monsters
                 renderer.color = Color.white;
             }
 
-            for (int i = 0; i < frames.Length; i++)
+            // 솟구침(frames 장) → 멈춤(tailHold) → 거꾸로 감기며 들어감(첫 장까지). 꼬리가 땅 위로 나와 있는 동안
+            // (두 번째 장부터 다시 첫 장으로 들어갈 때까지) 내내 피격 판정이 남아 있고, 판정 키는 보이는 꼬리 키를 따라간다.
+            float riseTime = frames.Length * tailFrameDuration;
+            float retractStart = riseTime + tailHold;
+            float total = retractStart + (frames.Length - 1) * tailFrameDuration;
+            bool risen = false;
+            for (float t = 0f; t < total; t += Time.deltaTime)
             {
                 if (go == null) yield break;
-                renderer.sprite = frames[i];
-                if (dealsDamage && i == 1) TailHit(bottomCenter);
-                yield return new WaitForSeconds(tailFrameDuration);
-            }
-            yield return new WaitForSeconds(tailHold);
-            for (int i = frames.Length - 2; i >= 0; i--)
-            {
-                renderer.sprite = frames[i];
-                yield return new WaitForSeconds(tailFrameDuration);
+                int index = t < riseTime ? Mathf.Min(frames.Length - 1, (int)(t / tailFrameDuration))
+                    : t < retractStart ? frames.Length - 1
+                    : Mathf.Max(0, frames.Length - 2 - (int)((t - retractStart) / tailFrameDuration));
+                renderer.sprite = frames[index];
+                if (index >= 1)
+                {
+                    if (!risen) { risen = true; onRise?.Invoke(); }
+                    if (dealsDamage) TailHit(bottomCenter, (float)index / Mathf.Max(1, frames.Length - 1));
+                }
+                yield return null;
             }
             tailObjects.Remove(go);
             if (go != null) Destroy(go);
         }
 
-        private void TailHit(Vector2 bottomCenter)
+        // ---- 등장 연출(SandDragonIntroCutscene)용 ----
+
+        // 대지 강타 모션으로 facing 쪽 땅을 내려찍는다. 앞발이 땅에 닿는 순간까지 걸리는 시간을 돌려준다.
+        public float PlayCutsceneSlam(float facing)
+        {
+            spriteRenderer.flipX = facing < 0f;
+            if (attackAnimator == null || !attackAnimator.HasFrames) return 0f;
+            float duration = attackAnimator.DefaultDuration;
+            attackAnimator.Play(duration);
+            return duration * slamImpactTiming;
+        }
+
+        // 피해 없이 꼬리만 솟구치게 한다(땅이 warnTime 동안 들썩인 뒤). 꼬리가 솟는 순간 onRise가 불린다.
+        public void PlayCutsceneTail(Vector2 bottomCenter, float facing, float warnTime, System.Action onRise)
+        {
+            StartCoroutine(TailBurst(bottomCenter, facing, warnTime, dealsDamage: false, onRise: onRise));
+        }
+
+        // 꼬리 기둥 안에 있으면 맞는다. heightFraction: 지금 땅 위로 나와 있는 꼬리 키 비율(다 솟으면 1).
+        // 매 프레임 불리지만 일반 피격이라, 한 번 맞으면 넉백과 피격 무적(0.5초)이 끝날 때까지는 다시 맞지 않는다.
+        private void TailHit(Vector2 bottomCenter, float heightFraction = 1f)
         {
             if (monster.IsDead || target == null || target.IsDead) return;
-            Vector2 center = bottomCenter + Vector2.up * (tailHitHeight * 0.5f);
-            foreach (var hit in Physics2D.OverlapBoxAll(center, new Vector2(tailHitWidth, tailHitHeight), 0f))
+            float height = tailHitHeight * Mathf.Clamp01(heightFraction);
+            if (height <= 0.01f) return;
+            Vector2 center = bottomCenter + Vector2.up * (height * 0.5f);
+            foreach (var hit in Physics2D.OverlapBoxAll(center, new Vector2(tailHitWidth, height), 0f))
             {
                 if (hit.GetComponent<Character>() != target) continue;
                 float damage = CombatMath.Finish(CombatMath.BaseDamage(monster.Attack, target.Stats.defense) * tailStrikeDamageMultiplier);
@@ -391,7 +512,7 @@ namespace Aethoria.Monsters
         private void SpawnWhirl(float x, float groundY, float direction)
         {
             SandWhirlwind.Spawn(new Vector2(x, groundY), direction, monster.Attack, whirlDamageMultiplier, whirlSpeed, whirlLifetime,
-                whirlHitInterval, whirlHitWidth, whirlHeight, whirlHitHeight);
+                whirlHitInterval, whirlHitWidth, whirlHeight, whirlHitHeight, hitReaction: false);
         }
 
         // 황금 브레스: 입에 금빛 구슬을 모았다가(Charge 한 번 → 마지막 2프레임 반복) 플레이어가 서 있던 땅을 겨눠 빔을 내리쏜다.
@@ -424,29 +545,30 @@ namespace Aethoria.Monsters
             System.Array.Sort(frames, (a, b) => string.CompareOrdinal(a.name, b.name));
             SpriteRenderer beamRenderer = frames.Length > 0 ? CreateBeam(origin) : null;
 
-            float hitInterval = beamDuration / Mathf.Max(1, beamHits);
-            float nextHit = BeamFrameInterval * 2f; // 빔이 굵어지는 3번째 프레임부터 맞는다
-            int dealt = 0;
-            for (float t = 0f; t < beamDuration + nextHit; t += Time.deltaTime)
+            // 빔 그림이 처음 나타난 순간부터 그려진 범위 어디든 닿으면 맞는다.
+            float nextHit = 0f;
+            for (float t = 0f; t < beamDuration + BeamFrameInterval * 2f; t += Time.deltaTime)
             {
                 if (monster.IsDead) break;
                 Vector2 impact = new Vector2(aimX + facing * beamSweep * Mathf.Clamp01(t / beamDuration), groundY);
+                int step = (int)(t / BeamFrameInterval);
+                int frameCount = beamRenderer != null ? frames.Length : BeamFrameShapes.Length;
+                int frame = step < frameCount ? step : frameCount - 3 + step % 3; // 다 굵어진 뒤엔 마지막 세 장을 번갈아
+                frame = Mathf.Clamp(frame, 0, frameCount - 1);
                 if (beamRenderer != null)
                 {
-                    int step = (int)(t / BeamFrameInterval);
-                    int frame = step < frames.Length ? step : frames.Length - 3 + step % 3; // 다 굵어진 뒤엔 마지막 세 장을 번갈아
-                    beamRenderer.sprite = frames[Mathf.Clamp(frame, 0, frames.Length - 1)];
+                    beamRenderer.sprite = frames[frame];
                     AimBeam(origin, impact);
                 }
 
-                if (dealt < beamHits && t >= nextHit)
+                // 빔에 닿아 있는 동안 피격 무적 없이 beamHitInterval마다 계속 맞는다(대시 무적으로는 여전히 뚫을 수 있다).
+                if (t >= nextHit)
                 {
-                    dealt++;
-                    nextHit += hitInterval;
-                    if (target != null && !target.IsDead && BeamTouches(origin, impact))
+                    nextHit += beamHitInterval;
+                    if (target != null && !target.IsDead && BeamTouches(origin, impact, frame))
                     {
                         float damage = CombatMath.Finish(CombatMath.BaseDamage(monster.Attack, target.Stats.defense) * beamHitDamageMultiplier);
-                        target.TakeDamage(damage, impact);
+                        target.TakeDamage(damage, impact, hitReaction: false);
                     }
                 }
                 yield return null;
@@ -510,15 +632,26 @@ namespace Aethoria.Monsters
         private static Vector2 BeamArtDirection() =>
             new Vector2(BeamEndPx.x - BeamOriginPx.x, -(BeamEndPx.y - BeamOriginPx.y)) / BeamPixelsPerUnit;
 
-        // 플레이어 몸 중심이 빔 줄기 가까이 있거나 착탄점 폭발 안에 있으면 맞는다.
-        private bool BeamTouches(Vector2 origin, Vector2 impact)
+        // 지금 보이는 빔 그림이 그려진 범위(줄기를 따라 돌린 상자, BeamFrameShapes) 어디든 플레이어 몸이 걸치거나
+        // 착탄점 폭발 안에 있으면 맞는다.
+        private bool BeamTouches(Vector2 origin, Vector2 impact, int frame)
         {
-            var targetCollider = target.GetComponent<Collider2D>();
             Vector2 p = targetCollider != null ? (Vector2)targetCollider.bounds.center : (Vector2)target.transform.position;
             if (Vector2.Distance(p, impact) <= beamImpactRadius) return true;
+
             Vector2 seg = impact - origin;
-            float along = Mathf.Clamp01(Vector2.Dot(p - origin, seg) / seg.sqrMagnitude);
-            return Vector2.Distance(p, origin + seg * along) <= beamHitHalfWidth;
+            float length = seg.magnitude;
+            if (length <= 0.01f) return false;
+            Vector3 shape = BeamFrameShapes[Mathf.Clamp(frame, 0, BeamFrameShapes.Length - 1)];
+            float halfWidth = Mathf.Max(beamHitHalfWidth, shape.z / BeamPixelsPerUnit * beamThickness);
+            Vector2 center = origin + seg * ((shape.x + shape.y) * 0.5f);
+            var size = new Vector2((shape.y - shape.x) * length, halfWidth * 2f);
+            float angle = Mathf.Atan2(seg.y, seg.x) * Mathf.Rad2Deg;
+            foreach (var hit in Physics2D.OverlapBoxAll(center, size, angle))
+            {
+                if (hit.GetComponent<Character>() == target) return true;
+            }
+            return false;
         }
 
         private float GroundY()

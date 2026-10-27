@@ -11,7 +11,7 @@ namespace Aethoria.Stages
     // 루나벨(최종보스) 처치 연출. 2페이즈 체력이 0이 되는 순간 루나벨을 네크로시아 바로 앞으로 옮기고 패배 모션의 첫 프레임으로
     // 바꿔 둔다(전투가 열린 자리는 언덕 왼쪽이라 원래 자리에 두면 화면에 안 보이고, 2페이즈 모습이 먼저 비치는 것도 막는다).
     // 그다음:
-    //   1) 패배 모션(Art/Monsters/FinalBoss/Defeat, Lunabel_Defeat 8프레임)을 끝까지 재생해 쓰러지고,
+    //   1) 패배 모션(Art/Monsters/FinalBoss/Phase1/Defeat, Lunabel_Defeat 8프레임)을 끝까지 재생해 쓰러지고,
     //   2) 쓰러진 채 네크로시아와 마지막 대화를 나눈 뒤([Z]/Enter로 넘김),
     //   3) 서서히 사라지고,
     //   4) onFinished(마을 노아 앞으로 돌아가기)를 부른다.
@@ -19,7 +19,7 @@ namespace Aethoria.Stages
     [RequireComponent(typeof(Monster))]
     public class LunabelDeathCutscene : MonoBehaviour
     {
-        public const string DefeatPath = "Art/Monsters/FinalBoss/Defeat";
+        public const string DefeatPath = "Art/Monsters/FinalBoss/Phase1/Defeat";
         private const float DelayAfterBattle = 0.4f;
         public const float DefeatFrameInterval = 0.16f;
         public const float HoldAfterFall = 0.6f;
@@ -42,8 +42,8 @@ namespace Aethoria.Stages
         public static readonly Line[] LastWords =
         {
             new Line(false, "...하, 하하... 이 내가... 무릎을 꿇다니."),
-            new Line(true, "그날 무너졌던 리듬, 이제 전부 되찾았다."),
-            new Line(false, "네 박자... 끝까지 한 번도 흐트러지지 않더라. 그날 밤의 너와는... 전혀 달라."),
+            new Line(true, "그날 꺾였던 낫, 이번에는 끝까지 꺾이지 않았다."),
+            new Line(false, "네 낫... 아무리 피를 빨아들여도 끝까지 무뎌지지 않더라. 그날 밤의 너와는... 전혀 달라."),
             new Line(true, "빼앗긴 힘도, 이름도, 영광도. 이제 다시 내 것이다."),
             new Line(false, "후후... 축하해, 사신. 하지만 기억해 둬... 붉은 달은... 언젠가 다시... 떠오를 거야..."),
             new Line(true, "그때도 베어 주지. 몇 번이고."),

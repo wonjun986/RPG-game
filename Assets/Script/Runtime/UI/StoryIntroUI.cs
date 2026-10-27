@@ -31,8 +31,8 @@ namespace Aethoria.UI
         private static readonly StoryPage[] Pages =
         {
             new StoryPage(GloryScene, "먼 옛날, 이 땅의 밤을 지배하던 사신이 있었다.\n영혼을 거두는 낫의 주인, 네크로시아."),
-            new StoryPage(GloryScene, "적이 휘두르는 모든 공격에는 리듬이 있었고,\n네크로시아는 그 리듬을 읽을 수 있었다.\n어떤 칼날도 그 박자를 벗어나지 못했다."),
-            new StoryPage(DefeatScene, "그러나 붉은 달이 뜬 밤, 피의 여왕 루나벨이 나타났다.\n그리고 처음으로... 리듬이 무너졌다."),
+            new StoryPage(GloryScene, "그 낫이 지나간 자리에 살아남은 적은 없었고,\n어떤 칼날도 사신의 옷자락조차 스치지 못했다.\n그 낫은 단 한 번도 꺾인 적이 없었다."),
+            new StoryPage(DefeatScene, "그러나 붉은 달이 뜬 밤, 피의 여왕 루나벨이 나타났다.\n그리고 처음으로... 사신의 낫이 꺾였다."),
             new StoryPage(SleepScene, "패배한 사신은 모든 것을 잃었다.\n힘도, 이름도, 영광도.\n그리고 깊은 어둠 속에서 긴 잠에 빠졌다."),
             new StoryPage(SleepScene, "그로부터, 오랜 세월이 흘렀다."),
             new StoryPage(null, "어둠의 숲 깊은 곳.\n잊혀진 사신이, 다시 눈을 뜬다."),

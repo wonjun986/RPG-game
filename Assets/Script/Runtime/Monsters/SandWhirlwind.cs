@@ -23,9 +23,12 @@ namespace Aethoria.Monsters
         private float age;
         private float hitTimer;
         private SpriteRenderer spriteRenderer;
+        // false면 피격 직후 무적/넉백 없이 hitInterval마다 계속 깎이는 연타가 된다(황금 모래룡 회오리).
+        private bool hitReaction = true;
 
-        public static void Spawn(Vector2 bottomCenter, float direction, float attackPower, float damageMultiplier,
-            float speed, float lifetime, float hitInterval, float hitWidth, float height, float hitHeight, string framesPath = FramesPath)
+        public static SandWhirlwind Spawn(Vector2 bottomCenter, float direction, float attackPower, float damageMultiplier,
+            float speed, float lifetime, float hitInterval, float hitWidth, float height, float hitHeight, string framesPath = FramesPath,
+            bool hitReaction = true)
         {
             // 루나벨의 피의 회오리처럼 그림만 다른 회오리도 framesPath로 같은 동작을 쓴다.
             var effect = FlipbookSpriteEffect.Create("Whirlwind", framesPath, bottomCenter, 0.07f, loop: true, sortingOrder: 4);
@@ -46,6 +49,8 @@ namespace Aethoria.Monsters
             whirl.hitInterval = hitInterval;
             whirl.hitSize = new Vector2(hitWidth, hitHeight);
             whirl.hitTimer = FadeTime; // 다 솟아오른 뒤부터 맞는다
+            whirl.hitReaction = hitReaction;
+            return whirl;
         }
 
         private void Update()
@@ -73,7 +78,7 @@ namespace Aethoria.Monsters
 
                 hitTimer = hitInterval;
                 float damage = CombatMath.Finish(CombatMath.BaseDamage(damageAttack, character.Stats.defense) * damageMultiplier);
-                character.TakeDamage(damage, transform.position);
+                character.TakeDamage(damage, transform.position, hitReaction);
                 return;
             }
         }

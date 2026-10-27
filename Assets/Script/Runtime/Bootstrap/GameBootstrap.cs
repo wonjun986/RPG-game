@@ -1215,9 +1215,10 @@ namespace Aethoria.Bootstrap
 
             SpawnRuinsPlatforms(stageRoot.transform, yMin, ruinsIndex);
             // 보스 맵(마지막 폐허)에는 황금 모래룡만 나오고 콜로서스는 나오지 않는다(평야의 보스 슬라임과 같은 방식).
+            SandDragonIntroCutscene sandDragonIntro = null;
             if (isLastRuins)
             {
-                SpawnSandDragon(stageRoot.transform, yMin, xMax);
+                sandDragonIntro = SpawnSandDragon(stageRoot.transform, yMin, xMax);
             }
             else
             {
@@ -1229,6 +1230,8 @@ namespace Aethoria.Bootstrap
             var backPortal = SpawnPortal(stageRoot.transform, backPortalX, yMin + TerrainHeightAt(terrain, backPortalX), backward: true, framed: RuinsPortalStyle);
             if (isFirstRuins) backPortal.SetCustomTrigger(() => ConfirmReturnToVillage(backPortal));
             else backPortal.SetCustomTrigger(EnterPreviousFieldStage);
+            // 보스 맵의 출구는 모래룡이 등장 연출에서 꼬리로 부순다.
+            if (sandDragonIntro != null) sandDragonIntro.SetExitPortal(backPortal);
 
             if (!isLastRuins)
             {
@@ -1687,12 +1690,28 @@ namespace Aethoria.Bootstrap
             float scaledWidth = nativeSize.x * scale;
             float scaledHeight = nativeSize.y * scale;
             float centerY = yMin + scaledHeight * (groundFraction - 0.5f);
-            if (isMainBackground) backgroundTopAboveFloor = scaledHeight * groundFraction;
+            // 메인 배경은 그림 위끝 몇 줄을 위로 길게 늘린 하늘을 덧대서, 이단 점프로 카메라가 올라가도 맵이 잘려 보이지 않게 한다.
+            Sprite skySprite = isMainBackground ? CreateSkyExtensionSprite(sprite) : null;
+            if (isMainBackground)
+                backgroundTopAboveFloor = scaledHeight * groundFraction + (skySprite != null ? SkyExtensionHeight : 0f);
 
             // 가운데 한 장 + 맵 끝까지 덮는 데 필요한 만큼 양옆으로(홀수 번째는 좌우 반전).
             int sideTiles = Mathf.Max(0, Mathf.CeilToInt((width / scaledWidth - 1f) / 2f));
             for (int i = -sideTiles; i <= sideTiles; i++)
             {
+                if (skySprite != null)
+                {
+                    var sky = new GameObject("MapBackgroundSky", typeof(SpriteRenderer));
+                    sky.transform.SetParent(parent);
+                    var skyRenderer = sky.GetComponent<SpriteRenderer>();
+                    skyRenderer.sprite = skySprite;
+                    skyRenderer.sortingOrder = sortingOrder;
+                    skyRenderer.flipX = (i & 1) != 0;
+                    // 이음매가 비치지 않게 그림 위끝에 살짝 겹쳐 세운다.
+                    sky.transform.localScale = new Vector3(scale, SkyExtensionHeight / skySprite.bounds.size.y, 1f);
+                    sky.transform.position = new Vector3(centerX + i * scaledWidth, centerY + scaledHeight / 2f - 0.02f, 0f);
+                }
+
                 var go = new GameObject("MapBackground", typeof(SpriteRenderer));
                 go.transform.SetParent(parent);
 
@@ -1704,6 +1723,19 @@ namespace Aethoria.Bootstrap
                 go.transform.localScale = new Vector3(scale, scale, 1f);
                 go.transform.position = new Vector3(centerX + i * scaledWidth, centerY, 0f);
             }
+        }
+
+        // 배경 위로 덧대는 하늘 높이(유닛). 이단 점프 꼭대기에서도 화면 위가 빈 배경색으로 드러나지 않을 만큼.
+        private const float SkyExtensionHeight = 8f;
+
+        // 배경 그림 맨 위 줄(가장자리 1줄은 빼고 그 아래 2줄)만 잘라 아래 가운데 피벗 스프라이트로 만든다. 세로로 늘리면 그 줄의 색이
+        // 그대로 위로 이어져 하늘이 길어진 것처럼 보인다. 맨 끝 줄을 피하는 건 필터링이 반대편(바닥) 줄을 끌어오지 않게 하려는 것.
+        private static Sprite CreateSkyExtensionSprite(Sprite source)
+        {
+            Rect rect = source.rect;
+            if (source.texture == null || rect.height < 8f) return null;
+            var strip = new Rect(rect.x, rect.yMax - 3f, rect.width, 2f);
+            return Sprite.Create(source.texture, strip, new Vector2(0.5f, 0f), source.pixelsPerUnit);
         }
 
         private static void BuildBoundaryWalls(Transform parent, int xMin, int xMax, int yMin, int yMax)
@@ -1885,7 +1917,6 @@ namespace Aethoria.Bootstrap
             // 필드에서 직접 싸우는 실시간 전투: 기본 공격 + 스킬(마나/쿨타임은 PlayerHUD에 표시).
             go.AddComponent<CharacterAttack2D>();
             go.AddComponent<CharacterSkillDash>();
-            go.AddComponent<CharacterSkillX>();
             go.AddComponent<CharacterSkillQ>();
             go.AddComponent<CharacterSkillA>();
             go.AddComponent<CharacterSkillS>();
@@ -1962,7 +1993,7 @@ namespace Aethoria.Bootstrap
         private const string SandDragonAttackPath = "Art/Monsters/SandDragon/Attack";
         private const float SandDragonScale = 2f;
 
-        private static void SpawnSandDragon(Transform parent, int floorY, int xMax)
+        private static SandDragonIntroCutscene SpawnSandDragon(Transform parent, int floorY, int xMax)
         {
             var data = SandDragonData();
 
@@ -1993,11 +2024,14 @@ namespace Aethoria.Bootstrap
             go.AddComponent<MonsterHealthBar>().Configure(newWidth: 2.25f, newVerticalOffset: 0.08f);
 
             monster.OnDied += _ => stageClearUI.Show(() => RetryDungeon(RuinsStage1));
-            // 처음엔 땅속에 숨어 있다가, 가까이 오면 등장 연출(땅에서 솟아오름 → 포효 → 네크로시아 대사 → 대시)로 전투가 열린다.
-            // 상단 보스 체력바도 모래룡이 모습을 드러낸 뒤에 띄운다.
-            go.AddComponent<SandDragonIntroCutscene>().Initialize(dragonAI, player, npcDialogueUI, sandDragonIntroSeen,
+            // 처음엔 땅속에 숨어 있다가, 가까이 오면 등장 연출(땅에서 솟아오름 → 포효 → 네크로시아 대사 → 꼬리로 출구를 부숨 →
+            // 네크로시아 대사 → 대시)로 전투가 열린다. 상단 보스 체력바도 모래룡이 모습을 드러낸 뒤에 띄운다.
+            // 부술 출구(뒤쪽 포탈)는 이 뒤에 만들어지므로 BuildRuins가 SetExitPortal로 따로 알려 준다.
+            var intro = go.AddComponent<SandDragonIntroCutscene>();
+            intro.Initialize(dragonAI, player, npcDialogueUI, sandDragonIntroSeen,
                 onShown: () => sandDragonIntroSeen = true,
                 onReveal: () => bossHealthUI.Bind(monster, data.monsterName));
+            return intro;
         }
 
         // 잊혀진 폐허의 기본 몬스터. 이끼 낀 돌 거인이라 기사보다 크고(약 2.2유닛) 단단하다.
@@ -2117,8 +2151,8 @@ namespace Aethoria.Bootstrap
 
         // 절망의 언덕의 최종보스 루나벨. 걷지 않고 언덕 오른쪽 끝에 서서 플레이어를 바라보며, 중거리에서는 손을 뻗어
         // 피의 손을 날리고, 몸에 닿으면 접촉 피해를 준다(FinalBossAI). 보스 기사보다 단단하고 아프다.
-        // 언덕에 들어오면 의자에 앉은 루나벨과 대사를 주고받고(LunabelIntroCutscene), 피의 기둥이 플레이어 발밑까지
-        // 솟구친 뒤 루나벨이 일어서며 곧바로 전투가 시작된다.
+        // 언덕에 들어오면 의자에 앉은 루나벨과 대사를 주고받고(LunabelIntroCutscene), 피의 가시가 플레이어 발밑까지
+        // 솟구친 뒤, 루나벨이 일어서서 차원문을 타고 플레이어 앞으로 넘어와 한마디 하고 전투가 시작된다.
         private static void SpawnLunabel(Transform parent, int floorY, int xMax)
         {
             var data = LunabelData();
@@ -2155,7 +2189,7 @@ namespace Aethoria.Bootstrap
         // 원본 시트(고딕 붉은 여왕 6프레임, 고딕 붉은 마법 공격 시퀀스)는 왼쪽을 보고 있어서, 다른 몬스터처럼
         // 오른쪽을 보도록 좌우 반전해 잘라 두었다. 공격 시퀀스는 검은 배경을 지우고 8프레임으로 나눴다.
         private const string LunabelIdlePath = FinalBossAI.IdlePath;
-        private const string LunabelAttackPath = "Art/Monsters/FinalBoss/Attack";
+        private const string LunabelAttackPath = "Art/Monsters/FinalBoss/Phase1/Attack";
 
         // ---- 몬스터 능력치 ----
         // 필드 스폰과 릴리의 리듬 대결(CreateMinigameOpponent)이 같은 값을 쓰도록 여기 한곳에 모아 둔다.

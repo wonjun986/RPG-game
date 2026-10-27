@@ -41,12 +41,12 @@ namespace Aethoria.Stages
         [SerializeField] private string[] lines =
         {
             "...이 성소에 있으면, 구름 아래의 소란도 잠시 잊게 돼.",
-            "축복은 네 리듬을 조금 더 단단하게 붙잡아 줄 거야. 무리하지는 말고.",
+            "축복은 네 몸을 조금 더 단단하게 붙잡아 줄 거야. 무리하지는 말고.",
             "붉은 달이 뜬 밤이면 이 제단의 빛도 흐려져. 그래서 너를 기다렸던 거야.",
             "사신이 무녀를 찾아오다니, 옛날 이야기였으면 분명 불길한 징조였겠지. ...하지만 난 반가워.",
             "이 성소는 천 년 동안 같은 노래를 불러 왔어. 귀를 기울이면 너도 그 박자를 느낄 수 있을 거야.",
             "루나벨도 한때는 달의 노래를 지키던 아이였어. 언제부터 그 노래가 피 냄새로 바뀌었을까.",
-            "전투 중에 숨이 가빠지면, 박자를 세어 봐. 하나, 둘... 리듬은 언제나 너를 다시 일으켜 줄 거야.",
+            "전투 중에 숨이 가빠지면, 한 걸음 물러서서 숨을 골라 봐. 서두르지 않는 자가 끝까지 서 있는 법이야.",
             "네 낫에서 들리는 소리, 처음엔 차가웠는데 지금은 조금 따뜻해. 마을에서 좋은 사람들을 만났구나.",
             "구름 아래 마을에 노아라는 아이가 있지? 너를 위해 매일 기도를 올리고 있어. 여기까지 들려.",
             "축복은 영원하지 않아. 그래서 소중한 거야. 필요할 때마다 다시 찾아와 줘.",
@@ -69,7 +69,7 @@ namespace Aethoria.Stages
 
         private const string StoryNextHint = "   <color=#8A5A2B>[Z]</color>";
         private const string StoryPlayerNextHint = "   <color=#B98CE8>[Z]</color>";
-        private const string QuestAcceptLine = "...고마워. 아직 손이 떨리지만, 여기서 계속 기도할게. 네 리듬이 흔들리지 않기를.";
+        private const string QuestAcceptLine = "...고마워. 아직 손이 떨리지만, 여기서 계속 기도할게. 네 낫이 다시는 꺾이지 않기를.";
         private const string QuestDeclineLine = "그, 그래... 서두르지 않아도 돼. 준비가 되면 다시 와 줘. 나는 여기 있을게.";
 
         private QuestStoryLine[] storyLines;

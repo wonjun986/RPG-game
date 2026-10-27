@@ -16,6 +16,8 @@ namespace Aethoria.Combat
         // sizeMultiplier: 치명타처럼 강조할 숫자는 크게 띄운다.
         public static void Create(Vector3 worldPosition, float damageAmount, Color color, float sizeMultiplier = 1f)
         {
+            // 설정에서 데미지 숫자를 끄면(GameSettings.DamageNumbers) 아무것도 띄우지 않는다.
+            if (!Aethoria.Save.GameSettings.DamageNumbers) return;
             Vector3 spawnPosition = worldPosition + new Vector3(Random.Range(-0.1f, 0.1f), 1f, 0f);
 
             var go = new GameObject("DamagePopup");

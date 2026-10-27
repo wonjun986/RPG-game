@@ -90,7 +90,7 @@ namespace Aethoria.Data
                 key = "콜로서스", kind = "골렘", size = "거대", habitat = "잊혀진 폐허", danger = 3,
                 portraitPath = "Art/Monsters/Colossus/Walk", drops = NormalDrops,
                 description = "폐허를 지키는 커다란 돌거인이야. 걸을 때마다 땅이 쿵쿵 울려서 멀리서도 알 수 있어. " +
-                              "한 대 한 대가 묵직하니까 정면으로 받지 말고 박자를 잘 보고 막아!",
+                              "한 대 한 대가 묵직하니까 정면으로 받지 말고 공격 자세를 잡는 게 보이면 대시로 피해!",
                 secretKills = 10,
                 secret = "콜로서스 등에는 아주 작은 글씨가 새겨져 있대. '이 문을 지나는 자에게 평안을.' 원래는 폐허가 아니라 누군가의 집을 지키던 수문장이었나 봐.",
             },
@@ -116,9 +116,9 @@ namespace Aethoria.Data
             new BestiaryEntry
             {
                 key = "루나벨", kind = "흡혈귀 · 여왕", size = "보통", habitat = "절망의 언덕", danger = 5,
-                portraitPath = "Art/Monsters/FinalBoss/Idle", drops = BossDrops,
+                portraitPath = "Art/Monsters/FinalBoss/Phase1/Idle", drops = BossDrops,
                 description = "붉은 달의 주인, 피의 여왕 루나벨. ...이 페이지는 손이 떨려서 글씨가 삐뚤빼뚤해. " +
-                              "상대의 박자를 흐트러뜨려서 무너뜨린대. 네가 이 페이지를 펼쳤다는 건... 정말 해냈구나!",
+                              "상대의 피를 빨아들여서 자기 상처를 메운대. 네가 이 페이지를 펼쳤다는 건... 정말 해냈구나!",
                 secretKills = 1,
                 secret = "이리아 님한테 몰래 들었는데, 루나벨도 아주 옛날엔 달의 노래를 지키던 아이였대. 언제부터 노래가 피 냄새로 바뀐 걸까. " +
                          "그래도 이제 하늘이 다시 파래졌으니까... 이 이야기는 여기서 끝! 축제 준비하러 가자!",

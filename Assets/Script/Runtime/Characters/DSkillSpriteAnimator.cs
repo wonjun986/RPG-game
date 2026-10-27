@@ -10,8 +10,10 @@ namespace Aethoria.Characters
     public class DSkillSpriteAnimator : MonoBehaviour
     {
         [SerializeField] private string resourcesPath = "Art/Necrosia/DSkill";
-        // 프레임은 모두 같은 캔버스(535px)로 잘려 있고, 그중 캐릭터 키(머리~발끝)는 약 418px이다.
-        // 캐릭터가 기준 키(1.5)로 보이도록 캔버스 전체 높이를 1.5 * 535 / 418 ≈ 1.9로 맞춘다.
+        // 프레임은 원본 시트(necrosia_throw_6frames_cropped)에서 겹친 머리카락/망토를 피해 구불구불하게 잘라
+        // 잘린 자리를 부드럽게 흐려 두었다. 이웃 프레임까지 길게 뻗은 손(4번째 장의 갈퀴 손과 손목 빛)은 제 프레임에 남게
+        // 잘랐다. 모두 같은 캔버스(606x529)에 몸통 한가운데·부츠 끝을 맞춰 놓았다.
+        // 캐릭터 키(머리~발끝 약 418px)가 기준 키(1.5)로 보이도록 캔버스 전체 높이를 1.5 * 529 / 418 ≈ 1.9로 맞춘다.
         [SerializeField] private float targetHeight = 1.9f;
 
         private SpriteRenderer spriteRenderer;

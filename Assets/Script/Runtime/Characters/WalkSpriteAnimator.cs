@@ -10,7 +10,8 @@ namespace Aethoria.Characters
         [SerializeField] private string walkResourcesPath = "Art/Necrosia/Walk";
         [SerializeField] private string idleResourcesPath = "Art/Necrosia/Idle";
         [SerializeField] private float walkFrameRate = 10f;
-        [SerializeField] private float idleFrameRate = 4f;
+        // 대기는 6프레임(여섯 프레임 고딕 사신 스프라이트 시트)이라, 예전처럼 1초에 한 바퀴 돌게 6으로 둔다.
+        [SerializeField] private float idleFrameRate = 6f;
         // 대기 포즈는 낫을 머리 위로 높이 들고 있어서 프레임 전체 높이 중 캐릭터 몸통이 차지하는
         // 비중이 걷기보다 작다. 기준 키(1.5)를 그대로 쓰면 몸통이 걷기보다 작아 보여서, 대기 전용으로
         // 조금 더 큰 기준 키를 쓴다.

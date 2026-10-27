@@ -24,11 +24,10 @@ namespace Aethoria.Characters
 
         [Header("대시 모션")]
         [SerializeField] private string dashFramesPath = "Art/Necrosia/Dash";
-        // 대시 프레임은 낫을 크게 휘두르는 궤적까지 포함해 프레임 전체 높이 중 몸통이 차지하는
-        // 비중이 걷기보다 작다(Idle이 낫을 머리 위로 든 것과 같은 이유). 기준 키(1.5)를 그대로 쓰면
-        // 몸통이 걷기보다 작아 보여서, 대시 전용으로 더 큰 기준 키를 쓴다. Idle(1.8)보다도 체감상 더
-        // 작아 보인다는 피드백에 따라 2.1로 키웠다.
-        [SerializeField] private float dashTargetHeight = 2.1f;
+        // 대시 프레임(보라빛 낫을 든 질주 스프라이트 시트, 6프레임)은 낫을 뒤로 끌며 몸을 낮춰 달리는 자세라 프레임 키가
+        // 서 있는 키보다 낮다. 프레임을 꽉 맞춰 잘라 두었으므로, 대기(1.8)/걷기(1.5)와 나란히 놓고 머리·몸통 크기가
+        // 같아 보이는 키로 맞췄다.
+        [SerializeField] private float dashTargetHeight = 1.25f;
 
         private Character character;
         private CharacterMovement2D movement;

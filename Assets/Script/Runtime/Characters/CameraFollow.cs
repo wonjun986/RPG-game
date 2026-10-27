@@ -88,6 +88,8 @@ namespace Aethoria.Characters
 
         public void Shake(float duration, float magnitude)
         {
+            // 설정에서 화면 흔들림을 끄면(GameSettings.ScreenShake) 흔들지 않는다.
+            if (!Aethoria.Save.GameSettings.ScreenShake) return;
             shakeDuration = shakeTime = duration;
             shakeMagnitude = magnitude;
         }

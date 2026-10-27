@@ -16,11 +16,13 @@ namespace Aethoria.UI
     // 가장 오래된 슬롯을 덮어쓸지 한 번 더 묻는다.
     // 저장이 없으면 CONTINUE 글자를 어둡게 덮고, 눌러도 안내만 띄운다.
     // EXTRAS는 작은 창을 띄워 네크로시아의 죽음 연출(DeathCinematic)을 다시 보거나, 루나벨의 모션을 하나씩 돌려 볼 수 있게 한다(MotionGalleryUI).
-    // SETTINGS는 아직 뒷받침하는 시스템이 없어 이미지에 장식으로만 그려져 있다(클릭 불가).
+    // SETTINGS는 화면 모드/해상도/프레임/볼륨/화면 흔들림/데미지 숫자를 바꾸는 설정 창을 띄운다(SettingsUI, GameSettings).
     public class TitleScreenUI : MonoBehaviour
     {
         private static readonly Vector2 ContinueMin = new Vector2(0.65f, 0.378f);
         private static readonly Vector2 ContinueMax = new Vector2(0.95f, 0.422f);
+        private static readonly Vector2 SettingsMin = new Vector2(0.65f, 0.320f);
+        private static readonly Vector2 SettingsMax = new Vector2(0.95f, 0.362f);
         private static readonly Vector2 ExtrasMin = new Vector2(0.65f, 0.264f);
         private static readonly Vector2 ExtrasMax = new Vector2(0.95f, 0.308f);
 
@@ -35,6 +37,7 @@ namespace Aethoria.UI
         private int selectedIndex;
 
         private SaveScreenUI loadScreen;
+        private SettingsUI settingsUI;
 
         private GameObject extrasPanel;
         private Button deathMotionButton;
@@ -88,10 +91,11 @@ namespace Aethoria.UI
                 if (SaveSystem.HasSave) OpenLoadScreen();
                 else ShowAlert("저장된 데이터가 없습니다.");
             });
+            var settingsButton = BuildButton(canvasGO.transform, "SettingsButton", SettingsMin, SettingsMax, OpenSettings);
             var extrasButton = BuildButton(canvasGO.transform, "ExtrasButton", ExtrasMin, ExtrasMax, OpenExtras);
             var exitButton = BuildButton(canvasGO.transform, "ExitButton", new Vector2(0.65f, 0.205f), new Vector2(0.95f, 0.255f), Application.Quit);
 
-            SetupMenuSelection(new[] { gameStartButton, continueButton, extrasButton, exitButton }, hasSave ? 1 : 0);
+            SetupMenuSelection(new[] { gameStartButton, continueButton, settingsButton, extrasButton, exitButton }, hasSave ? 1 : 0);
             // 메뉴 글자만 따로 뽑은 레이어(UI/Title_MenuText.png)를 빛 위에 다시 덮어 글자가 가려지지 않게 한다.
             BuildBackground(canvasGO.transform, "UI/Title_MenuText").GetComponent<RawImage>().raycastTarget = false;
 
@@ -111,6 +115,7 @@ namespace Aethoria.UI
                 if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(knightMotionButton.gameObject);
             };
             lunabelDefeatReplay = LunabelDefeatReplayUI.Create(canvasGO.transform);
+            settingsUI = SettingsUI.Create(canvasGO.transform);
 
             // CONTINUE를 누르면 노아의 저장 화면과 같은 슬롯 창을 불러오기 모드로 띄운다.
             loadScreen = canvasGO.AddComponent<SaveScreenUI>();
@@ -126,6 +131,17 @@ namespace Aethoria.UI
             // 불러오기 창이 떠 있는 동안 Enter가 뒤쪽 메뉴 버튼까지 누르지 않도록 선택을 비운다(보라색 표시는 남는다).
             if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(null);
             loadScreen.Open();
+        }
+
+        // SETTINGS: 설정 창을 띄우고, 닫히면 커서를 SETTINGS 항목에 그대로 둔다(다시 고르는 건 다음 프레임에 Update가 한다).
+        private void OpenSettings()
+        {
+            if (settingsUI.IsOpen) return;
+            settingsUI.Open(() =>
+            {
+                int index = System.Array.FindIndex(menuButtons, b => b.name == "SettingsButton");
+                if (index >= 0) selectedIndex = index;
+            });
         }
 
         // EXTRAS: 다시 볼 수 있는 연출 목록 창(데스 모션, 루나벨 모션). Esc/X 또는 "닫기"로 닫는다.
@@ -264,7 +280,7 @@ namespace Aethoria.UI
         // 루나벨이 게임에서 쓰는 모션/이펙트. 캐릭터 모션은 게임처럼 왼쪽(플레이어 쪽)을 보게 뒤집는다.
         private static MotionGalleryUI.Clip[] BuildLunabelClips()
         {
-            const string root = "Art/Monsters/FinalBoss/";
+            const string root = "Art/Monsters/FinalBoss/Phase1/";
             return new[]
             {
                 new MotionGalleryUI.Clip("첫 조우 - 의자에 앉은 모습", 1f / 3f, true, false, true, FinalBossAI.SeatedPath),
@@ -274,7 +290,9 @@ namespace Aethoria.UI
                 new MotionGalleryUI.Clip("혈류 흡수", 0.15f, false, false, true, FinalBossAI.AbsorbPath),
                 new MotionGalleryUI.Clip("2페이즈 변신", 0.15f, false, false, true, FinalBossAI.PhaseTwoPath),
                 new MotionGalleryUI.Clip("2페이즈 대기", 1f / 6f, true, false, true, FinalBossAI.PhaseTwoIdlePath),
-                new MotionGalleryUI.Clip("2페이즈 공격", 1f / 6f, false, false, true, FinalBossAI.PhaseTwoAttackPath),
+                new MotionGalleryUI.Clip("2페이즈 공격", 1f / 8f, false, false, true, FinalBossAI.PhaseTwoAttackPath),
+                new MotionGalleryUI.Clip("2페이즈 순간이동 - 소용돌이에 빨려 듦", 0.14f, false, false, false, FinalBossAI.PortalEnterPhaseTwoPath),
+                new MotionGalleryUI.Clip("이펙트 - 2페이즈 소용돌이 닫힘", 0.1f, false, true, false, FinalBossAI.PortalCollapsePhaseTwoPath),
                 new MotionGalleryUI.Clip("필살기 - 하늘로 손 뻗기", 0.14f, false, false, true, FinalBossAI.SpecialPath),
                 new MotionGalleryUI.Clip("필살기 - 구체 모으기", 0.1f, true, false, true, FinalBossAI.SpecialChargePath),
                 new MotionGalleryUI.Clip("필살기 - 구체 던지기", 0.1f, false, false, true, FinalBossAI.ThrowPath),
@@ -285,6 +303,7 @@ namespace Aethoria.UI
                 new MotionGalleryUI.Clip("이펙트 - 피의 회오리", 0.08f, true, true, false, FinalBossAI.BloodVortexPath),
                 new MotionGalleryUI.Clip("이펙트 - 피의 손", 0.06f, true, true, true, BloodHandProjectile.FramesPath),
                 new MotionGalleryUI.Clip("이펙트 - 핏빛 구체", 0.1f, true, true, false, FinalBossAI.BloodOrbPath),
+                new MotionGalleryUI.Clip("이펙트 - 거대한 에너지 구체 (2페이즈 개막)", 0.08f, true, true, false, FinalBossAI.GiantOrbPath),
                 new MotionGalleryUI.Clip("이펙트 - 피의 기둥", 0.07f, false, true, false,
                     FinalBossAI.BloodPillarRisePath, FinalBossAI.BloodPillarTornadoPath, FinalBossAI.BloodPillarTornadoPath, FinalBossAI.BloodPillarTornadoPath),
             };
@@ -465,7 +484,9 @@ namespace Aethoria.UI
             }
 
             var eventSystem = EventSystem.current;
-            bool dialogOpen = (confirmPanel != null && confirmPanel.activeSelf) || (loadScreen != null && loadScreen.IsOpen) || extrasOpen || cinematicPlaying;
+            bool settingsOpen = settingsUI != null && (settingsUI.IsOpen || settingsUI.ClosedThisFrame);
+            bool dialogOpen = (confirmPanel != null && confirmPanel.activeSelf) || (loadScreen != null && loadScreen.IsOpen) || extrasOpen
+                || cinematicPlaying || settingsOpen;
             if (eventSystem != null && !dialogOpen)
             {
                 int index = System.Array.FindIndex(menuButtons, b => b.gameObject == eventSystem.currentSelectedGameObject);

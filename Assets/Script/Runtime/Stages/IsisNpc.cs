@@ -29,8 +29,8 @@ namespace Aethoria.Stages
             new StoryLine(false, "...멈춰라. 처음 보는 얼굴이군. 그 낫, 평범한 물건이 아니야."),
             new StoryLine(true, "연습장이 있다고 들었다."),
             new StoryLine(false, "나는 이시스. 한때 이 땅의 기사였다. 붉은 달이 뜬 밤, 언덕으로 향한 동료들을 모두 잃었지."),
-            new StoryLine(false, "루나벨의 공격에는 리듬이 있다더군. 그 박자를 읽지 못한 자는 하나도 살아 돌아오지 못했다."),
-            new StoryLine(true, "...알고 있다. 그 리듬, 한 번은 무너졌지만 이번엔 놓치지 않는다."),
+            new StoryLine(false, "루나벨은 피를 빨아 제 상처를 메운다더군. 한 번 붙잡힌 자는 하나도 살아 돌아오지 못했다."),
+            new StoryLine(true, "...알고 있다. 내 낫도 한 번은 꺾였다. 하지만 이번엔 피 한 방울도 내주지 않는다."),
             new StoryLine(false, "흥, 말은 쉽지. 허수아비라면 얼마든지 베어도 좋다. 감각이 돌아올 때까지 휘둘러 봐라."),
         };
         private const string StoryNextHint = "   <color=#F2D94E>[Z]</color>";

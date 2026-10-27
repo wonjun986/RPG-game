@@ -51,7 +51,7 @@ namespace Aethoria.Monsters
         [SerializeField, Range(0f, 1f)] private float waveReleaseTiming = 0.55f;
         [SerializeField] private float waveSpeed = 9f;
         [SerializeField] private float waveTravelRange = 12f;
-        [SerializeField] private float waveScale = 1.5f;
+        [SerializeField] private float waveScale = 1.8f; // 맞는 범위도 그림 크기에 맞춰 함께 커진다
         [SerializeField] private float waveDamageMultiplier = 1.2f;
         [SerializeField] private float waveForward = 0.9f; // 몸 중심에서 검기가 솟는 곳까지 앞쪽 거리
         [SerializeField] private float aboveThreshold = 1.8f; // 플레이어 발이 바닥보다 이만큼 높으면 대각선 검기로 노린다
