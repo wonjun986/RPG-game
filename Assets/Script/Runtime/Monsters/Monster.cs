@@ -38,6 +38,12 @@ namespace Aethoria.Monsters
         // 경험치/골드/드랍/퀘스트/도감에 잡히지 않고, 각 AI도 필드에서 움직이거나 공격하지 않는다.
         public bool IsMinigameOpponent { get; set; }
 
+        // true면 피해를 전혀 받지 않는다(알리아스가 종막 의식으로 무릎 꿇고 있는 동안처럼 다른 걸 부숴야 하는 패턴).
+        public bool Invulnerable { get; set; }
+
+        // false면 쓰러져도 AnyDied를 알리지 않는다 — 패턴이 만든 부술 대상(알리아스의 마검)이 경험치/드랍/퀘스트/도감에 잡히지 않게.
+        public bool CountsAsKill { get; set; } = true;
+
         public event Action<Monster> OnDied;
         // 어느 몬스터든 죽으면 발생한다. 퀘스트처럼 스테이지와 상관없이 처치 수를 세야 하는 쪽에서 구독한다.
         public static event Action<Monster> AnyDied;
@@ -67,7 +73,7 @@ namespace Aethoria.Monsters
         // 치명타면 데미지 숫자를 주황색으로 크게 띄운다.
         public void TakeDamage(float finalDamage, bool isCritical = false, bool isSkill = false)
         {
-            if (IsDead || finalDamage <= 0f) return;
+            if (IsDead || Invulnerable || finalDamage <= 0f) return;
 
             bool survive = SurviveLethalHit || (SkillFinishOnly && !isSkill);
             currentHp = Mathf.Max(survive ? Mathf.Min(1f, currentHp) : 0f, currentHp - finalDamage);
@@ -79,7 +85,7 @@ namespace Aethoria.Monsters
             if (currentHp <= 0f)
             {
                 OnDied?.Invoke(this);
-                if (!IsMinigameOpponent) AnyDied?.Invoke(this);
+                if (!IsMinigameOpponent && CountsAsKill) AnyDied?.Invoke(this);
                 if (DestroyOnDeath) Destroy(gameObject);
             }
         }

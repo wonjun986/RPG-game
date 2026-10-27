@@ -124,6 +124,10 @@ namespace Aethoria.EditorTools
             ("Art/Effects/LunabelPortalCollapsePhase2/", 280f),
             // 2페이즈 개막의 거대한 에너지 구체(진홍빛 마법 에너지 오브, 6프레임): 가운데 구슬 지름 약 220px가 2.2유닛(배율 1)이 되게.
             ("Art/Effects/LunabelGiantOrb/", 100f),
+            // 알리아스 종막(검의 의식): 마검(키 904px → 약 2.4유닛), 마법진(지름 약 500px → 4유닛, 바닥에 눕혀 쓴다),
+            // 사슬 구속(감긴 사슬 기둥 약 300px → 1.7유닛, 네크로시아 몸을 감쌀 만큼), 참격(칼날 길이 약 600px → 2.2유닛).
+            ("Art/Effects/AliasRitualSword/", 375f), ("Art/Effects/AliasMagicCircle/", 125f),
+            ("Art/Effects/AliasChainBind/", 175f), ("Art/Effects/AliasRitualSlash/", 280f),
             // 알리아스 검 꽂기(보랏빛 기사의 검 꽂기 연속 동작): 서 있는 1프레임 키 455px가 대기와 같은 키가 되게 한다.
             ("Art/Monsters/BossKnight/Plant/", 172f),
             // 알리아스 분노 눈 실크(어둠 속 붉은 마력의 실크 웨이브): 길이 580px가 약 1.5유닛.
@@ -160,6 +164,10 @@ namespace Aethoria.EditorTools
             ("Art/Effects/LunabelPortalCollapsePhase2/", new Vector2(0.5f, 0.5f)),
             // 거대한 에너지 구체: 프레임마다 하얗게 빛나는 구슬 한가운데를 캔버스 가운데에 맞춰 잘랐다.
             ("Art/Effects/LunabelGiantOrb/", new Vector2(0.5f, 0.5f)),
+            // 알리아스 종막: 마검은 칼끝이 발판에 박히도록 키의 12% 위(칼끝보다 조금 위)가 기준점, 마법진·참격은 가운데,
+            // 사슬 구속은 감긴 사슬 기둥의 아래 가운데(칸 556px 중 x 약 265px).
+            ("Art/Effects/AliasRitualSword/", new Vector2(0.5f, 0.12f)), ("Art/Effects/AliasMagicCircle/", new Vector2(0.5f, 0.5f)),
+            ("Art/Effects/AliasChainBind/", new Vector2(265f / 556f, 0.03f)), ("Art/Effects/AliasRitualSlash/", new Vector2(0.5f, 0.5f)),
         };
 
         private void OnPreprocessTexture()

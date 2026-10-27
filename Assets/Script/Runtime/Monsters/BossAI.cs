@@ -73,6 +73,15 @@ namespace Aethoria.Monsters
         [SerializeField] private Vector2 eyeOffset = new Vector2(0.13f, 2.3f);
         [SerializeField] private float silkFrameDuration = 0.1f;
 
+        [Header("종막: 검의 의식 (분노 후 체력 30% 이하에서 한 번)")]
+        [SerializeField, Range(0f, 1f)] private float finaleHealthFraction = 0.3f;
+        [SerializeField] private int finaleSwordCount = 4;
+        [SerializeField] private float finaleSwordHpFraction = 0.05f; // 마검 하나의 체력 = 알리아스 최대 체력 x 이 비율
+        [SerializeField] private float finaleTimeLimit = 15f;
+        [SerializeField] private float finaleBossCircleScale = 1.1f;
+        [SerializeField] private float finalePlatformCircleScale = 0.45f;
+        [SerializeField] private float finaleStandDelay = 0.8f;       // 의식이 깨진 뒤 무릎 꿇은 채 잠깐 비틀거리는 시간
+
         [Header("피격")]
         // 맞아도 경직되지 않는다(경직 전용 모션이 없어 대기 모습으로 굳어 보였다). 대신 붉게 번쩍이기만 한다.
         [SerializeField] private bool staggerOnHit = false;
@@ -143,6 +152,11 @@ namespace Aethoria.Monsters
         // 분노(2페이즈)했거나 분노 전환을 기다리는 중인가. 관리자 모드가 2페이즈로 바로 넘길 때 쓴다.
         public bool IsPhaseTwo => enraged || enrageQueued;
         public event System.Action OnEnraged;
+        // 종막(검의 의식) 직전 대사. 보스 대화창을 가진 등장 연출(BossIntroCutscene)이 채워 넣는다.
+        public System.Func<IEnumerator> FinaleTalk { get; set; }
+        private bool finaleQueued;
+        private bool finaleUsed;
+        private AliasSwordRitual ritual;
         private Coroutine patternRoutine;
         private Coroutine staggerRoutine;
         private Coroutine superArmorCycleRoutine;
@@ -196,6 +210,8 @@ namespace Aethoria.Monsters
 
         private void OnDestroy()
         {
+            // 의식 도중 스테이지가 다시 지어지면(사망/포탈) 마검과 마법진, 제한 시간 표시를 함께 걷어 낸다.
+            if (ritual != null) ritual.Abort();
             if (monster != null)
             {
                 monster.OnDamaged -= HandleDamaged;
@@ -268,6 +284,13 @@ namespace Aethoria.Monsters
                 return;
             }
 
+            if (finaleQueued && enraged)
+            {
+                body.linearVelocity = new Vector2(0f, body.linearVelocity.y);
+                patternRoutine = StartCoroutine(FinaleRoutine());
+                return;
+            }
+
             float distance = target.transform.position.x - transform.position.x;
             // 플레이어가 높은 발판 위(칼이 닿지 않는 곳)에 있으면, 근접 거리여도 대각선 검기로 노린다.
             if (PlayerIsAbove() && waveCooldownTimer <= 0f && attackAnimator != null && attackAnimator.HasFrames)
@@ -308,6 +331,13 @@ namespace Aethoria.Monsters
             {
                 enrageQueued = true;
                 monster.SurviveLethalHit = true; // 분노 전환 전에 쓰러지지 않게
+            }
+            // 분노한 뒤(또는 분노를 기다리는 중에) 체력이 30% 아래로 처음 떨어지면 종막 의식을 한 번 예약한다.
+            if ((enraged || enrageQueued) && !finaleUsed && !finaleQueued && !monster.IsMinigameOpponent
+                && monster.CurrentHp <= monster.MaxHp * finaleHealthFraction)
+            {
+                finaleQueued = true;
+                monster.SurviveLethalHit = true; // 의식을 보기 전에 쓰러지지 않게
             }
             if (!staggerOnHit)
             {
@@ -513,10 +543,73 @@ namespace Aethoria.Monsters
             waveCooldown *= enragedCooldownScale;
             jumpCooldownTimer = 0.6f;
             waveCooldownTimer = 0.3f;
-            monster.SurviveLethalHit = false;
+            // 분노하는 사이 종막 의식까지 예약됐으면 의식이 끝날 때까지는 계속 버틴다.
+            monster.SurviveLethalHit = finaleQueued;
             if (playerMovement != null) playerMovement.SetCutsceneLocked(false);
             OnEnraged?.Invoke();
 
+            isAttacking = false;
+            patternRoutine = null;
+        }
+
+        // 종막: 검의 의식. 조작을 막고 대사 → 땅에 검을 꽂고 무릎 꿇기(Plant) → 발밑에 마법진이 열리고 발판마다 마검이 떨어진다
+        // (AliasSwordRitual). 마검이 다 꽂히면 조작이 풀리고 제한 시간 안에 모두 부숴야 한다. 그동안 알리아스는 무릎 꿇은 채
+        // 피해를 받지 않는다. 다 부수면 의식이 깨지고 알리아스가 일어나 다시 싸운다(이제 쓰러질 수 있다).
+        // 실패하면 의식이 네크로시아를 처형한다(발판 붕괴 → 사슬 구속 → 무차별 참격 → 즉사).
+        private IEnumerator FinaleRoutine()
+        {
+            isAttacking = true;
+            finaleQueued = false;
+            finaleUsed = true;
+            monster.Invulnerable = true;
+            var playerMovement = target != null ? target.GetComponent<CharacterMovement2D>() : null;
+            if (playerMovement != null) playerMovement.SetCutsceneLocked(true);
+            spriteRenderer.flipX = FacingToTarget().x < 0f;
+
+            if (FinaleTalk != null) yield return FinaleTalk();
+            else yield return new WaitForSeconds(0.6f);
+
+            if (attackAnimator.HasClip(PlantClip))
+            {
+                attackAnimator.PlayClip(PlantClip, plantDuration);
+                yield return new WaitForSeconds(plantDuration);
+                attackAnimator.PlayClipLoop(PlantHoldClip, 1f);
+            }
+
+            var bodyCollider = GetComponent<Collider2D>();
+            float groundY = bodyCollider != null ? bodyCollider.bounds.min.y : transform.position.y;
+            ritual = AliasSwordRitual.Begin(new Vector2(transform.position.x, groundY), groundY, target, new AliasSwordRitual.Settings
+            {
+                swordCount = finaleSwordCount,
+                swordHp = Mathf.Max(1f, monster.MaxHp * finaleSwordHpFraction),
+                timeLimit = finaleTimeLimit,
+                bossCircleScale = finaleBossCircleScale,
+                platformCircleScale = finalePlatformCircleScale,
+                swordFallHeight = 7f,
+                swordFallTime = 0.35f,
+                swordDropInterval = 0.3f,
+                executionSlashes = 16,
+                executionDuration = 1.8f,
+                executionSlashDamage = 0.04f,
+            });
+            ritual.OnSwordsLanded += () => { if (playerMovement != null) playerMovement.SetCutsceneLocked(false); };
+            yield return ritual.Run();
+            bool succeeded = ritual != null && ritual.Succeeded;
+            ritual = null;
+            // 의식이 어떻게 끝났든 조작은 돌려준다(처형으로 쓰러졌다면 사망 연출이 넘겨받는다).
+            if (playerMovement != null) playerMovement.SetCutsceneLocked(false);
+
+            if (succeeded && !monster.IsDead)
+            {
+                // 의식이 깨진 충격에 잠깐 무릎 꿇은 채 버티다가 일어선다.
+                yield return new WaitForSeconds(finaleStandDelay);
+            }
+            attackAnimator.Stop();
+            monster.Invulnerable = false;
+            monster.SurviveLethalHit = false;
+            jumpCooldownTimer = Mathf.Max(jumpCooldownTimer, 1f);
+            waveCooldownTimer = Mathf.Max(waveCooldownTimer, 1f);
+            yield return new WaitForSeconds(patternCooldown);
             isAttacking = false;
             patternRoutine = null;
         }
