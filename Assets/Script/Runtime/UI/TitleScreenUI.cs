@@ -272,6 +272,8 @@ namespace Aethoria.UI
                     BossAI.SpecialRaisePath, BossAI.SpecialChargePath, BossAI.SpecialChargePath),
                 new MotionGalleryUI.Clip("알리아스 - 쓰러짐", 0.16f, false, false, true, boss + "Die"),
                 new MotionGalleryUI.Clip("이펙트 - 검기", 0.07f, true, true, true, BossAI.SwordWavePath),
+                new MotionGalleryUI.Clip("종막 - 검 꽂기", 0.16f, false, false, true, BossAI.FinalePlantPath),
+                new MotionGalleryUI.Clip("종막 - 꽂은 뒤 대기", 0.2f, true, false, true, BossAI.FinalePlantIdlePath),
                 new MotionGalleryUI.Clip("종막 - 마법진", 0.1f, true, true, false, AliasSwordRitual.CirclePath),
                 new MotionGalleryUI.Clip("종막 - 마검", 0.3f, true, true, false, AliasSwordRitual.SwordPath),
                 new MotionGalleryUI.Clip("종막 - 사슬 구속", 0.1f, true, true, false, AliasSwordRitual.ChainPath),

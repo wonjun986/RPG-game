@@ -38,9 +38,9 @@ namespace Aethoria.EditorTools
             ("Art/Effects/ChainStormStart/", 250f), ("Art/Effects/ChainStormLoop/", 250f),
             // 보스 시트들은 시트마다 기사를 그린 크기가 달라서(걷기 키 약 489px, 점프 공격 약 321px),
             // 모두 비슷한 키(약 2.55유닛)로 보이도록 시트별로 환산한 값을 쓴다.
-            // 대기(키 약 473px)는 서 있는 모습이 작아 보인다는 피드백으로 걷기보다 조금 큰 약 2.65유닛으로 맞췄다.
+            // 대기(보라빛 망토 6프레임 시트, 투구~칼끝 키 533px)는 서 있는 모습이 작아 보인다는 피드백으로 걷기보다 조금 큰 약 2.64유닛으로 맞췄다.
             // 기본 공격(새 시트, 선 자세 키 약 311px)은 리듬전투에서 대기 모션과 같은 키로 보이도록 대기에 맞춘다.
-            ("Art/Monsters/BossKnight/Walk/", 192f), ("Art/Monsters/BossKnight/Idle/", 178f),
+            ("Art/Monsters/BossKnight/Walk/", 192f), ("Art/Monsters/BossKnight/Idle/", 202f),
             // 필살기(검 들어올리기/기운 모으기) 프레임은 잘라낼 때 대기 모션과 같은 픽셀 크기로 맞춰 두었다.
             ("Art/Monsters/BossKnight/SpecialRaise/", 178f), ("Art/Monsters/BossKnight/SpecialCharge/", 178f),
             ("Art/Monsters/BossKnight/Die/", 178f),
@@ -130,6 +130,10 @@ namespace Aethoria.EditorTools
             ("Art/Effects/AliasChainBind/", 175f), ("Art/Effects/AliasRitualSlash/", 280f),
             // 알리아스 검 꽂기(보랏빛 기사의 검 꽂기 연속 동작): 서 있는 1프레임 키 455px가 대기와 같은 키가 되게 한다.
             ("Art/Monsters/BossKnight/Plant/", 172f),
+            // 알리아스 종막 검 꽂기(Final Pattern): 서 있는 1프레임 키 406px가 Plant 1프레임과 같은 키(약 2.64유닛)가 되게 한다.
+            ("Art/Monsters/BossKnight/FinalePlant/", 154f),
+            // 종막 검을 꽂은 뒤 무릎 꿇은 대기(6프레임 반복): 갑옷이 FinalePlant 마지막 프레임과 겹치도록 0.76배 크기로 맞춘 값.
+            ("Art/Monsters/BossKnight/FinalePlantIdle/", 203f),
             // 알리아스 분노 눈 실크(어둠 속 붉은 마력의 실크 웨이브): 길이 580px가 약 1.5유닛.
             ("Art/Effects/AliasEyeSilk/", 380f),
         };
@@ -168,6 +172,12 @@ namespace Aethoria.EditorTools
             // 사슬 구속은 감긴 사슬 기둥의 아래 가운데(칸 556px 중 x 약 265px).
             ("Art/Effects/AliasRitualSword/", new Vector2(0.5f, 0.12f)), ("Art/Effects/AliasMagicCircle/", new Vector2(0.5f, 0.5f)),
             ("Art/Effects/AliasChainBind/", new Vector2(265f / 556f, 0.03f)), ("Art/Effects/AliasRitualSlash/", new Vector2(0.5f, 0.5f)),
+            // 종막 검 꽂기: 450x560 칸을 프레임마다 갑옷 무게중심을 가로 가운데에 맞춰 잘랐다. 부츠 바닥(아래에서 24px)이 발 기준점이고,
+            // 그 아래로 튀는 돌 부스러기는 땅에 살짝 겹쳐 보인다.
+            ("Art/Monsters/BossKnight/FinalePlant/", new Vector2(0.5f, 24f / 560f)),
+            // 꽂은 뒤 대기(378x476 칸, 프레임마다 갑옷 위치를 맞춰 잘랐다): FinalePlant 마지막 프레임의 기준점 자리
+            // (칼날에서 뒤쪽 62px, 부츠 아래 11px)에 맞춘 점.
+            ("Art/Monsters/BossKnight/FinalePlantIdle/", new Vector2(226f / 378f, 18f / 476f)),
         };
 
         private void OnPreprocessTexture()

@@ -31,6 +31,13 @@ namespace Aethoria.Bootstrap
         private const int TotalPlainsStages = 3;
         private const int PlainsWidth = 40;
         private const int BossStage = 3;
+        // 알리아스 보스전 배경 음악(Sound/Game Bgm/3_보스/알리아스 (어둠의 숲)/The Unresolved Chord, 3분 28초).
+        private const string AliasBossBgmPath = "Audio/Bgm/alias_boss";
+        private const float AliasBossBgmLoopStart = 15f;
+        // 마을 배경 음악(Sound/Game Bgm/2_맵/마을/마을 브금.mp4에서 소리만 뽑은 것, 3분 6초).
+        private const string VillageBgmPath = "Audio/Bgm/village";
+        // 잊혀진 폐허 배경 음악(Sound/Game Bgm/2_맵/잊혀진 폐허의 녹화본에서 소리만 뽑아 앞 무음을 자른 것, 3분 27초).
+        private const string RuinsBgmPath = "Audio/Bgm/ruins";
         // 연습장: 마을의 이시스에게 말을 걸어 들어가는 허수아비 맵. 몬스터도 경험치도 없고 마나/체력이 계속 가득 찬다.
         private const int PracticeStage = -4;
         private const int PracticeWidth = 28;
@@ -259,6 +266,7 @@ namespace Aethoria.Bootstrap
         // 플레이어/맵/HUD를 전부 지우고 시간 배속도 원래대로 되돌린다.
         private static void TeardownRun()
         {
+            BgmPlayer.Stop();
             if (stageRoot != null) Object.Destroy(stageRoot);
             if (player != null) Object.Destroy(player.gameObject);
             if (hudRoot != null) Object.Destroy(hudRoot);
@@ -294,16 +302,7 @@ namespace Aethoria.Bootstrap
             BuildStage(enteringForward: true);
         }
 
-        // 스테이지 클리어 창의 "다시하기": 체력/마나를 채우고 방금 깬 던전의 첫 맵부터 다시 들어간다.
-        private static void RetryDungeon(int firstStage)
-        {
-            player.Heal(player.MaxHp);
-            player.RestoreMana(player.MaxMana);
-            currentStage = firstStage;
-            BuildStage(enteringForward: true);
-        }
-
-        // 쓰러졌을 때(DeathReturnUI), 그리고 던전 보스를 잡고 스테이지 클리어 창에서 "마을로 돌아가기"를 골랐을 때(StageClearUI) 호출된다.
+        // 쓰러졌을 때(DeathReturnUI), 그리고 던전 보스를 잡고 열린 출구 포탈(OpenBossExitPortal)에 들어갔을 때 호출된다.
         // 체력/마나를 가득 채워준다. 기본은 던전에서 걸어 돌아온 것처럼 마을 오른쪽 끝(출구 포탈 쪽)에 세우고,
         // spawnAtNoa면 노아 바로 앞에 세운다.
         public static void ReturnToVillage(bool spawnAtNoa = false)
@@ -490,6 +489,14 @@ namespace Aethoria.Bootstrap
             // 끊어두고, 보스 스테이지면 SpawnBoss에서 다시 Bind해서 보여준다.
             bossHealthUI.Hide();
             stageClearUI.Cancel();
+            // 알리아스 보스 맵에 들어오면 보스전 곡을 처음부터 튼다. 3분 넘게 싸워 곡이 끝나면 도입부를 건너뛰고 15초부터 되풀이한다.
+            // 마을은 마을 곡을 끝까지 듣고 처음부터 되풀이한다(마을 안에서 맵을 다시 지어도 끊지 않고 이어서 튼다).
+            if (currentStage == BossStage) BgmPlayer.Play(AliasBossBgmPath, AliasBossBgmLoopStart);
+            else if (currentStage == VillageStage) BgmPlayer.Play(VillageBgmPath, 0f, restartIfPlaying: false);
+            // 폐허는 세 맵 내내 곡을 끊지 않고 이어서 튼다. 마지막 맵에서는 모래룡이 솟아오르는 순간 등장 연출
+            // (SandDragonIntroCutscene)이 보스 곡으로 바꾼다.
+            else if (currentStage <= RuinsStage1 && currentStage >= RuinsStage3) BgmPlayer.Play(RuinsBgmPath, 0f, restartIfPlaying: false);
+            else BgmPlayer.Stop();
             // 던전 첫 맵에 앞으로 걸어 들어왔으면(마을/월드맵에서 출발) 스테이지 클리어 창에 보여줄 획득 기록을 새로 시작한다.
             if (enteringForward && (currentStage == 1 || currentStage == PlainsStage1 || currentStage == RuinsStage1 || currentStage == BlueSeaStage1 || currentStage == HillStage)) stageClearUI.BeginRun();
 
@@ -585,7 +592,7 @@ namespace Aethoria.Bootstrap
 
             // 왼쪽 끝은 이전 스테이지(마을 포함)로 돌아가는 포탈, 오른쪽 끝은 마지막 스테이지가
             // 아닐 때만 다음 스테이지로 가는 포탈. 보스방은 들어오면 보스와 싸울 수밖에 없어서 포탈을 두지 않는다
-            // (이기면 스테이지 클리어 창, 지면 마을로 돌아간다).
+            // (이기면 맵 끝에 마을로 돌아가는 포탈이 열리고, 지면 마을로 돌아간다).
             // 첫 맵의 왼쪽 포탈은 마을로 나가는 길이라 바로 보내지 않고 한 번 묻는다.
             if (currentStage != BossStage)
             {
@@ -1983,12 +1990,12 @@ namespace Aethoria.Bootstrap
             go.AddComponent<MonsterHealthBar>().Configure(newWidth: 2.4f, newVerticalOffset: 0.15f);
 
             bossHealthUI.Bind(monster, data.monsterName);
-            monster.OnDied += _ => stageClearUI.Show(() => RetryDungeon(PlainsStage1));
+            monster.OnDied += _ => OpenBossExitPortal();
         }
 
         // 잊혀진 폐허의 필드 보스 황금 모래룡(황금 모래룡 애니메이션 스프라이트 시트, 8프레임). 마지막 폐허 맵 오른쪽 끝에서
         // 천천히 다가오다 가까이 붙으면 대지 강타로 앞쪽 바닥을 내려찍는다(SandDragonAI).
-        // 잡으면 스테이지 클리어 창이 뜨고, 다시 도전하면 폐허 입구부터 시작한다.
+        // 잡으면 맵 오른쪽 끝에 마을로 돌아가는 포탈이 열린다.
         private const string SandDragonWalkPath = "Art/Monsters/SandDragon/Walk";
         private const string SandDragonAttackPath = "Art/Monsters/SandDragon/Attack";
         private const float SandDragonScale = 2f;
@@ -2023,7 +2030,8 @@ namespace Aethoria.Bootstrap
             dragonAI.SetArenaBounds(mapXMin, mapXMax + 1f);
             go.AddComponent<MonsterHealthBar>().Configure(newWidth: 2.25f, newVerticalOffset: 0.08f);
 
-            monster.OnDied += _ => stageClearUI.Show(() => RetryDungeon(RuinsStage1));
+            // 쓰러지면 몸이 모래로 허물어지는 모션(SandDragonDeathCutscene)이 끝난 뒤 맵 끝에 마을로 돌아가는 포탈을 연다.
+            go.AddComponent<SandDragonDeathCutscene>().Initialize(() => OpenBossExitPortal(RuinsPortalStyle));
             // 처음엔 땅속에 숨어 있다가, 가까이 오면 등장 연출(땅에서 솟아오름 → 포효 → 네크로시아 대사 → 꼬리로 출구를 부숨 →
             // 네크로시아 대사 → 대시)로 전투가 열린다. 상단 보스 체력바도 모래룡이 모습을 드러낸 뒤에 띄운다.
             // 부술 출구(뒤쪽 포탈)는 이 뒤에 만들어지므로 BuildRuins가 SetExitPortal로 따로 알려 준다.
@@ -2141,8 +2149,8 @@ namespace Aethoria.Bootstrap
             go.AddComponent<MonsterHealthBar>().Configure(newWidth: 1.4f, newVerticalOffset: 0.15f);
 
             bossHealthUI.Bind(monster, data.monsterName);
-            // 보스를 잡으면 월드로 돌아와 유언 → 쓰러지는 모션(BossDeathCutscene)이 끝난 뒤 스테이지 클리어 창을 띄운다.
-            go.AddComponent<BossDeathCutscene>().Initialize(player, npcDialogueUI, () => stageClearUI.Show(() => RetryDungeon(1)));
+            // 보스를 잡으면 월드로 돌아와 유언 → 쓰러지는 모션(BossDeathCutscene)이 끝난 뒤 맵 끝에 마을로 돌아가는 포탈을 연다.
+            go.AddComponent<BossDeathCutscene>().Initialize(player, npcDialogueUI, () => OpenBossExitPortal());
 
             go.AddComponent<BossIntroCutscene>().Initialize(bossAI, player, npcDialogueUI, skippable: bossIntroSeen,
                 onShown: () => bossIntroSeen = true);
@@ -2481,6 +2489,15 @@ namespace Aethoria.Bootstrap
         }
         private const float PortalHeightAboveFloor = 0.7f;
         private const float PortalVisualInwardOffset = 0.9f;
+
+        // 던전 보스(알리아스, 보스 슬라임, 황금 모래룡)를 잡으면 스테이지 클리어 창 대신 맵 오른쪽 끝에 포탈이 열린다.
+        // 그 포탈로 들어가면 체력/마나를 채우고 마을(노아 앞)로 돌아간다. 루나벨은 처치 연출이 끝나면 바로 마을로 돌아간다.
+        private static void OpenBossExitPortal(FramedPortalStyle framed = null)
+        {
+            if (stageRoot == null) return;
+            var portal = SpawnPortal(stageRoot.transform, mapXMax - 0.5f, mapYMin, backward: false, framed: framed);
+            portal.SetCustomTrigger(() => ReturnToVillage(spawnAtNoa: true));
+        }
 
         // 지정한 x 위치에 포탈을 놓는다. 포탈 그림이 반복 재생되고, 플레이어가 일정 거리 안에 들어오면
         // 자동으로 다음(또는 backward=true면 이전) 스테이지로 넘어간다. 반환값은 호출부에서

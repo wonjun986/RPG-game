@@ -124,15 +124,15 @@ namespace Aethoria.Monsters
         [SerializeField] private float teleportFarRange = 6.5f;   // 플레이어가 이보다 멀면 차원문을 타고 다가간다
         [SerializeField] private float teleportCooldown = 7f;
         [SerializeField] private float teleportFirstDelay = 4f;
-        [SerializeField] private float teleportEnterDuration = 0.9f;    // 차원문에 빨려 드는 6프레임(나올 때는 거꾸로)
-        [SerializeField] private float teleportCollapseDuration = 0.4f; // 차원문이 오그라들어 사라지는 4프레임(열릴 때는 거꾸로)
-        [SerializeField] private float teleportGap = 0.3f;              // 사라진 뒤 다시 열리기까지
+        [SerializeField] private float teleportEnterDuration = 0.5f;    // 차원문에 빨려 드는 6프레임(나올 때는 거꾸로)
+        [SerializeField] private float teleportCollapseDuration = 0.24f; // 차원문이 오그라들어 사라지는 4프레임(열릴 때는 거꾸로)
+        [SerializeField] private float teleportGap = 0.12f;              // 사라진 뒤 다시 열리기까지
         [SerializeField] private float teleportNearDistance = 3.2f;     // 플레이어 옆 이만큼 떨어진 곳에 나타난다
         // 빨려 든 마지막 장(차원문만 남은 그림)에서 차원문 한가운데는 발 기준점보다 이만큼 앞/위에 있다(182px = 1칸).
         [SerializeField] private Vector2 portalCenterOffset = new Vector2(11f / 182f, 247f / 182f);
         [SerializeField] private float portalEffectScale = 0.84f;       // 붕괴 그림의 차원문이 빨려 든 그림의 차원문 크기와 맞도록
         // 2페이즈 순간이동(PortalEnter 8프레임 → 붕괴하는 붉은 소용돌이 4프레임). 소용돌이 크기는 그림을 자를 때 맞춰 두어 배율은 1이다.
-        [SerializeField] private float teleportEnterDurationPhaseTwo = 1.1f;
+        [SerializeField] private float teleportEnterDurationPhaseTwo = 0.6f;
         // 빨려 든 마지막 장의 소용돌이 한가운데(바라보는 쪽 기준 앞/위). 그림을 뒤집어 틀기 때문에 원화 기준과 좌우가 반대다.
         [SerializeField] private Vector2 portalCenterOffsetPhaseTwo = new Vector2(0.13f, 1.98f);
         [SerializeField] private float portalEffectScalePhaseTwo = 1f;

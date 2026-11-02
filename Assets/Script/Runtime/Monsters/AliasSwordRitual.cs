@@ -44,6 +44,8 @@ namespace Aethoria.Monsters
         public bool Succeeded { get; private set; }
         // 마검이 모두 꽂혀 시간이 흐르기 시작하는 순간(BossAI가 이때 플레이어 조작을 풀어 준다).
         public event System.Action OnSwordsLanded;
+        // 파훼에 실패해 처형하기 직전 알리아스의 대사(BossAI가 넘겨준다, 없으면 바로 처형).
+        public System.Func<IEnumerator> ExecutionTalk { get; set; }
 
         private Settings settings;
         private Character player;
@@ -119,7 +121,10 @@ namespace Aethoria.Monsters
                 yield break;
             }
 
-            // 실패: 처형.
+            // 실패: 조작을 막고 알리아스의 대사가 끝난 뒤 처형.
+            var playerMovement = player.GetComponent<CharacterMovement2D>();
+            if (playerMovement != null) playerMovement.SetCutsceneLocked(true);
+            if (ExecutionTalk != null) yield return ExecutionTalk();
             yield return Execute(cameraFollow);
             Cleanup();
             Finished = true;

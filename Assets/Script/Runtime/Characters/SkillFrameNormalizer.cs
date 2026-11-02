@@ -21,6 +21,20 @@ namespace Aethoria.Characters
             visualTransform.localScale = new Vector3(scale, scale, 1f);
         }
 
+        // 걷기 프레임(머리~부츠 약 357px, 프레임 445px를 1.5로 맞춤)에서 보이는 캐릭터 몸 키.
+        public const float WalkBodyHeight = 1.2f;
+
+        // 한 시트에서 포즈마다 꽉 맞게 잘라 프레임 높이가 제각각이지만 캐릭터는 같은 크기로 그려진 시트(공격, A스킬)용.
+        // 프레임 높이를 맞추면 짧게 잘린 프레임(웅크린 자세, 낫을 옆으로 휘두른 자세)일수록 캐릭터가 커져서,
+        // 공격을 연타하거나 다른 동작으로 이어 쓰면 캐릭터가 갑자기 커 보였다. 대신 시트 전체에 같은 배율을 걸어
+        // 캐릭터 몸 키(bodyPixelHeight, 원본 px)가 걷기와 같은 키로 보이게 한다.
+        public static void ApplyBody(Transform visualTransform, Sprite frame, float bodyPixelHeight, float bodyTargetHeight = WalkBodyHeight)
+        {
+            if (frame == null || bodyPixelHeight <= 0f) return;
+            float scale = bodyTargetHeight * frame.pixelsPerUnit / bodyPixelHeight;
+            visualTransform.localScale = new Vector3(scale, scale, 1f);
+        }
+
         public static void Reset(Transform visualTransform)
         {
             visualTransform.localScale = Vector3.one;

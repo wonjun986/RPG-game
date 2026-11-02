@@ -1,6 +1,7 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using Aethoria.Bootstrap;
 using Aethoria.Characters;
 using Aethoria.Monsters;
 using Aethoria.UI;
@@ -18,6 +19,9 @@ namespace Aethoria.Stages
     {
         // 모래룡과 이만큼 가까워지면 연출이 시작된다.
         private const float TriggerDistance = 10f;
+        // 보스 맵에 들어와서는 폐허 곡이 이어지다가, 모래룡이 땅을 뚫고 솟아오르는 순간 보스 곡으로 바뀐다
+        // (Sound/Game Bgm/3_보스/황금 모래룡 (잊혀진 폐허)/Map_Bgm.mp4, 3분 58초).
+        public const string BossBgmPath = "Audio/Bgm/sand_dragon_boss";
 
         private const float RumbleDuration = 1.0f;
         private const float RumbleMagnitude = 0.06f;
@@ -174,6 +178,7 @@ namespace Aethoria.Stages
             if (skipped) { yield return SkipToBattle(); yield break; }
 
             SetDragonVisible(true, showHealthBar: false);
+            BgmPlayer.Play(BossBgmPath, 0f, restartIfPlaying: false);
             if (dragonAttack != null) dragonAttack.PlayClip("Emerge", EmergeDuration);
             if (cameraFollow != null) cameraFollow.Shake(EmergeDuration, EmergeShakeMagnitude);
             yield return Wait(EmergeDuration);
@@ -181,6 +186,7 @@ namespace Aethoria.Stages
 
             // 3) 포효: 입을 크게 벌리는 순간 충격파.
             if (dragonAttack != null) dragonAttack.PlayClip("Roar", RoarDuration);
+            SfxPlayer.Play(SfxPlayer.SandDragonRoar);
             yield return Wait(RoarDuration * RoarImpactTiming);
             if (skipped) { yield return SkipToBattle(); yield break; }
             RoarImpact();
@@ -393,6 +399,8 @@ namespace Aethoria.Stages
         {
             if (revealed) return;
             revealed = true;
+            // 솟아오르기 전에 건너뛰었어도 모래룡이 나타나는 순간 보스 곡으로 바꾼다(이미 나오고 있으면 그대로 둔다).
+            BgmPlayer.Play(BossBgmPath, 0f, restartIfPlaying: false);
             SetDragonVisible(true, showHealthBar: true);
             onReveal?.Invoke();
         }

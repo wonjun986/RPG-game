@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using Aethoria.Bootstrap;
 using Aethoria.Characters;
@@ -21,6 +22,10 @@ namespace Aethoria.Monsters
         [SerializeField] private float moveSpeed = 2.5f;
         [SerializeField] private float attackRange = 1.4f;
         [SerializeField] private float gravityScale = 4f;
+        // 근접 콤보(돌진/휩쓸기)의 칼끝 판정: 공격 모션에서 검을 내지른 칼끝이 발 기준 앞쪽 약 3.2유닛까지 뻗으므로,
+        // 몸 앞쪽에 칼끝까지 닿는 상자 판정을 원형 판정과 함께 건다(칼끝에 스쳐도 맞는다).
+        [SerializeField] private float swordReach = 3.2f;
+        [SerializeField] private float swordHitHeight = 2.6f;
 
         [Header("패턴 A: 돌진 3연타 (근접, 조금씩 전진하며 베기)")]
         [SerializeField] private int dashComboHits = 3;
@@ -61,6 +66,8 @@ namespace Aethoria.Monsters
         [SerializeField, Range(0f, 1f)] private float enrageHealthFraction = 0.5f;
         [SerializeField] private float enrageWaveDamageMultiplier = 0.9f; // 공격마다 양옆으로 함께 날아가는 검기
         [SerializeField] private float plantDuration = 1.2f;      // 땅에 검을 꽂고 무릎 꿇기(Plant 8프레임)
+        [SerializeField] private float finalePlantDuration = 1.0f; // 종막: 검을 치켜들었다 내리꽂기(FinalePlant 6프레임)
+        [SerializeField] private float finaleIdleCycle = 1.2f;     // 종막: 꽂은 뒤 무릎 꿇은 대기 한 바퀴(FinalePlantIdle 6프레임)
         [SerializeField] private float raiseDuration = 0.8f;      // 검을 하늘로 치켜들기(SpecialRaise 4프레임)
         [SerializeField] private float raiseHold = 0.6f;          // 치켜든 채로 검게 물드는 순간 잠깐 멈춤
         [SerializeField] private Color enragedColor = new Color(0.2f, 0.17f, 0.24f); // 분노하면 온몸이 검게 물든다
@@ -78,8 +85,8 @@ namespace Aethoria.Monsters
         [SerializeField] private int finaleSwordCount = 4;
         [SerializeField] private float finaleSwordHpFraction = 0.05f; // 마검 하나의 체력 = 알리아스 최대 체력 x 이 비율
         [SerializeField] private float finaleTimeLimit = 15f;
-        [SerializeField] private float finaleBossCircleScale = 1.1f;
-        [SerializeField] private float finalePlatformCircleScale = 0.45f;
+        [SerializeField] private float finaleBossCircleScale = 1.8f;
+        [SerializeField] private float finalePlatformCircleScale = 0.7f;
         [SerializeField] private float finaleStandDelay = 0.8f;       // 의식이 깨진 뒤 무릎 꿇은 채 잠깐 비틀거리는 시간
 
         [Header("피격")]
@@ -146,6 +153,12 @@ namespace Aethoria.Monsters
         private const string PlantHoldClip = "PlantHold";
         private const string RaiseClip = "Raise";
         public const string PlantPath = "Art/Monsters/BossKnight/Plant";
+        // 종막 전용 검 꽂기(Final Pattern 6프레임): 검을 머리 위로 치켜들었다가 땅에 내리꽂고 보랏빛 불길 속에 무릎 꿇는다.
+        private const string FinalePlantClip = "FinalePlant";
+        private const string FinalePlantHoldClip = "FinalePlantHold";
+        public const string FinalePlantPath = "Art/Monsters/BossKnight/FinalePlant";
+        // 검을 꽂은 뒤 의식이 끝날 때까지 무릎 꿇은 채 보랏빛 불길이 일렁이는 대기(6프레임 반복).
+        public const string FinalePlantIdlePath = "Art/Monsters/BossKnight/FinalePlantIdle";
         public const string EyeSilkPath = "Art/Effects/AliasEyeSilk";
         // 검을 꽂은 채 하는 대사. 보스 대화창을 가진 등장 연출(BossIntroCutscene)이 채워 넣는다(없으면 대사 없이 넘어간다).
         public System.Func<IEnumerator> EnrageTalk { get; set; }
@@ -154,6 +167,8 @@ namespace Aethoria.Monsters
         public event System.Action OnEnraged;
         // 종막(검의 의식) 직전 대사. 보스 대화창을 가진 등장 연출(BossIntroCutscene)이 채워 넣는다.
         public System.Func<IEnumerator> FinaleTalk { get; set; }
+        // 종막 파훼에 실패했을 때 처형 직전 대사. 마찬가지로 BossIntroCutscene이 채워 넣는다.
+        public System.Func<IEnumerator> ExecutionTalk { get; set; }
         private bool finaleQueued;
         private bool finaleUsed;
         private AliasSwordRitual ritual;
@@ -178,6 +193,13 @@ namespace Aethoria.Monsters
                 {
                     attackAnimator.AddClip(PlantClip, plant);
                     attackAnimator.AddClip(PlantHoldClip, new[] { plant[plant.Length - 1] });
+                }
+                var finalePlant = LoadSorted(FinalePlantPath);
+                if (finalePlant.Length > 0)
+                {
+                    attackAnimator.AddClip(FinalePlantClip, finalePlant);
+                    var finaleIdle = LoadSorted(FinalePlantIdlePath);
+                    attackAnimator.AddClip(FinalePlantHoldClip, finaleIdle.Length > 0 ? finaleIdle : new[] { finalePlant[finalePlant.Length - 1] });
                 }
                 attackAnimator.AddClip(RaiseClip, SpecialRaisePath);
             }
@@ -428,6 +450,7 @@ namespace Aethoria.Monsters
                     : sweepComboHits * sweepHitInterval;
                 attackAnimator.Play(patternDuration);
             }
+            SfxPlayer.Play(SfxPlayer.AliasAttack);
 
             yield return useDash ? DashComboRoutine() : SweepComboRoutine();
             yield return new WaitForSeconds(patternCooldown);
@@ -446,7 +469,7 @@ namespace Aethoria.Monsters
                 spriteRenderer.flipX = direction.x < 0f;
                 body.position += direction * dashStepDistance;
 
-                DealDamageAt((Vector2)transform.position + direction * 0.6f, dashHitRadius, dashDamageMultiplier);
+                DealDamageAt((Vector2)transform.position + direction * 0.6f, dashHitRadius, dashDamageMultiplier, direction.x);
                 if (i == dashComboHits - 1) FireEnragedWaves();
 
                 yield return new WaitForSeconds(dashHitInterval);
@@ -461,7 +484,8 @@ namespace Aethoria.Monsters
 
                 bool isFinisher = i == sweepComboHits - 1;
                 float multiplier = isFinisher ? sweepFinisherMultiplier : sweepDamageMultiplier;
-                DealDamageAt(transform.position, sweepRadius, multiplier);
+                // 칼끝 판정은 그림이 보고 있는 쪽으로 건다(휩쓸기는 도중에 돌아서지 않는다).
+                DealDamageAt(transform.position, sweepRadius, multiplier, spriteRenderer.flipX ? -1f : 1f);
                 if (isFinisher) FireEnragedWaves();
 
                 yield return new WaitForSeconds(sweepHitInterval);
@@ -476,6 +500,7 @@ namespace Aethoria.Monsters
             Vector2 direction = FacingToTarget();
             spriteRenderer.flipX = direction.x < 0f;
             attackAnimator.Play(waveSwingDuration);
+            SfxPlayer.Play(SfxPlayer.AliasAttack);
 
             yield return new WaitForSeconds(waveSwingDuration * waveReleaseTiming);
             if (monster.IsDead) yield break;
@@ -565,11 +590,22 @@ namespace Aethoria.Monsters
             var playerMovement = target != null ? target.GetComponent<CharacterMovement2D>() : null;
             if (playerMovement != null) playerMovement.SetCutsceneLocked(true);
             spriteRenderer.flipX = FacingToTarget().x < 0f;
+            // 의식 내내 제자리에 박혀 있다: 네크로시아가 몸으로 밀어도 밀리지 않게 가로 위치를 고정한다(중력은 그대로).
+            body.linearVelocity = new Vector2(0f, body.linearVelocity.y);
+            body.constraints = RigidbodyConstraints2D.FreezePositionX | RigidbodyConstraints2D.FreezeRotation;
 
             if (FinaleTalk != null) yield return FinaleTalk();
             else yield return new WaitForSeconds(0.6f);
 
-            if (attackAnimator.HasClip(PlantClip))
+            // 검을 치켜들어 내리꽂는 순간부터 종막 개시 효과음이 울린다.
+            SfxPlayer.Play(SfxPlayer.AliasFinaleStart);
+            if (attackAnimator.HasClip(FinalePlantClip))
+            {
+                attackAnimator.PlayClip(FinalePlantClip, finalePlantDuration);
+                yield return new WaitForSeconds(finalePlantDuration);
+                attackAnimator.PlayClipLoop(FinalePlantHoldClip, finaleIdleCycle);
+            }
+            else if (attackAnimator.HasClip(PlantClip))
             {
                 attackAnimator.PlayClip(PlantClip, plantDuration);
                 yield return new WaitForSeconds(plantDuration);
@@ -592,6 +628,7 @@ namespace Aethoria.Monsters
                 executionDuration = 1.8f,
                 executionSlashDamage = 0.04f,
             });
+            ritual.ExecutionTalk = ExecutionTalk;
             ritual.OnSwordsLanded += () => { if (playerMovement != null) playerMovement.SetCutsceneLocked(false); };
             yield return ritual.Run();
             bool succeeded = ritual != null && ritual.Succeeded;
@@ -605,6 +642,7 @@ namespace Aethoria.Monsters
                 yield return new WaitForSeconds(finaleStandDelay);
             }
             attackAnimator.Stop();
+            body.constraints = RigidbodyConstraints2D.FreezeRotation;
             monster.Invulnerable = false;
             monster.SurviveLethalHit = false;
             jumpCooldownTimer = Mathf.Max(jumpCooldownTimer, 1f);
@@ -757,18 +795,25 @@ namespace Aethoria.Monsters
             return dx < 0f ? Vector2.left : Vector2.right;
         }
 
-        private void DealDamageAt(Vector2 origin, float radius, float multiplier)
+        // swordDirection이 0이 아니면(1 오른쪽, -1 왼쪽) 그쪽으로 칼끝까지 닿는 상자 판정도 함께 건다. 둘 다 맞아도 한 번만 피해를 준다.
+        private void DealDamageAt(Vector2 origin, float radius, float multiplier, float swordDirection = 0f)
         {
-            var hits = Physics2D.OverlapCircleAll(origin, radius);
+            var hits = new List<Collider2D>(Physics2D.OverlapCircleAll(origin, radius));
+            if (swordDirection != 0f) hits.AddRange(Physics2D.OverlapBoxAll(SwordBoxCenter(swordDirection), new Vector2(swordReach, swordHitHeight), 0f));
+
+            var damaged = new HashSet<Character>();
             foreach (var hit in hits)
             {
                 var character = hit.GetComponent<Character>();
-                if (character == null || character.IsDead) continue;
+                if (character == null || character.IsDead || !damaged.Add(character)) continue;
 
                 float damage = CombatMath.Finish(CombatMath.BaseDamage(monster.Attack, character.Stats.defense) * multiplier);
                 character.TakeDamage(damage, origin);
             }
         }
+
+        private Vector2 SwordBoxCenter(float direction) =>
+            (Vector2)transform.position + new Vector2(Mathf.Sign(direction) * swordReach * 0.5f, swordHitHeight * 0.5f);
 
         private void OnDrawGizmosSelected()
         {
@@ -776,6 +821,7 @@ namespace Aethoria.Monsters
             Gizmos.DrawWireSphere(transform.position, attackRange);
             Gizmos.color = new Color(1f, 0.5f, 0f);
             Gizmos.DrawWireSphere(transform.position, sweepRadius);
+            Gizmos.DrawWireCube(SwordBoxCenter(spriteRenderer != null && spriteRenderer.flipX ? -1f : 1f), new Vector3(swordReach, swordHitHeight, 0f));
             Gizmos.color = new Color(0.6f, 0.2f, 1f);
             Gizmos.DrawWireSphere(transform.position, jumpMinRange);
         }

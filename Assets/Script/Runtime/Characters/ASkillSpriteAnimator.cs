@@ -10,6 +10,9 @@ namespace Aethoria.Characters
     {
         [SerializeField] private string resourcesPath = "Art/Necrosia/ASkill";
         [SerializeField] private float totalDuration = 0.5f;
+        // A스킬 시트에서 서 있는 프레임(1, 10번째)의 머리~부츠 키(원본 px). 프레임 높이가 227~351px로 제각각이라
+        // 프레임마다 높이를 맞추면 캐릭터가 최대 1.55배까지 커졌다 작아졌다 해서, 시트 전체에 같은 배율을 건다.
+        [SerializeField] private float bodyPixelHeight = 225f;
 
         private SpriteRenderer spriteRenderer;
         private WalkSpriteAnimator walkAnimator;
@@ -51,7 +54,7 @@ namespace Aethoria.Characters
             for (int i = 0; i < frames.Length; i++)
             {
                 spriteRenderer.sprite = frames[i];
-                SkillFrameNormalizer.Apply(spriteRenderer.transform, frames[i]);
+                SkillFrameNormalizer.ApplyBody(spriteRenderer.transform, frames[i], bodyPixelHeight);
                 yield return new WaitForSeconds(frameDuration);
                 // 그새 다른 동작(스킬/피격 등)이 스프라이트를 가져갔으면 조용히 물러난다. 걷기/점프
                 // 애니메이터 복구와 스케일 초기화는 마지막에 가져간 쪽이 끝날 때 한다(여기서 하면

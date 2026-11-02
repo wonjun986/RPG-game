@@ -11,6 +11,10 @@ namespace Aethoria.UI
     // 레벨/경험치/퀘스트 진행은 그대로 유지된다(패널티 없음).
     public class DeathReturnUI : MonoBehaviour
     {
+        // 게임오버 곡(Sound/Game Bgm/1_시스템/게임오버/Dead_Bgm.mp4에서 소리만 뽑아 앞뒤 무음을 자른 것, 28초). 쓰러지면 비명(효과음)과 함께 맵 곡을 끊고 틀고,
+        // 오래 고르고 있으면 처음부터 되풀이한다. 재도전/마을로 돌아가면 그 맵의 곡(없으면 무음)으로 바뀐다.
+        private const string GameOverBgmPath = "Audio/Bgm/game_over";
+
         private Character target;
         private CharacterMovement2D movement;
         private DeathCinematic cinematic;
@@ -42,6 +46,8 @@ namespace Aethoria.UI
             if (body != null) body.linearVelocity = Vector2.zero;
 
             cinematic.Show();
+            SfxPlayer.Play(SfxPlayer.NecrosiaDeath);
+            BgmPlayer.Play(GameOverBgmPath, 0f);
 
             // 스킬처럼 같은 OnDied 프레임에 입력 잠금을 풀어 버리는 쪽이 있을 수 있으므로,
             // 한 프레임 뒤에 다시 잠그고 연출 동안 월드를 멈춘다.

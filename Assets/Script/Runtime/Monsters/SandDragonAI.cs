@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using Aethoria.Bootstrap;
 using Aethoria.Characters;
 using Aethoria.Combat;
 
@@ -276,6 +277,20 @@ namespace Aethoria.Monsters
             stormWhirls.Clear();
         }
 
+        // 쓰러지는 연출(SandDragonDeathCutscene)이 시작될 때: 하던 패턴을 모두 끊고 빔/꼬리/회오리를 걷어 낸 뒤 AI를 멈춘다.
+        public void HaltForDeath()
+        {
+            StopAllCoroutines();
+            if (beamObject != null) Destroy(beamObject);
+            beamObject = null;
+            foreach (var tail in tailObjects) if (tail != null) Destroy(tail);
+            tailObjects.Clear();
+            ClearSandStorm();
+            if (attackAnimator != null) attackAnimator.Stop();
+            isAttacking = false;
+            enabled = false;
+        }
+
         private void OnDestroy()
         {
             if (beamObject != null) Destroy(beamObject);
@@ -492,6 +507,7 @@ namespace Aethoria.Monsters
             highTimer = 0f;
 
             attackAnimator.PlayClip(RoarClip, roarDuration);
+            SfxPlayer.Play(SfxPlayer.SandDragonRoar);
             yield return new WaitForSeconds(roarDuration * roarImpactTiming);
             if (!monster.IsDead)
             {
@@ -507,6 +523,18 @@ namespace Aethoria.Monsters
 
             yield return new WaitForSeconds(roarDuration * (1f - roarImpactTiming) + roarHold);
             isAttacking = false;
+        }
+
+        // 쓰러지기 직전의 마지막 포효(SandDragonDeathCutscene이 부른다). 전투 포효와 같은 그림·충격 효과(OnRoarImpact)를 쓰지만
+        // 모래 회오리는 부르지 않는다. HaltForDeath로 AI가 멈춘 뒤라 부른 쪽의 코루틴에서 돈다.
+        public IEnumerator DeathRoar()
+        {
+            if (attackAnimator == null || !attackAnimator.HasClip(RoarClip)) yield break;
+            attackAnimator.PlayClip(RoarClip, roarDuration);
+            SfxPlayer.Play(SfxPlayer.SandDragonRoar);
+            yield return new WaitForSeconds(roarDuration * roarImpactTiming);
+            OnRoarImpact?.Invoke();
+            yield return new WaitForSeconds(roarDuration * (1f - roarImpactTiming) + roarHold);
         }
 
         private void SpawnWhirl(float x, float groundY, float direction)

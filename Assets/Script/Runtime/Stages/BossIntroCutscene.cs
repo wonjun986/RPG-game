@@ -70,6 +70,14 @@ namespace Aethoria.Stages
             "사신이여, 이 검들을 모두 꺾지 못한다면... 이 숲이 너의 무덤이 될 것이다.",
         };
 
+        // 종막 파훼에 실패했을 때 처형 직전 대사.
+        private static readonly string[] ExecutionLines =
+        {
+            "...시간이 다 되었다. 남은 검들이 의식을 완성했다.",
+            "검 하나 꺾지 못하는 낫으로는 이 숲 너머의 어둠을 벨 수 없다.",
+            "잘 가라, 사신이여. 기사단장의 검이 너를 심판한다.",
+        };
+
         private BossAI boss;
         private Character player;
         private CharacterMovement2D playerMovement;
@@ -93,6 +101,7 @@ namespace Aethoria.Stages
             boss.HoldForIntro();
             boss.EnrageTalk = PlayEnrageLines;
             boss.FinaleTalk = () => PlayLines(FinaleLines);
+            boss.ExecutionTalk = () => PlayLines(ExecutionLines);
         }
 
         private IEnumerator PlayEnrageLines() => PlayLines(EnrageLines);

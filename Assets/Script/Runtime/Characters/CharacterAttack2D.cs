@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using Aethoria.Bootstrap;
 using Aethoria.Monsters;
 
 namespace Aethoria.Characters
@@ -59,6 +60,7 @@ namespace Aethoria.Characters
         private void PerformBasicAttack()
         {
             attackAnimator.Play(movement.FacingDirection);
+            SfxPlayer.Play(SfxPlayer.NecrosiaZAttack);
             character.RestoreMana(manaRestoreOnAttack);
 
             Vector2 origin = (Vector2)transform.position + movement.FacingDirection * attackRange;

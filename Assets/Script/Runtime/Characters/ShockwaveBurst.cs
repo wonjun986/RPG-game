@@ -27,7 +27,7 @@ namespace Aethoria.Characters
         public static void Play(MonoBehaviour runner, Vector3 origin, Transform parent, Settings settings)
         {
             if (runner == null) return;
-            if (settings.flashColor.a > 0f) runner.StartCoroutine(ScreenFlash(settings));
+            if (settings.flashColor.a > 0f) StartScreenFlash(settings);
             runner.StartCoroutine(Rings(runner, origin, parent, settings));
         }
 
@@ -37,16 +37,23 @@ namespace Aethoria.Characters
             for (int i = 0; i < settings.rings; i++)
             {
                 if (runner == null) yield break;
-                runner.StartCoroutine(ExpandRing(sprite, origin, parent, i == 0 ? 1.15f : 1f, settings));
+                StartRing(sprite, origin, parent, i == 0 ? 1.15f : 1f, settings);
                 yield return new WaitForSeconds(settings.interval);
             }
         }
 
-        private static IEnumerator ExpandRing(Sprite sprite, Vector3 origin, Transform parent, float sizeScale, Settings settings)
+        // 고리/번쩍임은 그 오브젝트가 스스로 애니메이션하고 스스로 지운다. 부른 쪽(runner)에서 돌리면, 부른 쪽이 도중에 사라질 때
+        // (예: 처형의 마지막 일격 번쩍임 도중 쓰러져 맵이 다시 지어질 때) 다 옅어지지 못한 번쩍임이 카메라에 붙은 채 영영 남았다.
+        private static void StartRing(Sprite sprite, Vector3 origin, Transform parent, float sizeScale, Settings settings)
         {
             var go = new GameObject("Shockwave");
             if (parent != null) go.transform.SetParent(parent, false);
             go.transform.position = origin;
+            go.AddComponent<EffectRunner>().StartCoroutine(ExpandRing(go, sprite, sizeScale, settings));
+        }
+
+        private static IEnumerator ExpandRing(GameObject go, Sprite sprite, float sizeScale, Settings settings)
+        {
             var renderer = go.AddComponent<SpriteRenderer>();
             renderer.sprite = sprite;
             renderer.sortingOrder = settings.sortingOrder;
@@ -64,12 +71,17 @@ namespace Aethoria.Characters
         }
 
         // 카메라 앞을 통째로 덮는 번쩍임.
-        private static IEnumerator ScreenFlash(Settings settings)
+        private static void StartScreenFlash(Settings settings)
         {
             var cam = Camera.main;
-            if (cam == null) yield break;
+            if (cam == null) return;
             var go = new GameObject("ShockwaveFlash");
             go.transform.SetParent(cam.transform, false);
+            go.AddComponent<EffectRunner>().StartCoroutine(ScreenFlash(go, settings));
+        }
+
+        private static IEnumerator ScreenFlash(GameObject go, Settings settings)
+        {
             go.transform.localPosition = new Vector3(0f, 0f, 1f);
             go.transform.localScale = new Vector3(40f, 40f, 1f);
             var renderer = go.AddComponent<SpriteRenderer>();
@@ -117,5 +129,8 @@ namespace Aethoria.Characters
             flashSprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f), texture.width);
             return flashSprite;
         }
+
+        // 고리/번쩍임 오브젝트에 붙어 자기 애니메이션 코루틴을 돌리는 빈 컴포넌트.
+        private class EffectRunner : MonoBehaviour { }
     }
 }
