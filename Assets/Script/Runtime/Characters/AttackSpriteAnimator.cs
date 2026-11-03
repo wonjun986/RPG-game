@@ -10,8 +10,12 @@ namespace Aethoria.Characters
     {
         [SerializeField] private string resourcesPath = "Art/Necrosia/Attack";
         [SerializeField] private float totalDuration = 0.5f;
-        // 공격 시트에서 서 있는 프레임(1, 8번째)의 머리~부츠 키(원본 px). 이 키가 걷기와 같은 몸 키로 보이게 한다.
-        [SerializeField] private float bodyPixelHeight = 288f;
+        // 공격 시트(보랏빛 낫의 연속 베기 자세, 8프레임)는 다리를 넓게 벌린 자세라 서 있는 키를 잴 수 없어서,
+        // 캔버스 키(364px)를 통째로 맞춘다. 8장 모두 뒷발 부츠와 부츠 바닥을 같은 자리에 맞춰 두었고,
+        // 기준점은 1번째 프레임 두 발 한가운데(CharacterArtPostprocessor의 Attack 기준점)다.
+        [SerializeField] private float bodyPixelHeight = 364f;
+        // 대기 모션과 머리·몸통 크기가 같아 보이는 캔버스 키.
+        [SerializeField] private float bodyTargetHeight = 1.5f;
 
         private SpriteRenderer spriteRenderer;
         private WalkSpriteAnimator walkAnimator;
@@ -39,6 +43,8 @@ namespace Aethoria.Characters
         public void Play(Vector2 facingDirection)
         {
             if (!HasFrames) return;
+            // 공격 모션이 걸음째 미끄러져 보이지 않게 재생하는 동안 제자리에 세운다.
+            GetComponent<CharacterMovement2D>()?.RootFor(totalDuration);
             if (playRoutine != null) StopCoroutine(playRoutine);
             playRoutine = StartCoroutine(PlayRoutine(facingDirection));
         }
@@ -56,7 +62,7 @@ namespace Aethoria.Characters
                 // 이동 중 걷기 스프라이트가 남겨둔 스케일을 그대로 물려받으면 이동 중에 공격할 때 스프라이트가
                 // 커 보였다. 프레임마다 직접 스케일을 정하되, 시트 전체에 같은 배율을 건다(프레임 높이로 맞추면
                 // 짧게 잘린 프레임에서 캐릭터가 커진다).
-                SkillFrameNormalizer.ApplyBody(spriteRenderer.transform, frames[i], bodyPixelHeight);
+                SkillFrameNormalizer.ApplyBody(spriteRenderer.transform, frames[i], bodyPixelHeight, bodyTargetHeight);
                 yield return new WaitForSeconds(frameDuration);
                 // 그새 다른 동작(스킬/피격 등)이 스프라이트를 가져갔으면 조용히 물러난다. 걷기/점프
                 // 애니메이터 복구와 스케일 초기화는 마지막에 가져간 쪽이 끝날 때 한다(여기서 하면

@@ -23,7 +23,7 @@ namespace Aethoria.UI
         public static readonly Page[] ControlPages =
         {
             new Page("조작법",
-                "← →  이동\n↑  점프 (공중에서 한 번 더 누르면 이단 점프)\nShift  대시 (몬스터를 관통하며 피해, 대시 중에는 무적)\nZ  대화 · 확인     X  취소"),
+                "← →  이동\n↑  점프 (공중에서 한 번 더 누르면 이단 점프)\nShift  대시 (몬스터를 통과, 대시 중에는 무적)\nZ  대화 · 확인     X  취소"),
         };
 
         // 숲에서 정령이 나타났을 때 — 첫 전투 직전에 보여준다.

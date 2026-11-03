@@ -67,6 +67,7 @@ namespace Aethoria.Characters
         private void TryUseSkill()
         {
             if (character.IsCombatLocked) return;
+            if (!movement.IsGrounded) return; // 공중에서는 공격과 스킬을 쓸 수 없다
             if (currentCharges <= 0) return;
             if (!character.TrySpendMana(manaCost)) return;
 

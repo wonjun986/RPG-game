@@ -74,8 +74,8 @@ namespace Aethoria.Bootstrap
         private const int TotalBlueSeaStages = 3;
         private const int BlueSeaWidth = 40;
 
-        // 마을에 들어올 때 서는 자리. Edge는 들어온 방향에 따라 왼쪽/오른쪽 끝.
-        private enum VillageSpawn { Edge, Noa, Isis }
+        // 마을에 들어올 때 서는 자리. Edge는 들어온 방향에 따라 왼쪽/오른쪽 끝, Center는 마을 한가운데(게임을 이어서 시작할 때).
+        private enum VillageSpawn { Edge, Noa, Isis, Center }
 
         // 플레이어/카메라/HUD는 스테이지가 바뀌어도 유지되고, 맵/몬스터/포탈만 stageRoot 아래에
         // 묶어서 통째로 지웠다가 다시 짓는다.
@@ -188,9 +188,9 @@ namespace Aethoria.Bootstrap
             dailyQuestManager.OnChanged += SaveGame;
             player.OnLevelUp += _ => SaveGame();
 
-            // 새 게임은 도입 스토리를 본 뒤 튜토리얼 숲에서 눈을 뜬다(숲은 스토리 뒤에 미리 지어 둔다). 이어하기는 늘 마을에서 시작한다.
+            // 새 게임은 도입 스토리를 본 뒤 튜토리얼 숲에서 눈을 뜬다(숲은 스토리 뒤에 미리 지어 둔다). 이어하기는 늘 마을 한가운데에서 시작한다.
             currentStage = save == null ? TutorialStage : VillageStage;
-            BuildStage(enteringForward: true);
+            BuildStage(enteringForward: true, VillageSpawn.Center);
             if (save == null) storyIntroUI.Play();
         }
 
@@ -686,6 +686,9 @@ namespace Aethoria.Bootstrap
                     PlacePlayerAtSpawn(IsisX + NoaFrontOffset, yMin);
                     player.GetComponent<CharacterMovement2D>()?.Face(Vector2.left);
                     break;
+                case VillageSpawn.Center:
+                    PlacePlayerAtSpawn((xMin + xMax) * 0.5f, yMin);
+                    break;
                 default:
                     PlacePlayerAtSpawn(enteringForward ? xMin + 1.5f : xMax - 1.5f, yMin);
                     break;
@@ -986,7 +989,7 @@ namespace Aethoria.Bootstrap
             Debug.Log("Aethoria: 천상으로 향하는 계단 진입");
         }
 
-        // 천상의 신전: 계단 끝에서 들어오는 안전 지역. 왼쪽 끝 포탈로 계단(오른쪽 끝)으로 돌아가고,
+        // 천상의 신전: 계단 끝에서 들어오는 안전 지역. 왼쪽 끝 포탈로 월드맵을 열고,
         // 다리 위 성소 건물 입구로 이리아의 성소에 들어간다.
         // 배경(Temple of the Heavens, 1916x821) 맨 앞 대리석 다리 윗면 앞쪽 가장자리가 위에서부터 약 683px 지점이라
         // 그 줄을 바닥으로 삼는다.
@@ -1016,8 +1019,9 @@ namespace Aethoria.Bootstrap
             }
             FitCamera(xMin, xMax, yMin);
 
+            // 왼쪽 끝 포탈은 계단으로 돌아가지 않고 마을 출구처럼 월드맵을 띄운다. 취소하면 포탈이 다시 발동하도록 풀어준다.
             var backPortal = SpawnPortal(stageRoot.transform, xMin + 0.5f, yMin, backward: true, framed: HeavenPortalStyle);
-            backPortal.SetCustomTrigger(EnterPreviousFieldStage);
+            backPortal.SetCustomTrigger(() => worldMapUI.Show(backPortal));
 
             SpawnSanctuaryBuilding(stageRoot.transform, yMin);
 
@@ -2140,7 +2144,7 @@ namespace Aethoria.Bootstrap
             go.AddComponent<Rigidbody2D>();
             var bossWalkAnimator = go.AddComponent<MonsterWalkSpriteAnimator>();
             bossWalkAnimator.Configure("Art/Monsters/BossKnight/Walk");
-            bossWalkAnimator.ConfigureIdle("Art/Monsters/BossKnight/Idle", 5f);
+            bossWalkAnimator.ConfigureIdle("Art/Monsters/BossKnight/Idle", 6f);
             var bossAttackAnimator = go.AddComponent<MonsterAttackSpriteAnimator>();
             bossAttackAnimator.AddClip(BossAI.JumpAttackClip, "Art/Monsters/BossKnight/JumpAttack");
             var monster = go.AddComponent<Monster>();
@@ -2389,7 +2393,7 @@ namespace Aethoria.Bootstrap
                     data = AliasData();
                     var aliasWalk = go.AddComponent<MonsterWalkSpriteAnimator>();
                     aliasWalk.Configure("Art/Monsters/BossKnight/Walk");
-                    aliasWalk.ConfigureIdle("Art/Monsters/BossKnight/Idle", 5f);
+                    aliasWalk.ConfigureIdle("Art/Monsters/BossKnight/Idle", 6f);
                     go.AddComponent<MonsterAttackSpriteAnimator>();
                     break;
                 case 7:

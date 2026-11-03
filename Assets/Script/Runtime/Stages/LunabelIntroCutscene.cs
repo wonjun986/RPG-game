@@ -10,7 +10,7 @@ namespace Aethoria.Stages
     // 절망의 언덕 등장 연출. 언덕에 들어오면 플레이어 조작을 막은 채 카메라가 언덕 끝의 루나벨에게 천천히 넘어간다.
     // 루나벨은 의자에 앉은 모습(Seated)으로 기다리고 있고, 루나벨(UI/Lunabel_Talk)과 네크로시아(UI/Player_Talk)가
     // 대사를 주고받는다([Z]/Enter로 넘김). 대화가 끝나면 루나벨 앞에서부터 플레이어 발밑까지 피의 가시(BloodThorn)가
-    // 바닥을 가르며 차례로 솟구치고, 가시가 플레이어에게 닿는 순간 암전 → 루나벨 일러스트 이름 카드 → FINAL BATTLE(RhythmBattleUI의
+    // 바닥을 가르며 차례로 솟구치고, 가시가 플레이어에게 닿는 순간 암전 → 루나벨 일러스트 이름 카드(RhythmBattleUI의
     // 연출을 빌려 씀) → 네크로시아의 한마디 → 루나벨이 의자에서 일어나 차원문을 타고 플레이어 바로 앞으로 넘어와
     // 한마디 건넨 뒤 최종장 전투가 시작된다.
     // 이 연출을 이미 본 세이브(두 번째 만남부터)는 Esc를 누르면 남은 대사와 피의 가시를 건너뛴다.
@@ -71,7 +71,7 @@ namespace Aethoria.Stages
             new Line(false, "끝? 이제 막 시작인걸. 이 붉은 달 아래에서... 내 진짜 모습을 보여 줄게."),
         };
 
-        // 가시 폭풍을 맞고 이름 카드/FINAL BATTLE이 지나간 뒤, 전투에 들어가기 직전 네크로시아의 한마디.
+        // 가시 폭풍을 맞고 이름 카드가 지나간 뒤, 전투에 들어가기 직전 네크로시아의 한마디.
         private static readonly Line BattleEntryLine =
             new Line(true, "...이 정도 가시로 날 멈출 수 있을 거라 생각했나. 루나벨, 이번이 마지막이다.");
 
@@ -180,7 +180,7 @@ namespace Aethoria.Stages
 
             if (!skipped && player != null)
             {
-                // 마지막 가시가 네크로시아에게 닿는 순간 화면이 암전되며 루나벨 이름 카드 → FINAL BATTLE이 나오고,
+                // 마지막 가시가 네크로시아에게 닿는 순간 화면이 암전되며 루나벨 이름 카드가 나오고,
                 // 암전이 걷히면 네크로시아가 한마디 한 뒤 최종장 전투가 시작된다.
                 yield return new WaitForSeconds(DelayBeforePillars);
                 yield return PillarWave();

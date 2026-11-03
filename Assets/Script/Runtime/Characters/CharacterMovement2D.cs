@@ -41,6 +41,7 @@ namespace Aethoria.Characters
         private int cutsceneUnlockFrame = -1;
         public bool IsInputLocked => inputLocked || cutsceneLocked || Time.frameCount == cutsceneUnlockFrame;
         public float VerticalVelocity => body.linearVelocity.y;
+        public float JumpForce => jumpForce;
         // 보스 패턴이 플레이어를 한쪽으로 끌어당길 때 걷기 속도에 더해지는 가로 속도(루나벨 2페이즈 개막의 흡입).
         // 대시/넉백처럼 물리 이동을 직접 쥐는 동안(inputLocked)에는 더해지지 않아서, 대시로는 끌림을 뿌리칠 수 있다.
         public float ExternalPullX { get; set; }
@@ -56,9 +57,24 @@ namespace Aethoria.Characters
             body.freezeRotation = true;
         }
 
+        // 제자리 공격 모션(기본 공격, A/D스킬)이 재생되는 동안 그 자리에 멈춰 세운다. 걷던 중에 공격하면 공격 그림이 걸음째
+        // 미끄러져 보여서, 그동안 좌우 이동·점프·바라보는 방향 입력을 받지 않고 가로 속도를 0으로 둔다.
+        // 입력 잠금(IsInputLocked)과 달리 다른 공격·스킬 입력은 막지 않는다.
+        private float rootedUntil = -1f;
+        public bool IsRooted => Time.time < rootedUntil;
+
+        public void RootFor(float seconds)
+        {
+            rootedUntil = Mathf.Max(rootedUntil, Time.time + seconds);
+            horizontalInput = 0f;
+            jumpRequested = false;
+        }
+
         private void Update()
         {
-            if (!IsInputLocked) ReadInput();
+            if (IsInputLocked) return;
+            if (IsRooted) horizontalInput = 0f;
+            else ReadInput();
         }
 
         // 연출 잠금. 풀 때는 연출 도중 스킬(연출용 대시 등)이 걸어 둔 일반 잠금도 함께 푼다(연출 전과 같은 상태로 돌려준다).

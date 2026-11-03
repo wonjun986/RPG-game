@@ -11,7 +11,7 @@ namespace Aethoria.Stages
     // 황금 모래룡 등장 연출(마지막 폐허 맵). 모래룡은 처음엔 땅속에 숨어 있어 아무것도 보이지 않는다.
     // 네크로시아가 일정 거리까지 걸어오면: 조작을 막고 땅이 울린다 → 카메라가 빈 땅을 클로즈업 → 모래가 터지며
     // 모래룡이 땅 밑에서 솟아오른다(지하 분출 8프레임, Emerge) → 포효(포효 6프레임, Roar — 입을 크게 벌리는 순간
-    // 화면이 크게 흔들리고 입에서 모래빛 충격파 고리가 연달아 퍼지며 화면이 번쩍인다 + "크아아아앙!!") →
+    // 화면이 크게 흔들리고 입에서 모래빛 충격파 고리가 연달아 퍼지며 화면이 번쩍인다 + 포효 효과음) →
     // 카메라가 네크로시아를 클로즈업 → 네크로시아 대사 → 모래룡이 땅을 내려찍어 출구(뒤쪽 포탈) 밑에서 꼬리를 솟구쳐 출구를
     // 부순다(카메라가 출구로 넘어가 보여 줌) → 다시 네크로시아 클로즈업 → 대사 → 화면이 원래대로 돌아오며 모래룡을 향해 대시 → 전투 시작.
     // 이 연출을 이미 본 세이브(두 번째 만남부터)는 Esc로 건너뛰면 모래룡이 바로 나타나고(출구는 부서진 채로) 곧장 전투가 열린다.
@@ -55,7 +55,6 @@ namespace Aethoria.Stages
         private static readonly Color ShockwaveColor = new Color(1f, 0.86f, 0.55f, 0.85f);
         private const float FlashAlpha = 0.45f;
         private const float FlashDuration = 0.35f;
-        private const string RoarText = "크아아아앙!!";
 
         private const float DashDurationPerUnit = 0.03f;
         private const float BattleGap = 4.0f; // 모래룡 몸 앞에서 멈추는 거리
@@ -190,9 +189,7 @@ namespace Aethoria.Stages
             yield return Wait(RoarDuration * RoarImpactTiming);
             if (skipped) { yield return SkipToBattle(); yield break; }
             RoarImpact();
-            var roar = CreateRoarText();
             yield return Wait(RoarHold);
-            if (roar != null) Destroy(roar);
             Reveal();
             if (skipped) { yield return SkipToBattle(); yield break; }
 
@@ -434,26 +431,11 @@ namespace Aethoria.Stages
             Shockwaves();
         }
 
-        // 전투 중 포효: 클로즈업은 하지 않고, 화면을 흔들고 번쩍이고 충격파 고리와 "크아아아앙!!"만 띄운다.
+        // 전투 중 포효: 클로즈업은 하지 않고, 화면을 흔들고 번쩍이고 충격파 고리만 띄운다.
         private void BattleRoarImpact()
         {
             if (cameraFollow != null) cameraFollow.Shake(BattleRoarShakeDuration, BattleRoarShakeMagnitude);
             Shockwaves();
-            StartCoroutine(FadeRoarText(CreateRoarText()));
-        }
-
-        private IEnumerator FadeRoarText(GameObject textGO)
-        {
-            var text = textGO.GetComponent<TextMesh>();
-            Color color = text.color;
-            const float duration = 1.2f;
-            for (float t = 0f; t < duration && textGO != null; t += Time.deltaTime)
-            {
-                text.color = new Color(color.r, color.g, color.b, 1f - t / duration);
-                textGO.transform.position += Vector3.up * (0.6f * Time.deltaTime);
-                yield return null;
-            }
-            if (textGO != null) Destroy(textGO);
         }
 
         private IEnumerator ZoomPunch()
@@ -485,23 +467,6 @@ namespace Aethoria.Stages
                 flashDuration = FlashDuration,
                 sortingOrder = 55,
             });
-        }
-
-        private GameObject CreateRoarText()
-        {
-            var go = new GameObject("SandDragonRoar");
-            go.transform.SetParent(dragon.transform.parent, false);
-            go.transform.position = dragon.transform.position + new Vector3(0f, 6.4f, 0f);
-            var text = go.AddComponent<TextMesh>();
-            text.text = RoarText;
-            text.characterSize = 0.16f;
-            text.fontSize = 80;
-            text.fontStyle = FontStyle.Bold;
-            text.anchor = TextAnchor.MiddleCenter;
-            text.alignment = TextAlignment.Center;
-            text.color = new Color(1f, 0.82f, 0.35f);
-            go.GetComponent<MeshRenderer>().sortingOrder = 60;
-            return go;
         }
 
         // ---- 입력 ----

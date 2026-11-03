@@ -3,16 +3,18 @@ using UnityEngine;
 
 namespace Aethoria.Characters
 {
-    // Resources/Art/Necrosia/ASkill 아래의 낫 회전 베기(A) 프레임을 불러와, 요청 시 한 번만 재생한다.
+    // Resources/Art/Necrosia/ASkill 아래의 사슬낫 공격(A) 프레임을 불러와, 요청 시 한 번만 재생한다.
     // 재생 중에는 WalkSpriteAnimator(걷기/대기 스프라이트)를 잠시 꺼서 서로 스프라이트를
     // 덮어쓰지 않게 하고, 끝나면 다시 켜서 제어권을 돌려준다.
     public class ASkillSpriteAnimator : MonoBehaviour
     {
         [SerializeField] private string resourcesPath = "Art/Necrosia/ASkill";
         [SerializeField] private float totalDuration = 0.5f;
-        // A스킬 시트에서 서 있는 프레임(1, 10번째)의 머리~부츠 키(원본 px). 프레임 높이가 227~351px로 제각각이라
-        // 프레임마다 높이를 맞추면 캐릭터가 최대 1.55배까지 커졌다 작아졌다 해서, 시트 전체에 같은 배율을 건다.
-        [SerializeField] private float bodyPixelHeight = 225f;
+        // A스킬 시트(보랏빛 사슬낫 공격, 12프레임)에서 서 있는 1번째 프레임의 머리 장식~부츠 키(원본 px).
+        // 12장을 같은 캔버스에 발 위치를 맞춰 잘라 두었으므로 시트 전체에 같은 배율을 건다.
+        [SerializeField] private float bodyPixelHeight = 239f;
+        // 그 키가 대기 모션의 서 있는 키(머리 장식~부츠 약 1.53유닛)와 같아 보이게 한다.
+        [SerializeField] private float bodyTargetHeight = 1.53f;
 
         private SpriteRenderer spriteRenderer;
         private WalkSpriteAnimator walkAnimator;
@@ -40,6 +42,8 @@ namespace Aethoria.Characters
         public void Play(Vector2 facingDirection)
         {
             if (!HasFrames) return;
+            // 공격 모션이 걸음째 미끄러져 보이지 않게 재생하는 동안 제자리에 세운다.
+            GetComponent<CharacterMovement2D>()?.RootFor(totalDuration);
             if (playRoutine != null) StopCoroutine(playRoutine);
             playRoutine = StartCoroutine(PlayRoutine(facingDirection));
         }
@@ -54,7 +58,7 @@ namespace Aethoria.Characters
             for (int i = 0; i < frames.Length; i++)
             {
                 spriteRenderer.sprite = frames[i];
-                SkillFrameNormalizer.ApplyBody(spriteRenderer.transform, frames[i], bodyPixelHeight);
+                SkillFrameNormalizer.ApplyBody(spriteRenderer.transform, frames[i], bodyPixelHeight, bodyTargetHeight);
                 yield return new WaitForSeconds(frameDuration);
                 // 그새 다른 동작(스킬/피격 등)이 스프라이트를 가져갔으면 조용히 물러난다. 걷기/점프
                 // 애니메이터 복구와 스케일 초기화는 마지막에 가져간 쪽이 끝날 때 한다(여기서 하면

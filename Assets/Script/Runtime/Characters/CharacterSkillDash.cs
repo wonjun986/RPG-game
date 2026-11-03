@@ -6,8 +6,8 @@ using Aethoria.Monsters;
 
 namespace Aethoria.Characters
 {
-    // Shift = 대시 공격. 몬스터가 커서 점프로 넘어가기 힘든 경우가 많아서, 대시 중에는
-    // 몬스터와의 물리 충돌을 잠시 무시해 그대로 통과하며 경로상의 몬스터에게 피해를 준다
+    // Shift = 대시. 몬스터가 커서 점프로 넘어가기 힘든 경우가 많아서, 대시 중에는
+    // 몬스터와의 물리 충돌을 잠시 무시해 그대로 통과한다(피해는 주지 않는다).
     // (벽/바닥과의 충돌은 그대로 유지되어 맵 밖으로 나가지는 않는다).
     // 대시 중에는 무적 상태가 되어 회피기로도 쓸 수 있다.
     [RequireComponent(typeof(Character))]
@@ -19,15 +19,12 @@ namespace Aethoria.Characters
         [SerializeField] private float cooldown = 1.5f;
         [SerializeField] private float dashDistance = 3f;
         [SerializeField] private float dashDuration = 0.2f;
-        [SerializeField] private float hitRadius = 0.6f;
-        [SerializeField] private float damageMultiplier = 1f;
 
         [Header("대시 모션")]
         [SerializeField] private string dashFramesPath = "Art/Necrosia/Dash";
-        // 대시 프레임(보라빛 낫을 든 질주 스프라이트 시트, 6프레임)은 낫을 뒤로 끌며 몸을 낮춰 달리는 자세라 프레임 키가
-        // 서 있는 키보다 낮다. 프레임을 꽉 맞춰 잘라 두었으므로, 대기(1.8)/걷기(1.5)와 나란히 놓고 머리·몸통 크기가
-        // 같아 보이는 키로 맞췄다.
-        [SerializeField] private float dashTargetHeight = 1.25f;
+        // 대시 프레임(보랏빛 낫을 휘두르는 고딕 질주, 6프레임)은 6장을 얼굴 위치에 맞춰 같은 캔버스(658x340)로 잘랐다.
+        // 이 시트는 달리기 시트보다 캐릭터를 약 1.2배 크게 그렸다. 대기/달리기와 머리 크기가 같아 보이도록 캔버스 키를 1.05로 맞춘다.
+        [SerializeField] private float dashTargetHeight = 1.05f;
 
         private Character character;
         private CharacterMovement2D movement;
@@ -120,8 +117,6 @@ namespace Aethoria.Characters
             BeginDashPose(direction);
 
             var monsterColliders = BeginIgnoringMonsterCollisions();
-            // 연출용 대시(keepInputLocked)는 보스 앞에서 멈추는 이동일 뿐이라 피해를 주지 않는다.
-            var alreadyHit = keepInputLocked ? null : new HashSet<Monster>();
 
             float elapsed = 0f;
             while (elapsed < duration)
@@ -130,8 +125,6 @@ namespace Aethoria.Characters
                 elapsed += Time.fixedDeltaTime;
                 float t = Mathf.Clamp01(elapsed / duration);
                 body.MovePosition(Vector2.Lerp(start, end, t));
-
-                if (alreadyHit != null) DealDamageAlongPath(alreadyHit);
                 UpdateDashFrame(t);
             }
 
@@ -177,18 +170,6 @@ namespace Aethoria.Characters
             // 점프 애니메이터는 스스로 스케일을 보정하지 않고 1배를 그대로 쓰므로, 대시가 남긴
             // 보정 스케일을 원래대로 되돌려 둔다(ESkill이 시작할 때 하는 것과 같은 이유).
             if (visualRenderer != null) SkillFrameNormalizer.Reset(visualRenderer.transform);
-        }
-
-        private void DealDamageAlongPath(HashSet<Monster> alreadyHit)
-        {
-            var hits = Physics2D.OverlapCircleAll(body.position, hitRadius);
-            foreach (var hit in hits)
-            {
-                var monster = hit.GetComponent<Monster>();
-                if (monster == null || monster.IsDead || !alreadyHit.Add(monster)) continue;
-
-                character.DealDamage(monster, damageMultiplier, isSkill: true);
-            }
         }
 
         private List<Collider2D> BeginIgnoringMonsterCollisions()

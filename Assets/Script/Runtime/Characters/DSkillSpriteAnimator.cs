@@ -10,11 +10,10 @@ namespace Aethoria.Characters
     public class DSkillSpriteAnimator : MonoBehaviour
     {
         [SerializeField] private string resourcesPath = "Art/Necrosia/DSkill";
-        // 프레임은 원본 시트(necrosia_throw_6frames_cropped)에서 겹친 머리카락/망토를 피해 구불구불하게 잘라
-        // 잘린 자리를 부드럽게 흐려 두었다. 이웃 프레임까지 길게 뻗은 손(4번째 장의 갈퀴 손과 손목 빛)은 제 프레임에 남게
-        // 잘랐다. 모두 같은 캔버스(606x529)에 몸통 한가운데·부츠 끝을 맞춰 놓았다.
-        // 캐릭터 키(머리~발끝 약 418px)가 기준 키(1.5)로 보이도록 캔버스 전체 높이를 1.5 * 529 / 418 ≈ 1.9로 맞춘다.
-        [SerializeField] private float targetHeight = 1.9f;
+        // 프레임(고딕 마녀의 연속 투척 동작, 8프레임)은 한 줄 시트에서 이웃 프레임과 겹친 머리카락 사이로 가장 덜 걸치는 선을 따라 잘라,
+        // 모두 같은 캔버스(303x474)에 두 발 한가운데·부츠 바닥을 맞춰 놓았다(기준점도 그 자리).
+        // 머리 장식~부츠(416px)가 대기 모션의 서 있는 키(약 1.53유닛)와 같아 보이도록 캔버스 높이를 1.53 * 474 / 416 ≈ 1.74로 맞춘다.
+        [SerializeField] private float targetHeight = 1.74f;
 
         private SpriteRenderer spriteRenderer;
         private WalkSpriteAnimator walkAnimator;
@@ -42,6 +41,8 @@ namespace Aethoria.Characters
         public void Play(Vector2 facingDirection, float totalDuration)
         {
             if (!HasFrames) return;
+            // 던지고 받는 모션이 걸음째 미끄러져 보이지 않게 재생하는 동안 제자리에 세운다.
+            GetComponent<CharacterMovement2D>()?.RootFor(totalDuration);
             if (playRoutine != null) StopCoroutine(playRoutine);
             playRoutine = StartCoroutine(PlayRoutine(facingDirection, totalDuration));
         }

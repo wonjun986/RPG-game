@@ -6,39 +6,35 @@ using Aethoria.Characters;
 
 namespace Aethoria.UI
 {
-    // 화면 좌상단에 HP/MP 프레임(아트) + EXP/골드(코드로 그린 막대)를 그리고, 그 아래에
-    // 스킬 프레임(아트) 위에 쿨타임 오버레이를 얹어 보여준다.
+    // 화면 좌상단에 플레이어 HUD 프레임(초상화 + HP/MP 칸 + Q/W/E/A/S/D/R 스킬 슬롯이 한 장에 그려진 아트)을 띄우고,
+    // 그 칸들에 HP/MP 채우기와 스킬 그림·쿨타임 오버레이를 얹는다. 그 아래에 EXP/골드(코드로 그린 막대)를 둔다.
     public class PlayerHUD : MonoBehaviour
     {
-        // Player UI.png / Skill UI.png 원본 캔버스는 2172x724(정확히 3:1)라서, 화면에 그릴 때도
-        // 같은 비율로 맞춰야 안의 HP/MP 바·스킬 슬롯 좌표(아래 앵커 값들)가 어긋나지 않는다.
-        private const float PlayerFrameWidth = 340f;
-        private const float PlayerFrameHeight = PlayerFrameWidth / 3f;
-        private const float SkillFrameWidth = 480f;
-        private const float SkillFrameHeight = SkillFrameWidth / 3f;
-        // 체력 프레임과 스킬 프레임 사이 간격은 바짝 붙이고, 스킬 프레임과 그 아래 EXP/골드
-        // 사이만 약간 띄운다.
-        private const float TopGap = 4f;
-        private const float BottomGap = 10f;
+        // PlayerHUD.png(고딕 퍼플 빈 스킬 슬롯 HUD) 원본 캔버스는 2172x724(정확히 3:1)라서, 화면에 그릴 때도
+        // 같은 비율로 맞춰야 안의 HP/MP 칸·스킬 슬롯 좌표(아래 앵커 값들)가 어긋나지 않는다.
+        // 기준 해상도(1280x720)에서 예전 스킬 프레임과 같은 폭. 더 넓히면 화면 가운데 위의 보스 체력바와 많이 겹친다.
+        private const float HudFrameWidth = 480f;
+        private const float HudFrameHeight = HudFrameWidth / 3f;
+        // HUD 프레임과 그 아래 EXP/골드 사이 간격.
+        private const float BottomGap = 6f;
 
-        // 아래 앵커 좌표들은 PlayerUI.png / SkillUI.png 안에 이미 그려진 검은 게이지 칸,
-        // 다이아몬드 슬롯의 픽셀 위치(2172x724 기준)를 이미지 크기로 나눈 비율이다.
-        private static readonly Vector2 HpBarMin = new(0.4042f, 0.5235f);
-        private static readonly Vector2 HpBarMax = new(0.8734f, 0.6478f);
-        private static readonly Vector2 MpBarMin = new(0.4042f, 0.2514f);
-        private static readonly Vector2 MpBarMax = new(0.8734f, 0.3660f);
+        // 아래 앵커 좌표들은 PlayerHUD.png 안에 그려진 칸 테두리 안쪽의 픽셀 위치(2172x724 기준)를 이미지 크기로 나눈 비율이다
+        // (y는 아래에서부터). HP 칸 x 623~1805 / y 191~231, MP 칸 x 613~1786 / y 261~299.
+        private static readonly Vector2 HpBarMin = new(0.2868f, 0.6796f);
+        private static readonly Vector2 HpBarMax = new(0.8315f, 0.7362f);
+        private static readonly Vector2 MpBarMin = new(0.2822f, 0.5856f);
+        private static readonly Vector2 MpBarMax = new(0.8227f, 0.6395f);
 
-        private const float SkillSlotMinY = 0.4185f;
-        private const float SkillSlotMaxY = 0.6257f;
-        private static readonly (string key, float xMin, float xMax)[] SkillSlotColumns =
+        // 스킬 슬롯: 아트에 적힌 순서(Q W E A S D)대로 y 361~517, R은 오른쪽 큰 슬롯(x 1790~2020 / y 345~495).
+        private static readonly (string key, float xMin, float xMax, float yMin, float yMax)[] SkillSlots =
         {
-            ("A", 0.2247f, 0.2997f),
-            ("S", 0.3255f, 0.3946f),
-            ("D", 0.4194f, 0.4871f),
-            ("Q", 0.5133f, 0.5810f),
-            ("W", 0.6077f, 0.6731f),
-            ("E", 0.6989f, 0.7693f),
-            ("ULT", 0.8232f, 0.8812f),
+            ("Q", 0.2086f, 0.2993f, 0.2845f, 0.5014f),
+            ("W", 0.3117f, 0.4010f, 0.2845f, 0.5014f),
+            ("E", 0.4121f, 0.5014f, 0.2845f, 0.5014f),
+            ("A", 0.5124f, 0.6013f, 0.2845f, 0.5014f),
+            ("S", 0.6119f, 0.6998f, 0.2845f, 0.5014f),
+            ("D", 0.7113f, 0.8006f, 0.2845f, 0.5014f),
+            ("ULT", 0.8241f, 0.9300f, 0.3163f, 0.5235f),
         };
 
         private Character target;
@@ -57,19 +53,18 @@ namespace Aethoria.UI
         public void Initialize(Character character)
         {
             target = character;
-            BuildBars();
-            BuildSkillIcons(character);
+            var frameRect = CreateArtFrame("PlayerHudFrame", "UI/PlayerHUD", new Vector2(16f, -16f), HudFrameWidth, HudFrameHeight);
+            BuildBars(frameRect);
+            BuildSkillIcons(frameRect, character);
         }
 
-        private void BuildBars()
+        private void BuildBars(RectTransform frameRect)
         {
-            var frameRect = CreateArtFrame("PlayerFrame", "UI/PlayerUI", new Vector2(16f, -16f), PlayerFrameWidth, PlayerFrameHeight);
-
             hpFill = CreateArtBar(frameRect, HpBarMin, HpBarMax, new Color(0.85f, 0.15f, 0.2f), out hpLabel);
             mpFill = CreateArtBar(frameRect, MpBarMin, MpBarMax, new Color(0.35f, 0.55f, 0.95f), out mpLabel);
 
-            // HP/MP 프레임과 그 아래 스킬 프레임(BuildSkillIcons에서 만듦)을 둘 다 지나서 배치한다.
-            float belowBothFrames = -16f - PlayerFrameHeight - TopGap - SkillFrameHeight - BottomGap;
+            // HUD 프레임 바로 아래에 배치한다.
+            float belowBothFrames = -16f - HudFrameHeight - BottomGap;
             var root = new GameObject("StatusPanel", typeof(RectTransform));
             root.transform.SetParent(transform, false);
             var rootRect = (RectTransform)root.transform;
@@ -83,7 +78,7 @@ namespace Aethoria.UI
             goldLabel = CreateGoldRow(rootRect, -26f);
         }
 
-        // PlayerUI.png / SkillUI.png를 원본 비율(3:1) 그대로 좌상단에 띄우는 배경 프레임.
+        // PlayerHUD.png를 원본 비율(3:1) 그대로 좌상단에 띄우는 배경 프레임.
         // RawImage를 쓰는 이유는 Resources.Load<Texture2D>가 스프라이트 슬라이스 모드에 상관없이
         // 항상 원본 텍스처를 그대로 불러오기 때문이다(TitleScreenUI의 BuildBackground와 같은 방식).
         private RectTransform CreateArtFrame(string name, string resourcesPath, Vector2 anchoredPosition, float width, float height)
@@ -131,10 +126,15 @@ namespace Aethoria.UI
             textRect.offsetMax = Vector2.zero;
             text = textGO.GetComponent<Text>();
             text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            text.fontSize = 15;
+            // HUD 아트의 HP/MP 칸이 얇아서(약 9px) 작은 글씨를 칸 위아래로 살짝 넘치게 두고, 외곽선으로 읽히게 한다.
+            text.fontSize = 11;
             text.fontStyle = FontStyle.Bold;
             text.alignment = TextAnchor.MiddleCenter;
+            text.verticalOverflow = VerticalWrapMode.Overflow;
             text.color = Color.white;
+            var outline = textGO.AddComponent<Outline>();
+            outline.effectColor = new Color(0f, 0f, 0f, 0.9f);
+            outline.effectDistance = new Vector2(1f, -1f);
 
             return fillImage;
         }
@@ -220,17 +220,14 @@ namespace Aethoria.UI
             return fillImage;
         }
 
-        // 체력 프레임 바로 아래에 스킬 프레임(아트)을 띄우고, 그 안의 A/S/D/Q/W/E/ULT 슬롯 자리에
-        // 맞춰 쿨타임이 있는 스킬 아이콘을 얹는다. Dash(Shift)는 쿨타임이 짧아 따로 표시하지 않는다.
-        private void BuildSkillIcons(Character character)
+        // HUD 프레임 안의 Q/W/E/A/S/D/R 슬롯 자리에 맞춰 쿨타임이 있는 스킬 그림을 얹는다.
+        // Dash(Shift)는 쿨타임이 짧아 따로 표시하지 않는다.
+        private void BuildSkillIcons(RectTransform skillFrameRect, Character character)
         {
-            float skillFrameY = -16f - PlayerFrameHeight - TopGap;
-            var skillFrameRect = CreateArtFrame("SkillFrame", "UI/SkillUI_UltOn", new Vector2(16f, skillFrameY), SkillFrameWidth, SkillFrameHeight);
-
-            foreach (var (key, xMin, xMax) in SkillSlotColumns)
+            foreach (var (key, xMin, xMax, yMin, yMax) in SkillSlots)
             {
-                var anchorMin = new Vector2(xMin, SkillSlotMinY);
-                var anchorMax = new Vector2(xMax, SkillSlotMaxY);
+                var anchorMin = new Vector2(xMin, yMin);
+                var anchorMax = new Vector2(xMax, yMax);
 
                 switch (key)
                 {
@@ -289,8 +286,8 @@ namespace Aethoria.UI
             return text;
         }
 
-        // Assets/Resources/Art/UI/SkillIcons 아래의 스킬별 아이콘 아트를 SkillUI 프레임의 슬롯 자리에
-        // 얹고, 그 위에 쿨타임 오버레이만 따로 그린다(슬롯 글자는 프레임 아트에 이미 그려져 있다).
+        // Assets/Resources/Art/UI/SkillSlotArt 아래의 스킬별 그림을 HUD 프레임의 슬롯 자리에 꽉 차게
+        // 얹고, 그 위에 쿨타임 오버레이만 따로 그린다(슬롯 테두리와 글자는 프레임 아트에 이미 그려져 있다).
         private void AddSlotIcon(RectTransform parent, Vector2 anchorMin, Vector2 anchorMax, string label, Func<float> cooldownRatio, Func<float> remainingSeconds)
         {
             var iconGO = new GameObject(label + "_Icon", typeof(RectTransform), typeof(Image));
@@ -298,20 +295,20 @@ namespace Aethoria.UI
             iconRect.SetParent(parent, false);
             iconRect.anchorMin = anchorMin;
             iconRect.anchorMax = anchorMax;
-            iconRect.offsetMin = new Vector2(3f, 3f);
-            iconRect.offsetMax = new Vector2(-3f, -3f);
+            iconRect.offsetMin = new Vector2(1f, 1f);
+            iconRect.offsetMax = new Vector2(-1f, -1f);
             var iconImage = iconGO.GetComponent<Image>();
             iconImage.sprite = LoadSkillIcon(label);
             iconImage.color = Color.white;
-            iconImage.preserveAspect = true;
+            iconImage.raycastTarget = false;
 
             var overlayGO = new GameObject(label + "_Overlay", typeof(RectTransform), typeof(Image));
             var overlayRect = (RectTransform)overlayGO.transform;
             overlayRect.SetParent(parent, false);
             overlayRect.anchorMin = anchorMin;
             overlayRect.anchorMax = anchorMax;
-            overlayRect.offsetMin = new Vector2(3f, 3f);
-            overlayRect.offsetMax = new Vector2(-3f, -3f);
+            overlayRect.offsetMin = new Vector2(1f, 1f);
+            overlayRect.offsetMax = new Vector2(-1f, -1f);
             var overlay = overlayGO.GetComponent<Image>();
             overlay.type = Image.Type.Filled;
             overlay.fillMethod = Image.FillMethod.Vertical;
@@ -324,10 +321,11 @@ namespace Aethoria.UI
             skillIcons.Add((overlay, null, cooldownRatio, countdown, remainingSeconds));
         }
 
-        // Assets/Resources/Art/UI/SkillIcons 아래의 스킬별 아이콘 아트(글자 배지가 그림에 이미 포함되어 있다)를 불러온다.
+        // 스킬 아이콘(Art/UI/SkillIcons)에서 테두리와 글자 배지를 빼고 안쪽 그림만 잘라 둔 것(Art/UI/SkillSlotArt)을 불러온다.
+        // 슬롯 테두리·글자는 HUD 프레임 아트에 그려져 있어서 아이콘의 것과 겹치지 않게 한다.
         private static Sprite LoadSkillIcon(string label)
         {
-            return Resources.Load<Sprite>("Art/UI/SkillIcons/" + label);
+            return Resources.Load<Sprite>("Art/UI/SkillSlotArt/" + label);
         }
 
         private static float Ratio(float remaining, float total)

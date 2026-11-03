@@ -9,7 +9,10 @@ namespace Aethoria.Characters
     {
         [SerializeField] private string walkResourcesPath = "Art/Necrosia/Walk";
         [SerializeField] private string idleResourcesPath = "Art/Necrosia/Idle";
-        [SerializeField] private float walkFrameRate = 10f;
+        [SerializeField] private float walkFrameRate = 12f;
+        // 달리기(고딕 사신의 질주, 8프레임)는 8장을 같은 캔버스(326px)로 잘랐고 머리 장식~부츠가 약 320px로 캔버스를 거의 채운다.
+        // 예전 걷기(프레임 445px를 1.5로, 머리 장식~부츠 351px)와 같은 몸 키(약 1.18)가 되도록 캔버스 키를 1.2로 맞춘다.
+        [SerializeField] private float walkTargetHeight = 1.2f;
         // 대기는 6프레임(여섯 프레임 고딕 사신 스프라이트 시트)이라, 예전처럼 1초에 한 바퀴 돌게 6으로 둔다.
         [SerializeField] private float idleFrameRate = 6f;
         // 대기 포즈는 낫을 머리 위로 높이 들고 있어서 프레임 전체 높이 중 캐릭터 몸통이 차지하는
@@ -93,7 +96,7 @@ namespace Aethoria.Characters
             // 매 프레임 기준 키에 맞춰 보정한다. PPU를 프레임별로 정교하게 맞출 필요가 없어진다.
             if (activeIsWalk)
             {
-                SkillFrameNormalizer.Apply(spriteRenderer.transform, frame);
+                SkillFrameNormalizer.Apply(spriteRenderer.transform, frame, walkTargetHeight);
             }
             else
             {

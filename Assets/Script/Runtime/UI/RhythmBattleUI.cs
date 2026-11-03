@@ -2888,7 +2888,7 @@ namespace Aethoria.UI
 
         // ---- 필드 루나벨전 등장 연출 ----
         // 리듬 전투는 이제 릴리의 미니게임에서만 열리므로, 필드 루나벨전에서는 등장 연출(LunabelIntroCutscene)이 가시 폭풍 뒤에
-        // 이걸 불러 리듬 전투 화면의 연출 부분만 빌려 쓴다: 암전 → 루나벨 이름 카드 → FINAL BATTLE → 암전이 걷힌다.
+        // 이걸 불러 리듬 전투 화면의 연출 부분만 빌려 쓴다: 암전 → 루나벨 이름 카드 → 암전이 걷힌다.
         // 전투 UI(contentRoot)는 열지 않고, 월드 시간도 멈추지 않는다(연출이 조작과 보스 AI를 이미 잡아 두고 있다).
         private const float FieldIntroFadeOut = 0.35f;
         private bool playingFieldIntro;
@@ -2912,7 +2912,6 @@ namespace Aethoria.UI
             dimBackdrop.color = new Color(baseColor.r, baseColor.g, baseColor.b, 1f);
 
             yield return LunabelNameCard();
-            if (lunabelSplashFrames.Length > 0) yield return PlayLunabelSplash();
 
             for (float t = 0f; t < FieldIntroFadeOut; t += Time.unscaledDeltaTime)
             {

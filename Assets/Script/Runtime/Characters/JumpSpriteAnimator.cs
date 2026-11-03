@@ -12,6 +12,11 @@ namespace Aethoria.Characters
         [SerializeField] private string jumpResourcesPath = "Art/Necrosia/Jump";
         [SerializeField] private string doubleJumpResourcesPath = "Art/Necrosia/DoubleJump";
         [SerializeField] private float doubleJumpDuration = 0.4f;
+        // 점프(고딕 사신의 수직 점프, 6프레임)는 6장을 얼굴 위치에 맞춰 같은 캔버스(430px)로 잘랐다.
+        // 대기/달리기와 머리·몸 크기가 같아 보이도록 캔버스 키를 1.3으로 맞춘다.
+        [SerializeField] private float jumpTargetHeight = 1.3f;
+        // 2단 점프(고딕 사신의 공중 회전 베기, 8프레임)는 8장을 같은 캔버스(342px)로 잘랐다. 점프와 몸 크기가 같아 보이는 키.
+        [SerializeField] private float doubleJumpTargetHeight = 1.2f;
 
         private CharacterMovement2D movement;
         private WalkSpriteAnimator walkAnimator;
@@ -81,10 +86,11 @@ namespace Aethoria.Characters
 
                 if (doubleJumpRoutine == null && jumpFrames != null && jumpFrames.Length > 0)
                 {
-                    // 올라가는 중엔 상승 프레임, 정점을 지나 내려가는 중엔 체공/하강 프레임을 보여준다.
-                    int frameIndex = movement.VerticalVelocity > 0.5f ? 1 : 2;
-                    frameIndex = Mathf.Clamp(frameIndex, 0, jumpFrames.Length - 1);
-                    SetFrame(jumpFrames[frameIndex]);
+                    // 세로 속도로 프레임을 고른다: 막 뛰어오른 순간(속도 = 점프 힘)이 첫 프레임(웅크린 도약),
+                    // 정점(속도 0)이 가운데, 같은 높이로 다시 내려왔을 때(속도 = -점프 힘)가 마지막 프레임(착지 웅크림)이다.
+                    float t = Mathf.InverseLerp(movement.JumpForce, -movement.JumpForce, movement.VerticalVelocity);
+                    int frameIndex = Mathf.Clamp(Mathf.RoundToInt(t * (jumpFrames.Length - 1)), 0, jumpFrames.Length - 1);
+                    SetFrame(jumpFrames[frameIndex], jumpTargetHeight);
                 }
             }
             else if (!wasGrounded)
@@ -110,7 +116,7 @@ namespace Aethoria.Characters
             float frameDuration = doubleJumpDuration / doubleJumpFrames.Length;
             for (int i = 0; i < doubleJumpFrames.Length; i++)
             {
-                SetFrame(doubleJumpFrames[i]);
+                SetFrame(doubleJumpFrames[i], doubleJumpTargetHeight);
                 yield return new WaitForSeconds(frameDuration);
             }
 
@@ -131,10 +137,10 @@ namespace Aethoria.Characters
         // 걷기 애니메이터와 같은 기준 키로 매 프레임 보정한다. 점프/더블점프 시트도 프레임마다
         // 캐릭터를 감싸는 크롭 크기가 제각각인 데다, 대시 등 다른 스킬이 스케일을 건드려 놓고
         // 넘겨줄 수도 있어서, 원본 PPU만 믿고 그리면 크기가 프레임마다·상황마다 들쭉날쭉해진다.
-        private void SetFrame(Sprite frame)
+        private void SetFrame(Sprite frame, float targetHeight = SkillFrameNormalizer.ReferenceCharacterHeight)
         {
             spriteRenderer.sprite = frame;
-            SkillFrameNormalizer.Apply(spriteRenderer.transform, frame);
+            SkillFrameNormalizer.Apply(spriteRenderer.transform, frame, targetHeight);
         }
     }
 }

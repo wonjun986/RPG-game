@@ -38,9 +38,10 @@ namespace Aethoria.EditorTools
             ("Art/Effects/ChainStormStart/", 250f), ("Art/Effects/ChainStormLoop/", 250f),
             // 보스 시트들은 시트마다 기사를 그린 크기가 달라서(걷기 키 약 489px, 점프 공격 약 321px),
             // 모두 비슷한 키(약 2.55유닛)로 보이도록 시트별로 환산한 값을 쓴다.
-            // 대기(보라빛 망토 6프레임 시트, 투구~칼끝 키 533px)는 서 있는 모습이 작아 보인다는 피드백으로 걷기보다 조금 큰 약 2.64유닛으로 맞췄다.
+            // 대기는 서 있는 모습이 작아 보인다는 피드백으로 걷기보다 조금 큰 약 2.57유닛(투구~부츠)으로 맞췄다.
+            // 지금 대기(8프레임 다크 나이트 호흡 루프)는 투구~부츠 468px로, 예전 6프레임 대기(520px, 202)와 같은 키가 되게 환산한 값.
             // 기본 공격(새 시트, 선 자세 키 약 311px)은 리듬전투에서 대기 모션과 같은 키로 보이도록 대기에 맞춘다.
-            ("Art/Monsters/BossKnight/Walk/", 192f), ("Art/Monsters/BossKnight/Idle/", 202f),
+            ("Art/Monsters/BossKnight/Walk/", 192f), ("Art/Monsters/BossKnight/Idle/", 182f),
             // 필살기(검 들어올리기/기운 모으기) 프레임은 잘라낼 때 대기 모션과 같은 픽셀 크기로 맞춰 두었다.
             ("Art/Monsters/BossKnight/SpecialRaise/", 178f), ("Art/Monsters/BossKnight/SpecialCharge/", 178f),
             ("Art/Monsters/BossKnight/Die/", 178f),
@@ -136,6 +137,9 @@ namespace Aethoria.EditorTools
             ("Art/Monsters/BossKnight/FinalePlantIdle/", 203f),
             // 알리아스 분노 눈 실크(어둠 속 붉은 마력의 실크 웨이브): 길이 580px가 약 1.5유닛.
             ("Art/Effects/AliasEyeSilk/", 380f),
+            // 궁극기 소환: 땅에서 솟는 악마의 문(문틀 키 342px)이 약 6.8유닛(네크로시아 키의 4배 남짓), 날개를 편 악룡은 폭 약 11유닛.
+            // (CharacterSkillR이 그릴 때 같은 크기로 다시 맞추므로 이 값이 달라도 게임 속 크기는 같다.)
+            ("Art/Effects/UltGate/", 50f), ("Art/Effects/UltDragon/", 50f),
         };
 
         // 대부분의 캐릭터/이펙트 스프라이트는 바닥에 서 있는 기준(BottomCenter)이 맞지만,
@@ -157,6 +161,20 @@ namespace Aethoria.EditorTools
         {
             ("Art/Props/Portal/", new Vector2(0.5f, 0.2f)),
             ("Art/Effects/ScytheSpin/", new Vector2(0.5f, 0.1f)),
+            // 기본 공격(보랏빛 낫의 연속 베기 자세, 598x364 칸): 1번째 프레임 두 발 한가운데(x 264)와 부츠 바닥(아래에서 13px).
+            ("Art/Necrosia/Attack/", new Vector2(264f / 598f, 13f / 364f)),
+            // 달리기(고딕 사신의 질주, 470x326 칸)와 대시(보랏빛 낫을 휘두르는 고딕 질주, 658x340 칸)는 낫이 뒤로 길게 끌려서
+            // 캔버스 가운데가 몸보다 한참 뒤쪽이다. 가운데를 기준점으로 쓰면 달리기/대시를 시작하는 순간 몸이 앞으로 튀어 보여서,
+            // 엉덩이 아래(얼굴에서 뒤로 약 90px)를 기준점으로, 부츠 바닥을 높이 기준으로 삼는다.
+            ("Art/Necrosia/Walk/", new Vector2(330f / 470f, 4f / 326f)),
+            ("Art/Necrosia/Dash/", new Vector2(530f / 658f, 25f / 340f)),
+            // A스킬(보랏빛 사슬낫 공격, 467x295 칸): 12장 모두 두 발 한가운데(x 176)와 부츠 바닥(아래에서 3px)을 같은 자리에 맞춰 잘랐다.
+            ("Art/Necrosia/ASkill/", new Vector2(176f / 467f, 3f / 295f)),
+            // D스킬(고딕 마녀의 연속 투척 동작, 303x474 칸): 8장 모두 두 발 한가운데(x 189)와 부츠 바닥(아래에서 2px)을 같은 자리에 맞춰 잘랐다.
+            ("Art/Necrosia/DSkill/", new Vector2(189f / 303f, 2f / 474f)),
+            // 궁극기 소환(589x374 칸): 네 시트(문 솟음/문 틈 빛/소환/포효)를 문 가운데 첨탑과 땅 높이에 맞춰 한 캔버스에 놓았다.
+            ("Art/Effects/UltGate/", new Vector2(290f / 589f, 19f / 374f)),
+            ("Art/Effects/UltDragon/", new Vector2(290f / 589f, 19f / 374f)),
             // 루나벨 차원문 순간이동: 칸(512) 안에서 1프레임의 두 부츠 굽 사이 바닥(x 265, y 505)이 발 기준점.
             ("Art/Monsters/FinalBoss/Phase1/PortalEnter/", new Vector2(265f / 512f, 1f - 505f / 512f)),
             // 붕괴하는 차원문: 프레임마다 소용돌이 한가운데를 캔버스 가운데에 맞춰 잘랐다.

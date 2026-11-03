@@ -52,6 +52,7 @@ namespace Aethoria.Characters
         private void TryPerformBasicAttack()
         {
             if (cooldownRemaining > 0f) return;
+            if (!movement.IsGrounded) return; // 공중에서는 공격과 스킬을 쓸 수 없다
 
             cooldownRemaining = cooldown;
             PerformBasicAttack();
