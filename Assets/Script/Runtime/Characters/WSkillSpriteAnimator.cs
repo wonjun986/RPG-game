@@ -12,8 +12,9 @@ namespace Aethoria.Characters
     {
         [SerializeField] private string resourcesPath = "Art/Necrosia/WSkill";
         // 프레임은 모두 부츠 위치를 기준으로 맞춘 같은 캔버스(383px)로 잘려 있고, 그중 캐릭터 키(머리~발끝)는
-        // 약 349px이다. 캐릭터가 기준 키(1.5)로 보이도록 캔버스 전체 높이를 1.5 * 383 / 349 ≈ 1.65로 맞춘다.
-        [SerializeField] private float targetHeight = 1.65f;
+        // 약 349px이다. 처음엔 기준 키(1.5)에 맞춰 1.65로 두었는데, 대기 모션(1.8)과 나란히 놓고 머리 장식~부츠 키를 재 보니
+        // W 시전 모습이 약 20% 작아 보여서(시전하면 캐릭터가 확 줄어드는 느낌), 대기와 같은 키가 되도록 1.2배 키운 값.
+        [SerializeField] private float targetHeight = 1.98f;
         [SerializeField] private float frameDuration = 0.08f;
         // 손이 가장 크게 뻗어 있는 6~8번째 프레임을 지속 시간 동안 반복한다.
         [SerializeField] private int loopStart = 5;

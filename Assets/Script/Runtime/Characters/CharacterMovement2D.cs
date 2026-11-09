@@ -29,6 +29,11 @@ namespace Aethoria.Characters
         private readonly HashSet<Collider2D> droppingThrough = new HashSet<Collider2D>();
         private bool isGrounded;
         private bool inputLocked;
+        // 계단 경사로(OneWayRamp) 위에 발을 붙여 둔 상태. 아래 방향키로 내려오면 잠깐 경사로를 무시한다.
+        private bool onRamp;
+        private float rampIgnoreUntil = -1f;
+        private const float RampSnapAbove = 0.12f;  // 내려가는 계단에서 한 걸음 사이에 뜨는 높이보다 넉넉히
+        private const float RampSnapBelow = 0.35f;  // 올라가는 계단에서 한 걸음 사이에 파묻히는 깊이보다 넉넉히
         private int airJumpsUsed;
 
         public Vector2 FacingDirection { get; private set; } = Vector2.right;
@@ -106,6 +111,8 @@ namespace Aethoria.Characters
         private void FixedUpdate()
         {
             isGrounded = CheckGrounded();
+            onRamp = !inputLocked && TrySnapToRamp();
+            if (onRamp) isGrounded = true;
             if (isGrounded) airJumpsUsed = 0;
 
             if (inputLocked)
@@ -139,6 +146,15 @@ namespace Aethoria.Characters
         // 발밑의 단방향 발판들과 잠깐 충돌을 꺼서 아래로 떨어지게 한다. 단단한 바닥(일반 콜라이더)을 밟고 있으면 아무 일도 없다.
         private void TryDropThrough()
         {
+            if (onRamp)
+            {
+                rampIgnoreUntil = Time.time + dropThroughDuration;
+                onRamp = false;
+                isGrounded = false;
+                body.linearVelocity = new Vector2(body.linearVelocity.x, -2f);
+                return;
+            }
+
             if (bodyCollider == null) return;
 
             int count = Physics2D.OverlapBox(GroundCheckCenter, GroundCheckSize, 0f, new ContactFilter2D { useTriggers = false }, groundCheckResults);
@@ -176,6 +192,40 @@ namespace Aethoria.Characters
                 if (platform != null && bodyCollider != null) Physics2D.IgnoreCollision(bodyCollider, platform, false);
             }
             droppingThrough.Clear();
+        }
+
+        // 발이 경사로 근처(조금 위~조금 아래)에 있고 위로 솟구치는 중이 아니면 발을 경사로 높이에 붙인다.
+        // 아래에서 점프해 올라가는 동안(위로 움직이는 중)은 붙지 않으므로 그대로 뚫고 올라간다.
+        private bool TrySnapToRamp()
+        {
+            if (Time.time < rampIgnoreUntil || body.linearVelocity.y > 0.01f) return false;
+            var ramps = OneWayRamp.Active;
+            if (ramps.Count == 0) return false;
+
+            Vector2 position = body.position;
+            if (!TryGetRampY(position, RampSnapAbove, RampSnapBelow, out float best)) return false;
+            // 경사로보다 조금 높은 발판/바닥에 이미 서 있으면 그쪽을 밟는다.
+            if (isGrounded && position.y > best + 0.01f) return false;
+
+            body.position = new Vector2(position.x, best);
+            body.linearVelocity = new Vector2(body.linearVelocity.x, 0f);
+            return true;
+        }
+
+        public bool IsOnRamp => onRamp;
+
+        // position 근처(발보다 above만큼 아래 ~ below만큼 위)에 있는 경사로 중 가장 높은 길의 높이.
+        public bool TryGetRampY(Vector2 position, float above, float below, out float surfaceY)
+        {
+            surfaceY = float.NegativeInfinity;
+            var ramps = OneWayRamp.Active;
+            for (int i = 0; i < ramps.Count; i++)
+            {
+                if (!ramps[i].TryGetSurfaceY(position.x, out float y)) continue;
+                if (position.y > y + above || position.y < y - below) continue;
+                if (y > surfaceY) surfaceY = y;
+            }
+            return !float.IsNegativeInfinity(surfaceY);
         }
 
         private Vector2 GroundCheckCenter => (Vector2)transform.position + Vector2.down * 0.05f;

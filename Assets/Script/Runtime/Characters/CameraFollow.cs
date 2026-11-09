@@ -94,6 +94,9 @@ namespace Aethoria.Characters
             shakeMagnitude = magnitude;
         }
 
+        // 연출에서 카메라 높이를 잠깐 옮긴다(떨어지는 캐릭터를 따라 내려갈 때). 스테이지를 새로 지으면 Follow가 원래대로 잡는다.
+        public void ShiftView(float deltaY) => fixedY += deltaY;
+
         private void RecalculateBounds()
         {
             float halfWidth = cam.orthographicSize * cam.aspect;

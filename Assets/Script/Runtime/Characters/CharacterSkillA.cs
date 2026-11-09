@@ -27,6 +27,7 @@ namespace Aethoria.Characters
 
         public int CurrentCharges => currentCharges;
         public int MaxCharges => maxCharges;
+        public float RechargeRemaining => rechargeTimer;
 
         public void ResetCooldown()
         {

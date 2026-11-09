@@ -168,6 +168,9 @@ namespace Aethoria.EditorTools
             // 엉덩이 아래(얼굴에서 뒤로 약 90px)를 기준점으로, 부츠 바닥을 높이 기준으로 삼는다.
             ("Art/Necrosia/Walk/", new Vector2(330f / 470f, 4f / 326f)),
             ("Art/Necrosia/Dash/", new Vector2(530f / 658f, 25f / 340f)),
+            // 수영(보랏빛 낫을 든 고딕 수영 동작, 500x370 칸): 8장 모두 낫 끝을 같은 자리에 맞춰 잘랐다. 누운 몸의 허리(x 270, 위에서 215px)가
+            // 바다 추격전의 충돌 상자 가운데(발 기준점 위 0.6유닛)에 오도록, 그보다 0.6유닛(약 194px) 아래 캔버스 밖에 기준점을 둔다.
+            ("Art/Necrosia/Swim/", new Vector2(270f / 500f, -39f / 370f)),
             // A스킬(보랏빛 사슬낫 공격, 467x295 칸): 12장 모두 두 발 한가운데(x 176)와 부츠 바닥(아래에서 3px)을 같은 자리에 맞춰 잘랐다.
             ("Art/Necrosia/ASkill/", new Vector2(176f / 467f, 3f / 295f)),
             // D스킬(고딕 마녀의 연속 투척 동작, 303x474 칸): 8장 모두 두 발 한가운데(x 189)와 부츠 바닥(아래에서 2px)을 같은 자리에 맞춰 잘랐다.
@@ -196,6 +199,12 @@ namespace Aethoria.EditorTools
             // 꽂은 뒤 대기(378x476 칸, 프레임마다 갑옷 위치를 맞춰 잘랐다): FinalePlant 마지막 프레임의 기준점 자리
             // (칼날에서 뒤쪽 62px, 부츠 아래 11px)에 맞춘 점.
             ("Art/Monsters/BossKnight/FinalePlantIdle/", new Vector2(226f / 378f, 18f / 476f)),
+        };
+
+        // 화면을 꽉 채울 만큼 크게 키워 쓰는 그림은 Point로 두면 픽셀이 네모나게 드러나서 부드럽게 늘린다.
+        private static readonly string[] SmoothFilterFolders =
+        {
+            "Art/Effects/LunabelGiantPillarRise/", "Art/Effects/LunabelGiantPillarLoop/",
         };
 
         private void OnPreprocessTexture()
@@ -237,7 +246,12 @@ namespace Aethoria.EditorTools
             importer.textureType = TextureImporterType.Sprite;
             importer.spriteImportMode = SpriteImportMode.Single;
             importer.spritePixelsPerUnit = pixelsPerUnit;
-            importer.filterMode = FilterMode.Point;
+            bool smooth = false;
+            foreach (var subfolder in SmoothFilterFolders)
+            {
+                if (normalizedPath.Contains(subfolder)) smooth = true;
+            }
+            importer.filterMode = smooth ? FilterMode.Bilinear : FilterMode.Point;
             importer.alphaIsTransparency = true;
             importer.mipmapEnabled = false;
             importer.textureCompression = TextureImporterCompression.Uncompressed;

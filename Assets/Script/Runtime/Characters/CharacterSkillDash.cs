@@ -118,13 +118,24 @@ namespace Aethoria.Characters
 
             var monsterColliders = BeginIgnoringMonsterCollisions();
 
+            // 계단(경사로) 위에서 대시하면 곧게 날아가 계단 속에 파묻히지 않도록 길 높이를 따라간다.
+            // 경사로 끝을 벗어나면 그 높이 그대로 나머지를 곧게 나간다.
+            bool followRamp = movement.IsOnRamp;
+            float currentY = start.y;
             float elapsed = 0f;
             while (elapsed < duration)
             {
                 yield return new WaitForFixedUpdate();
                 elapsed += Time.fixedDeltaTime;
                 float t = Mathf.Clamp01(elapsed / duration);
-                body.MovePosition(Vector2.Lerp(start, end, t));
+                Vector2 next = Vector2.Lerp(start, end, t);
+                if (followRamp)
+                {
+                    if (movement.TryGetRampY(new Vector2(next.x, currentY), 0.6f, 0.6f, out float rampY)) currentY = rampY;
+                    else followRamp = false;
+                    next.y = currentY + (next.y - start.y);
+                }
+                body.MovePosition(next);
                 UpdateDashFrame(t);
             }
 

@@ -10,23 +10,26 @@ namespace Aethoria.Characters
     // R = 죽음의 소용돌이 (궁극기). 땅을 딛고 있을 때만 쓸 수 있다.
     // 시전하면 먼저 제자리에서 낫을 머리 위로 크게 돌리다 땅에 내리꽂는 준비 모션을 하고, 낫이 땅에 박히면
     // 네크로시아 바로 앞 땅에서 거대한 악마의 문이 솟아오른다. 문 틈으로 빛이 차오르다 문이 열리며 악룡이 걸어 나와
-    // 날개를 펴고 포효한다. 입을 크게 벌린 채 포효를 이어 가는 동안, 악룡 앞 땅에서부터 바라보는 쪽 맵 끝까지
-    // 충격파 폭발과 에너지 기둥이 번갈아 차례로 터져 나간다(카메라가 그 끝을 따라간다).
+    // 날개를 펴고 포효한다. 입을 크게 벌린 채 포효를 이어 가는 동안, 악룡 바로 앞에서 거대한 폭발이 일어나고
+    // 그 자리에서 양옆으로 충격파가 두 번(가까운 쪽 → 먼 쪽) 퍼져 나간다. 큰 폭발은 양옆 충격파가 다 끝날 때까지
+    // 그대로 타오르며 범위 안 몬스터에게 계속 피해를 준다.
     // 다 터지고 나면 악룡이 다시 문 안으로 물러나고, 문이 닫히며 땅속으로 가라앉아 사라진다.
     // 그동안 네크로시아는 낫을 꽂은 자세로 무적 상태로 서 있다(문이 가라앉는 동안에는 다시 움직일 수 있다).
-    // 피해는 악룡 앞에서부터 터져 나가는 충격파/기둥 하나하나가 제 범위에 닿은 몬스터에게 준다(악룡 뒤쪽이나 닿지 않은 곳은 맞지 않는다).
+    // 피해는 큰 폭발과 충격파 하나하나가 제 범위에 닿은 몬스터에게 준다.
     [RequireComponent(typeof(Character))]
     [RequireComponent(typeof(CharacterMovement2D))]
     public class CharacterSkillR : MonoBehaviour, ISkillCooldownReset
     {
         [SerializeField] private float manaCost = 100f;
         [SerializeField] private float cooldown = 25f;
-        [SerializeField] private float duration = 3f; // 충격파가 맵 끝까지 번져 나가는 시간
-        // 충격파/기둥 하나가 터지는 동안 제 범위의 몬스터를 burstHits번, 한 번에 기본 공격의 burstHitMultiplier배로 친다.
-        // 폭발이 burstSpacing(3.5) 간격으로 터지고 범위가 좌우 burstHalfWidth(3)라 몬스터 하나는 보통 두 번의 폭발에 닿는다:
-        // 2 x 3번 x 4배 = 합계 기본 공격 약 24배(예전 맵 전체 20배보다 조금 더). 보스도 똑같이 맞는다.
+        // 큰 폭발(좌우 explosionHalfWidth)은 타오르는 동안 explosionTickInterval마다 기본 공격의 explosionTickMultiplier배로 친다
+        // (약 1.5초 동안 7~8번 = 약 15배). 충격파(좌우 burstHalfWidth)는 터지는 동안 burstHits번, 한 번에 burstHitMultiplier배.
+        // 악룡 앞 몬스터는 큰 폭발 + 첫 충격파에 닿아 기본 공격 약 24배(예전과 비슷), 멀리 있는 몬스터는 충격파 한 번(9배)만 맞는다.
         [SerializeField] private int burstHits = 3;
-        [SerializeField] private float burstHitMultiplier = 4f;
+        [SerializeField] private float explosionTickInterval = 0.2f;
+        [SerializeField] private float explosionTickMultiplier = 2f;
+        [SerializeField] private float burstHitMultiplier = 3f;
+        [SerializeField] private float explosionHalfWidth = 5.5f;
         [SerializeField] private float burstHalfWidth = 3f;
         [SerializeField] private float burstHeight = 6f;
 
@@ -80,9 +83,17 @@ namespace Aethoria.Characters
         [SerializeField] private float pillarFrameDuration = 0.06f;
         [SerializeField] private float pillarRiseDuration = 0.1f;   // 기둥 시트엔 솟는 장면이 없어서 땅에서 위로 늘이며 솟게 한다
         [SerializeField] private float burstFadeDuration = 0.2f;    // 마지막 프레임에서 흐려지며 사라지는 시간
-        [SerializeField] private float burstSpacing = 3.5f;         // 폭발이 터지는 간격(유닛)
-        [SerializeField] private float burstStartOffset = 1.5f;     // 문 가운데에서 이만큼 앞부터 터지기 시작한다
-        [SerializeField] private float sweepEdgeInset = 2f;         // 맵 끝 안쪽 이 거리까지 터진다
+        [SerializeField] private float explosionOffset = 1.5f;      // 문 가운데에서 이만큼 앞(악룡 입 바로 앞)에서 크게 터진다
+        [SerializeField] private float explosionScale = 1.8f;       // 큰 폭발은 충격파 그림을 이만큼 키워 쓴다
+        [SerializeField] private float explosionPillarScale = 1.3f; // 큰 폭발 가운데에서 함께 솟는 에너지 기둥 크기
+        // 큰 폭발이 타오르는 동안 충격파 그림에서 가장 크게 부푼 5~7프레임(0부터 4~6)을 왔다 갔다 한다.
+        [SerializeField] private int explosionHoldFirstFrame = 4;
+        [SerializeField] private int explosionHoldLastFrame = 6;
+        // 큰 폭발 자리에서 양옆으로 이 거리만큼 떨어진 곳에 충격파가 차례로 터진다(첫 번째, 두 번째).
+        [SerializeField] private float[] ringDistances = { 6f, 10.5f };
+        [SerializeField] private float ringDelay = 0.4f;            // 큰 폭발 → 첫 충격파 → 두 번째 충격파 사이 간격
+        [SerializeField] private float explosionShakeDuration = 0.5f;
+        [SerializeField] private float explosionShakeMagnitude = 0.4f;
         [SerializeField] private float cameraSweepSmoothTime = 0.12f;
         [SerializeField] private float cameraReturnSmoothTime = 0.35f;
         // 충격파(508x385 칸)·기둥(498x352 칸)의 땅 한가운데 픽셀(아래에서 잼)과 게임 속 크기(PPU 60: 충격파 폭 약 7유닛, 기둥 키 약 5.8유닛).
@@ -202,8 +213,8 @@ namespace Aethoria.Characters
                 roarLoop = StartCoroutine(LoopRoar(summon, gatePosition));
             }
 
-            // 포효를 이어 가는 동안 악룡 앞 땅에서부터 바라보는 쪽 맵 끝까지 충격파와 기둥이 번갈아 터져 나간다.
-            yield return SweepBursts(gatePosition, facing, view, cameraFollow);
+            // 포효를 이어 가는 동안 악룡 앞에서 크게 폭발하고, 양옆으로 충격파가 두 번 퍼져 나간다.
+            yield return PlayExplosionAndRings(gatePosition, facing, view, cameraFollow);
             if (roarLoop != null) StopCoroutine(roarLoop);
             if (summon != null) summon.transform.parent.position = gatePosition;
 
@@ -350,43 +361,136 @@ namespace Aethoria.Characters
 
         // ---- 충격파 / 에너지 기둥 ----
 
-        // 문 앞(gatePosition + facing * burstStartOffset)부터 바라보는 쪽 맵 끝까지 duration 동안 burstSpacing 간격으로
-        // 충격파와 기둥을 번갈아 터뜨린다. 카메라는 터지는 앞쪽 끝을 따라간다. 피해는 폭발마다 제 범위에 준다(PlayBurst).
-        private IEnumerator SweepBursts(Vector3 gatePosition, float facing, Transform view, CameraFollow cameraFollow)
+        // 악룡 입 바로 앞에서 큰 폭발(커다란 충격파 + 에너지 기둥)이 한 번 터지고, ringDelay마다 그 자리 양옆
+        // ringDistances 거리에 충격파가 한 쌍씩 터진다. 카메라는 폭발 자리를 비춘다. 마지막 충격파가 다 사라지면 끝난다.
+        private IEnumerator PlayExplosionAndRings(Vector3 gatePosition, float facing, Transform view, CameraFollow cameraFollow)
         {
             Rect bounds = GameBootstrap.CurrentMapBounds;
-            float startX = gatePosition.x + facing * burstStartOffset;
-            float edgeX = facing > 0f ? bounds.xMax - sweepEdgeInset : bounds.xMin + sweepEdgeInset;
-            float distance = Mathf.Max(0f, (edgeX - startX) * facing);
-            int burstCount = Mathf.FloorToInt(distance / burstSpacing) + 1;
-            if (cameraFollow != null && view != null) cameraFollow.SetTarget(view, cameraSweepSmoothTime);
-
-            float elapsed = 0f;
-            int spawned = 0;
-            while (elapsed < duration)
+            var center = new Vector3(gatePosition.x + facing * explosionOffset, gatePosition.y, 0f);
+            if (cameraFollow != null && view != null)
             {
-                float t = Mathf.Clamp01(elapsed / duration);
-                // 첫 폭발은 바로, 나머지는 시간에 맞춰 고르게 앞으로 번져 나간다.
-                while (spawned < burstCount && spawned <= t * burstCount)
-                {
-                    float x = startX + facing * burstSpacing * spawned;
-                    bool pillar = spawned % 2 == 1;
-                    StartCoroutine(PlayBurst(pillar, new Vector3(x, gatePosition.y, 0f), facing));
-                    if (cameraFollow != null) cameraFollow.Shake(burstShakeDuration, burstShakeMagnitude);
-                    if (view != null) view.position = new Vector3(x, view.position.y, 0f);
-                    spawned++;
-                }
-                yield return null;
-                elapsed += Time.deltaTime;
+                cameraFollow.SetTarget(view, cameraSweepSmoothTime);
+                view.position = new Vector3(center.x, view.position.y, 0f);
             }
+
+            explosionHolding = true;
+            StartCoroutine(PlayHeldPillar(center, facing));
+            StartCoroutine(PlayHeldExplosion(center, facing));
+            if (cameraFollow != null) cameraFollow.Shake(explosionShakeDuration, explosionShakeMagnitude);
+
+            foreach (float distance in ringDistances)
+            {
+                yield return new WaitForSeconds(ringDelay);
+                bool any = false;
+                foreach (float side in new[] { -1f, 1f })
+                {
+                    float x = center.x + side * distance;
+                    // 맵 밖으로 통째로 벗어나는 충격파는 터뜨리지 않는다.
+                    if (x + burstHalfWidth < bounds.xMin || x - burstHalfWidth > bounds.xMax + 1f) continue;
+                    // 그림의 충격파가 바깥쪽으로 퍼져 나가 보이도록 왼쪽 것은 좌우를 뒤집는다.
+                    StartCoroutine(PlayBurst(false, new Vector3(x, center.y, 0f), side, 1f, burstHalfWidth, burstHits, burstHitMultiplier));
+                    any = true;
+                }
+                if (any && cameraFollow != null) cameraFollow.Shake(burstShakeDuration, burstShakeMagnitude);
+            }
+
+            // 마지막 충격파가 다 사라지면 큰 폭발도 꺼지기 시작한다.
+            int waveFrameCount = waveFrames != null ? waveFrames.Length : 0;
+            yield return new WaitForSeconds(waveFrameCount * waveFrameDuration + burstFadeDuration);
+            explosionHolding = false;
+            yield return new WaitForSeconds(waveFrameDuration * 2f + burstFadeDuration);
         }
 
-        private IEnumerator PlayBurst(bool pillar, Vector3 position, float facing)
+        private bool explosionHolding;
+
+        // 큰 폭발: 가장 크게 부푼 프레임까지 터진 뒤 explosionHolding이 꺼질 때까지 그 구간을 왔다 갔다 하며 타오르고,
+        // 그 뒤 나머지 프레임을 재생하며 사라진다. 타오르는 내내 explosionTickInterval마다 범위 안 몬스터를 친다.
+        private IEnumerator PlayHeldExplosion(Vector3 position, float facing)
+        {
+            if (waveFrames == null || waveFrames.Length == 0) yield break;
+            int last = waveFrames.Length - 1;
+            int holdFirst = Mathf.Clamp(explosionHoldFirstFrame, 0, last);
+            int holdLast = Mathf.Clamp(explosionHoldLastFrame, holdFirst, last);
+            float pixelsPerUnit = BurstPixelsPerUnit / Mathf.Max(0.01f, explosionScale);
+
+            var renderer = CreateAnchoredRenderer("UltExplosion", position, BurstSortingOrder);
+            renderer.flipX = facing < 0f;
+            float tick = explosionTickInterval; // 첫 프레임이 지나면 바로 한 번 친다
+            int index = 0;
+            int step = 1;
+            bool rising = true;
+            while (true)
+            {
+                if (renderer == null) yield break;
+                SetAnchoredFrame(renderer, waveFrames[index], WaveAnchorPixel, pixelsPerUnit);
+                for (float t = 0f; t < waveFrameDuration; t += Time.deltaTime)
+                {
+                    if (index > 0 && (rising || explosionHolding))
+                    {
+                        tick += Time.deltaTime;
+                        if (tick >= explosionTickInterval)
+                        {
+                            tick -= explosionTickInterval;
+                            DamageArea(position, explosionHalfWidth, explosionTickMultiplier);
+                        }
+                    }
+                    yield return null;
+                }
+
+                if (rising)
+                {
+                    if (index < holdLast) { index++; continue; }
+                    rising = false;
+                }
+                if (explosionHolding && holdLast > holdFirst)
+                {
+                    // 가장 부푼 구간을 왔다 갔다 한다.
+                    if (index + step > holdLast || index + step < holdFirst) step = -step;
+                    index += step;
+                    continue;
+                }
+                if (explosionHolding) continue;
+                // 꺼지기: 나머지 프레임을 재생하고 흐려진다.
+                if (index < last) { index = Mathf.Max(index + 1, holdLast + 1 <= last ? holdLast + 1 : last); continue; }
+                break;
+            }
+            yield return FadeAndDestroy(renderer, burstFadeDuration);
+        }
+
+        // 큰 폭발 가운데의 에너지 기둥: 땅에서 솟은 뒤 explosionHolding이 꺼질 때까지 프레임을 되풀이한다(피해는 큰 폭발이 준다).
+        private IEnumerator PlayHeldPillar(Vector3 position, float facing)
+        {
+            if (pillarFrames == null || pillarFrames.Length == 0) yield break;
+            float pixelsPerUnit = BurstPixelsPerUnit / Mathf.Max(0.01f, explosionPillarScale);
+            var renderer = CreateAnchoredRenderer("UltPillar", position, BurstSortingOrder);
+            renderer.flipX = facing < 0f;
+            var root = renderer.transform.parent;
+            float riseTime = 0f;
+            int index = 0;
+            while (renderer != null && (explosionHolding || index < pillarFrames.Length))
+            {
+                SetAnchoredFrame(renderer, pillarFrames[index % pillarFrames.Length], PillarAnchorPixel, pixelsPerUnit);
+                for (float t = 0f; t < pillarFrameDuration; t += Time.deltaTime)
+                {
+                    riseTime += Time.deltaTime;
+                    if (root != null) root.localScale = new Vector3(1f, Mathf.Clamp01(riseTime / pillarRiseDuration), 1f);
+                    yield return null;
+                }
+                index++;
+                // 되풀이하는 동안은 번호가 끝없이 커지지 않게 한 바퀴 안으로 되돌린다.
+                if (explosionHolding && index >= pillarFrames.Length) index -= pillarFrames.Length;
+            }
+            if (renderer != null) yield return FadeAndDestroy(renderer, burstFadeDuration);
+        }
+
+        // scale: 그림 크기 배율. hits가 0이면 그림만 보여 주고 피해는 주지 않는다.
+        private IEnumerator PlayBurst(bool pillar, Vector3 position, float facing, float scale, float halfWidth, int hits, float multiplier)
         {
             var frames = pillar ? pillarFrames : waveFrames;
             if (frames == null || frames.Length == 0) yield break;
             Vector2 anchor = pillar ? PillarAnchorPixel : WaveAnchorPixel;
             float frameDuration = pillar ? pillarFrameDuration : waveFrameDuration;
+            float pixelsPerUnit = BurstPixelsPerUnit / Mathf.Max(0.01f, scale);
 
             var renderer = CreateAnchoredRenderer(pillar ? "UltPillar" : "UltWave", position, BurstSortingOrder);
             renderer.flipX = facing < 0f;
@@ -396,11 +500,11 @@ namespace Aethoria.Characters
             for (int i = 0; i < frames.Length; i++)
             {
                 if (renderer == null) yield break;
-                SetAnchoredFrame(renderer, frames[i], anchor, BurstPixelsPerUnit);
-                // 터지는 동안 고르게 burstHits번 친다(1번째 프레임 다음부터 시작해 마지막 사라지는 프레임 전에 끝낸다).
-                if (hitsDone < burstHits && i >= 1 && i >= 1 + hitsDone * Mathf.Max(1, (frames.Length - 2) / Mathf.Max(1, burstHits)))
+                SetAnchoredFrame(renderer, frames[i], anchor, pixelsPerUnit);
+                // 터지는 동안 고르게 hits번 친다(1번째 프레임 다음부터 시작해 마지막 사라지는 프레임 전에 끝낸다).
+                if (hitsDone < hits && i >= 1 && i >= 1 + hitsDone * Mathf.Max(1, (frames.Length - 2) / Mathf.Max(1, hits)))
                 {
-                    DamageArea(position);
+                    DamageArea(position, halfWidth, multiplier);
                     hitsDone++;
                 }
                 for (float t = 0f; t < frameDuration; t += Time.deltaTime)
@@ -461,17 +565,17 @@ namespace Aethoria.Characters
             if (cameraFollow != null) cameraFollow.ResetSmoothTime();
         }
 
-        // 폭발이 터진 땅(ground) 좌우 burstHalfWidth, 위로 burstHeight 안에 몸이 걸친 몬스터를 한 번씩 친다.
-        private void DamageArea(Vector3 ground)
+        // 폭발이 터진 땅(ground) 좌우 halfWidth, 위로 burstHeight 안에 몸이 걸친 몬스터를 한 번씩 친다.
+        private void DamageArea(Vector3 ground, float halfWidth, float multiplier)
         {
             Vector2 center = new Vector2(ground.x, ground.y + burstHeight / 2f - 0.5f);
-            Vector2 size = new Vector2(burstHalfWidth * 2f, burstHeight + 1f);
+            Vector2 size = new Vector2(halfWidth * 2f, burstHeight + 1f);
             var hit = new HashSet<Monster>();
             foreach (var col in Physics2D.OverlapBoxAll(center, size, 0f))
             {
                 var monster = col.GetComponentInParent<Monster>();
                 if (monster == null || monster.IsDead || !hit.Add(monster)) continue;
-                character.DealDamage(monster, burstHitMultiplier, isSkill: true);
+                character.DealDamage(monster, multiplier, isSkill: true);
             }
         }
     }

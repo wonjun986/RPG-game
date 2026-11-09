@@ -36,6 +36,8 @@ namespace Aethoria.Bootstrap
         private const float AliasBossBgmLoopStart = 15f;
         // 마을 배경 음악(Sound/Game Bgm/2_맵/마을/마을 브금.mp4에서 소리만 뽑은 것, 3분 6초).
         private const string VillageBgmPath = "Audio/Bgm/village";
+        // 파일 맨 앞 약 3.95초가 완전한 무음이라, 마을에 들어오자마자 들리도록 그만큼 건너뛰고 튼다(다시 돌 때도 같은 자리부터).
+        private const float VillageBgmSilence = 3.9f;
         // 잊혀진 폐허 배경 음악(Sound/Game Bgm/2_맵/잊혀진 폐허의 녹화본에서 소리만 뽑아 앞 무음을 자른 것, 3분 27초).
         private const string RuinsBgmPath = "Audio/Bgm/ruins";
         // 연습장: 마을의 이시스에게 말을 걸어 들어가는 허수아비 맵. 몬스터도 경험치도 없고 마나/체력이 계속 가득 찬다.
@@ -73,6 +75,10 @@ namespace Aethoria.Bootstrap
         private const int BlueSeaStage3 = -16;
         private const int TotalBlueSeaStages = 3;
         private const int BlueSeaWidth = 40;
+        // 푸른 바다 마지막 맵 오른쪽 돌길이 무너지면 떨어지는 물속 추격전(SeaCollapseCutscene → SeaChaseController).
+        // 카메라가 고정이라 맵 폭 없이 화면 한 칸만 쓴다. 쓰러지면 추격전 처음부터 다시 시작한다.
+        private const int SeaChaseStage = -17;
+        private const int SeaChaseFloorY = -2;
 
         // 마을에 들어올 때 서는 자리. Edge는 들어온 방향에 따라 왼쪽/오른쪽 끝, Center는 마을 한가운데(게임을 이어서 시작할 때).
         private enum VillageSpawn { Edge, Noa, Isis, Center }
@@ -106,6 +112,8 @@ namespace Aethoria.Bootstrap
         private static bool lunabelIntroSeen;
         // 황금 모래룡 등장 연출을 본 적 있는지(세이브에 저장). 본 뒤로는 Esc로 건너뛸 수 있다.
         private static bool sandDragonIntroSeen;
+        private static bool seaChaseIntroSeen;
+        private static bool lunabelGazeTalkSeen;
         // 노아와의 첫 만남 대사가 아직 남았는지(새 게임에서만 true, 한 번 보면 false로 저장된다).
         private static bool noaFirstMeetingPending;
         private static bool isisFirstMeetingPending;
@@ -159,6 +167,8 @@ namespace Aethoria.Bootstrap
             bossIntroSeen = save != null && save.bossIntroSeen;
             lunabelIntroSeen = save != null && save.lunabelIntroSeen;
             sandDragonIntroSeen = save != null && save.sandDragonIntroSeen;
+            seaChaseIntroSeen = save != null && save.seaChaseIntroSeen;
+            lunabelGazeTalkSeen = save != null && save.lunabelGazeTalkSeen;
             noaFirstMeetingPending = save == null || save.noaFirstMeetingPending;
             isisFirstMeetingPending = save == null || save.isisFirstMeetingPending;
             if (save != null)
@@ -247,6 +257,8 @@ namespace Aethoria.Bootstrap
                 bossIntroSeen = bossIntroSeen,
                 lunabelIntroSeen = lunabelIntroSeen,
                 sandDragonIntroSeen = sandDragonIntroSeen,
+                seaChaseIntroSeen = seaChaseIntroSeen,
+                lunabelGazeTalkSeen = lunabelGazeTalkSeen,
                 noaFirstMeetingPending = noaFirstMeetingPending,
                 isisFirstMeetingPending = isisFirstMeetingPending,
                 mapUnlockSeen = worldMapUI != null ? worldMapUI.UnlockSeen : 0,
@@ -307,6 +319,7 @@ namespace Aethoria.Bootstrap
         // spawnAtNoa면 노아 바로 앞에 세운다.
         public static void ReturnToVillage(bool spawnAtNoa = false)
         {
+            player.ClearMaxHpPenalty();
             player.Heal(player.MaxHp);
             player.RestoreMana(player.MaxMana);
             currentStage = VillageStage;
@@ -317,6 +330,7 @@ namespace Aethoria.Bootstrap
         // 다시 짓는다 — 보스 맵이면 보스와 등장 연출부터(이미 본 연출은 Esc로 건너뛸 수 있다), 튜토리얼 숲이면 숲에서 다시 눈을 뜬다.
         public static void RetryCurrentStage()
         {
+            player.ClearMaxHpPenalty();
             player.Heal(player.MaxHp);
             player.RestoreMana(player.MaxMana);
             BuildStage(enteringForward: true);
@@ -428,6 +442,8 @@ namespace Aethoria.Bootstrap
             ("잊혀진 폐허 1", RuinsStage1),
             ("잊혀진 폐허 보스 (황금 모래룡)", RuinsStage3),
             ("푸른 바다 1", BlueSeaStage1),
+            ("푸른 바다 3 (붕괴)", BlueSeaStage3),
+            ("푸른 바다 추격전", SeaChaseStage),
             ("엔스룸 마을", EnsroomStage),
             ("천상의 신전", TempleStage),
             ("이리아의 성소", SanctuaryStage),
@@ -444,6 +460,7 @@ namespace Aethoria.Bootstrap
             if (index < 0 || index >= AdminWarpTargets.Length || Time.timeScale == 0f) return false;
 
             tutorialUI?.HideGuide();
+            player.ClearMaxHpPenalty();
             player.Heal(player.MaxHp);
             player.RestoreMana(player.MaxMana);
             currentStage = AdminWarpTargets[index].Stage;
@@ -492,10 +509,12 @@ namespace Aethoria.Bootstrap
             // 알리아스 보스 맵에 들어오면 보스전 곡을 처음부터 튼다. 3분 넘게 싸워 곡이 끝나면 도입부를 건너뛰고 15초부터 되풀이한다.
             // 마을은 마을 곡을 끝까지 듣고 처음부터 되풀이한다(마을 안에서 맵을 다시 지어도 끊지 않고 이어서 튼다).
             if (currentStage == BossStage) BgmPlayer.Play(AliasBossBgmPath, AliasBossBgmLoopStart);
-            else if (currentStage == VillageStage) BgmPlayer.Play(VillageBgmPath, 0f, restartIfPlaying: false);
+            else if (currentStage == VillageStage) BgmPlayer.Play(VillageBgmPath, VillageBgmSilence, restartIfPlaying: false, startSeconds: VillageBgmSilence);
             // 폐허는 세 맵 내내 곡을 끊지 않고 이어서 튼다. 마지막 맵에서는 모래룡이 솟아오르는 순간 등장 연출
             // (SandDragonIntroCutscene)이 보스 곡으로 바꾼다.
             else if (currentStage <= RuinsStage1 && currentStage >= RuinsStage3) BgmPlayer.Play(RuinsBgmPath, 0f, restartIfPlaying: false);
+            // 추격전 전용 곡이 나오기 전까지 모래룡 보스 곡을 임시로 쓴다.
+            else if (currentStage == SeaChaseStage) BgmPlayer.Play(SandDragonIntroCutscene.BossBgmPath, 0f);
             else BgmPlayer.Stop();
             // 던전 첫 맵에 앞으로 걸어 들어왔으면(마을/월드맵에서 출발) 스테이지 클리어 창에 보여줄 획득 기록을 새로 시작한다.
             if (enteringForward && (currentStage == 1 || currentStage == PlainsStage1 || currentStage == RuinsStage1 || currentStage == BlueSeaStage1 || currentStage == HillStage)) stageClearUI.BeginRun();
@@ -563,6 +582,12 @@ namespace Aethoria.Bootstrap
             if (currentStage <= BlueSeaStage1 && currentStage >= BlueSeaStage3)
             {
                 BuildBlueSea(BlueSeaStage1 - currentStage + 1, enteringForward);
+                return;
+            }
+
+            if (currentStage == SeaChaseStage)
+            {
+                BuildSeaChase();
                 return;
             }
 
@@ -1326,6 +1351,13 @@ namespace Aethoria.Bootstrap
         // 푸른 바다: 바닷가 절벽 위 돌길(푸른 바다의 폐허와 환상 도시, 1672x941). 돌길 윗면이 그림 위에서 약 795px라
         // 그 줄을 바닥으로 삼는다. 세 맵 모두 같은 배경이고 발판 배치(SpawnBlueSeaPlatforms)만 다르다.
         private const float BlueSeaGroundFraction = 795f / 941f;
+        // 맵 폭(40칸)에 맞추면 약 2.4배로 늘어나 돌길과 유적이 캐릭터보다 너무 커 보여서, 같은 크기 그림을 쓰는 폐허처럼 배율을 고정한다.
+        // 맵 폭을 못 덮는 양옆은 좌우 반전한 복사본으로 채워진다.
+        private const float BlueSeaBackgroundScale = 1.4f;
+        // 마지막 맵은 다리 가운데가 끊긴 그림(1672x941)을 깔고 그 구멍을 돌길 조각으로 덮어 둔다(SeaCollapseCutscene). 돌길 윗면은 위에서 약 788px.
+        private const float BrokenSeaGroundFraction = 788f / 941f;
+        // 구멍 왼쪽에서만 싸우도록 몬스터는 이 x까지만 나온다.
+        private const int BrokenSeaSpawnMaxX = -4;
         private const string BlueSeaPropFolder = "Art/Props/Sea/";
         private const int SeaSpiritsPerStage = 3;
 
@@ -1335,7 +1367,8 @@ namespace Aethoria.Bootstrap
             bool isLastSea = seaIndex >= TotalBlueSeaStages;
 
             BuildMap(stageRoot.transform, BlueSeaWidth, MapHeight, out int xMin, out int xMax, out int yMin, out int yMax,
-                "Backgrounds/blue_sea", BlueSeaGroundFraction);
+                isLastSea ? "Backgrounds/blue_sea_broken" : "Backgrounds/blue_sea",
+                isLastSea ? BrokenSeaGroundFraction : BlueSeaGroundFraction, BlueSeaBackgroundScale);
             mapXMin = xMin; mapXMax = xMax; mapYMin = yMin; mapYMax = yMax;
 
             player.SetCombatLocked(false);
@@ -1343,9 +1376,10 @@ namespace Aethoria.Bootstrap
             PlacePlayerAtSpawn(playerSpawnX, yMin);
             FitCamera(xMin, xMax, yMin);
 
-            SpawnBlueSeaPlatforms(stageRoot.transform, yMin, seaIndex);
+            if (isLastSea) SpawnBrokenSeaBackgroundSurfaces(stageRoot.transform, (xMin + xMax + 1) / 2f, yMin);
+            else SpawnBlueSeaPlatforms(stageRoot.transform, yMin, seaIndex);
             SpawnSeaSpirits(stageRoot.transform, yMin,
-                MonsterSpawner.PickSpawnXs(SeaSpiritsPerStage, xMin, xMax, playerSpawnX, minSpacing: 4f));
+                MonsterSpawner.PickSpawnXs(SeaSpiritsPerStage, xMin, isLastSea ? BrokenSeaSpawnMaxX : xMax, playerSpawnX, minSpacing: 4f));
 
             var backPortal = SpawnPortal(stageRoot.transform, xMin + 0.5f, yMin, backward: true, framed: SeaPortalStyle);
             if (isFirstSea) backPortal.SetCustomTrigger(() => ConfirmReturnToVillage(backPortal));
@@ -1356,12 +1390,42 @@ namespace Aethoria.Bootstrap
                 var forwardPortal = SpawnPortal(stageRoot.transform, xMax - 0.5f, yMin, backward: false, framed: SeaPortalStyle);
                 forwardPortal.SetCustomTrigger(EnterNextFieldStage);
             }
+            else
+            {
+                var floor = stageRoot.transform.Find("MapBounds/Wall_Bottom").GetComponent<Collider2D>();
+                var collapseGO = new GameObject("SeaCollapse");
+                collapseGO.transform.SetParent(stageRoot.transform);
+                collapseGO.AddComponent<SeaCollapseCutscene>().Initialize(player, floor, (xMin + xMax + 1) / 2f, yMin, BlueSeaBackgroundScale, EnterSeaChase);
+            }
 
             var stageManagerGO = new GameObject("StageManager");
             stageManagerGO.transform.SetParent(stageRoot.transform);
             stageManagerGO.AddComponent<StageManager>().Initialize(player);
 
             Debug.Log($"Aethoria: 푸른 바다 {seaIndex}/{TotalBlueSeaStages} 진입");
+        }
+
+        private static void EnterSeaChase()
+        {
+            currentStage = SeaChaseStage;
+            BuildStage(enteringForward: true);
+        }
+
+        private static void BuildSeaChase()
+        {
+            mapXMin = -1; mapXMax = 0; mapYMin = SeaChaseFloorY; mapYMax = SeaChaseFloorY;
+            backgroundTopAboveFloor = 0f;
+
+            player.SetCombatLocked(true);
+            PlacePlayerAtSpawn(2f, SeaChaseFloorY + 2f);
+            FitCamera(mapXMin, mapXMax, SeaChaseFloorY);
+
+            var chaseGO = new GameObject("SeaChase");
+            chaseGO.transform.SetParent(stageRoot.transform);
+            chaseGO.AddComponent<SeaChaseController>().Initialize(player, npcDialogueUI, seaChaseIntroSeen,
+                () => seaChaseIntroSeen = true, () => ReturnToVillage(spawnAtNoa: true));
+
+            Debug.Log("Aethoria: 푸른 바다 추격전 진입");
         }
 
         // 바다 발판: 해저 유적 플랫폼과 산호 에셋 시트에서 잘라낸 떠 있는 돌섬/유적 다리. 폐허와 같은 규칙 —
@@ -1394,19 +1458,86 @@ namespace Aethoria.Bootstrap
                     SpawnPlatform(parent, "sea_aqueduct", 13.4f, floorY + 3.4f, 85, BlueSeaPropFolder);
                     SpawnPlatform(parent, "sea_rock_tiny", 17.2f, floorY + 2.0f, 46, BlueSeaPropFolder);
                     break;
-                default:
-                    // 바다 3: 바닥의 아치에서 올라 좁은 기둥 섬들을 징검다리처럼 밟으며 오르내리는 높낮이 큰 코스.
-                    SpawnPlatform(parent, "sea_arch", -16.5f, floorY + 0.8f, 13, BlueSeaPropFolder);
-                    SpawnPlatform(parent, "sea_column_2", -13.4f, floorY + 2.8f, 40, BlueSeaPropFolder);
-                    SpawnPlatform(parent, "sea_bridge_pillar", -9.4f, floorY + 4.4f, 93, BlueSeaPropFolder);
-                    SpawnPlatform(parent, "sea_rock_spike", -4.8f, floorY + 5.4f, 78, BlueSeaPropFolder);
-                    SpawnPlatform(parent, "sea_slab_double", -0.4f, floorY + 3.6f, 77, BlueSeaPropFolder);
-                    SpawnPlatform(parent, "sea_rock_small", 3.8f, floorY + 2.4f, 38, BlueSeaPropFolder);
-                    SpawnPlatform(parent, "sea_slab_long", 8.0f, floorY + 4.0f, 69, BlueSeaPropFolder);
-                    SpawnPlatform(parent, "sea_column_1", 12.0f, floorY + 5.2f, 70, BlueSeaPropFolder);
-                    SpawnPlatform(parent, "sea_slab_wide", 16.0f, floorY + 3.4f, 58, BlueSeaPropFolder);
-                    break;
             }
+        }
+
+        // 바다 3(붕괴 맵)은 떠 있는 발판 대신 배경(blue_sea_broken, 1672x941) 속 돌계단·아치·열주 윗면을 그대로 밟고 오른다.
+        // 아래 좌표는 모두 그림의 픽셀(위에서부터 y)이다. 돌길 윗면(788px)이 맵 바닥이다.
+        // 맵 왼쪽 끝은 그림 왼쪽 끝 너머라 좌우 반전한 복사본이 이어 붙어 있어서, 같은 자리를 거울처럼 한 번 더 깐다.
+        private const float BrokenSeaImageWidthPx = 1672f;
+        private const float BrokenSeaGroundPx = 788f;
+        // 밟는 윗면: (왼쪽 x, 오른쪽 x, 윗면 y). 왼쪽 x가 0인 것은 그림 왼쪽 끝에 붙어 있어 반전 복사본과 한 덩어리로 이어진다.
+        private static readonly (float left, float right, float top)[] BrokenSeaLedgesPx =
+        {
+            // 아래 계단을 오른 층계참. 두 위 계단 사이 가운데 바위 둔덕도 같은 높이라, 반전 복사본의 층계참까지 한 판으로 잇는다.
+            // 위 계단 바로 밑은 걸어가면 계단을 타고 오르고, 계단에서 아래 방향키로 내려오면 이 판 위로 지나갈 수 있다.
+            (0f, 250f, 706f),
+            (0f, 85f, 634f),        // 위 계단을 오른 바위턱
+            (0f, 265f, 507f),       // 아치 위 돌판
+            (0f, 135f, 322f),       // 아치 꼭대기
+            (255f, 455f, 643f),     // 무너진 열주 윗면
+            (455f, 528f, 668f),     // 열주 오른쪽 낮은 칸
+            (528f, 580f, 652f),     // 열주 끝 기둥머리
+        };
+        // 계단: (아래쪽 끝, 위쪽 끝). 걸어서 오르내린다(OneWayRamp).
+        private static readonly (Vector2 bottom, Vector2 top)[] BrokenSeaStairsPx =
+        {
+            (new Vector2(350f, 788f), new Vector2(245f, 706f)),     // 돌길 → 층계참
+            (new Vector2(165f, 706f), new Vector2(80f, 634f)),      // 층계참 → 위 바위턱
+        };
+        private const float BackgroundLedgeThickness = 0.2f;
+
+        private static void SpawnBrokenSeaBackgroundSurfaces(Transform parent, float imageCenterX, int floorY)
+        {
+            float unitsPerPixel = BlueSeaBackgroundScale / 100f;
+            float tileWidth = BrokenSeaImageWidthPx * unitsPerPixel;
+            float halfPx = BrokenSeaImageWidthPx / 2f;
+            float WorldY(float py) => floorY + (BrokenSeaGroundPx - py) * unitsPerPixel;
+            float CenterX(float px) => imageCenterX + (px - halfPx) * unitsPerPixel;
+            float MirrorX(float px) => imageCenterX - tileWidth + (halfPx - px) * unitsPerPixel;
+
+            foreach (var (left, right, top) in BrokenSeaLedgesPx)
+            {
+                float y = WorldY(top);
+                if (left <= 0f)
+                {
+                    SpawnBackgroundLedge(parent, MirrorX(right), CenterX(right), y);
+                }
+                else
+                {
+                    SpawnBackgroundLedge(parent, CenterX(left), CenterX(right), y);
+                    SpawnBackgroundLedge(parent, MirrorX(right), MirrorX(left), y);
+                }
+            }
+
+            foreach (var (bottom, top) in BrokenSeaStairsPx)
+            {
+                SpawnBackgroundStairs(parent, new Vector2(CenterX(bottom.x), WorldY(bottom.y)), new Vector2(CenterX(top.x), WorldY(top.y)));
+                SpawnBackgroundStairs(parent, new Vector2(MirrorX(bottom.x), WorldY(bottom.y)), new Vector2(MirrorX(top.x), WorldY(top.y)));
+            }
+        }
+
+        // 그림 없이 배경 속 단 위에 까는 단방향 윗면.
+        private static void SpawnBackgroundLedge(Transform parent, float leftX, float rightX, float topY)
+        {
+            var go = new GameObject("BackgroundLedge");
+            go.transform.SetParent(parent);
+            go.transform.position = new Vector3((leftX + rightX) / 2f, topY - BackgroundLedgeThickness / 2f, 0f);
+
+            var collider = go.AddComponent<BoxCollider2D>();
+            collider.size = new Vector2(Mathf.Abs(rightX - leftX), BackgroundLedgeThickness);
+            collider.usedByEffector = true;
+
+            var effector = go.AddComponent<PlatformEffector2D>();
+            effector.useOneWay = true;
+            effector.surfaceArc = 160f;
+        }
+
+        private static void SpawnBackgroundStairs(Transform parent, Vector2 bottom, Vector2 top)
+        {
+            var go = new GameObject("BackgroundStairs");
+            go.transform.SetParent(parent);
+            go.AddComponent<OneWayRamp>().Initialize(bottom, top);
         }
 
         // 바닥에 세우는 조각(기둥/아치/낮은 단). 아랫단 돌무더기가 흙길에 살짝 묻히도록 조금 내려 박는다.
@@ -2188,6 +2319,8 @@ namespace Aethoria.Bootstrap
             var monster = go.AddComponent<Monster>();
             monster.AssignData(data);
             var bossAI = go.AddComponent<FinalBossAI>();
+            go.AddComponent<LunabelGazeCurse>().Initialize(bossAI, monster, player, npcDialogueUI, lunabelGazeTalkSeen,
+                () => lunabelGazeTalkSeen = true);
             go.AddComponent<MonsterHealthBar>().Configure(newWidth: 1.6f, newVerticalOffset: 0.15f);
 
             bossHealthUI.Bind(monster, data.monsterName);

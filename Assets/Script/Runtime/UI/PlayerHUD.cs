@@ -233,8 +233,8 @@ namespace Aethoria.UI
                 {
                     case "A":
                         var a = character.GetComponent<CharacterSkillA>();
-                        // A는 고정 쿨타임이 아니라 충전식이라 "몇 초 남았는지"가 없어 숫자는 표시하지 않는다.
-                        if (a != null) AddSlotIcon(skillFrameRect, anchorMin, anchorMax, "A", () => a.MaxCharges > 0 ? 1f - (float)a.CurrentCharges / a.MaxCharges : 0f, null);
+                        // A는 충전식이라 충전이 남아 있으면 바로 쓸 수 있다. 숫자는 충전을 다 써서 못 쓸 때만 다음 충전까지 남은 초를 보여준다.
+                        if (a != null) AddSlotIcon(skillFrameRect, anchorMin, anchorMax, "A", () => a.MaxCharges > 0 ? 1f - (float)a.CurrentCharges / a.MaxCharges : 0f, () => a.CurrentCharges > 0 ? 0f : a.RechargeRemaining);
                         break;
                     case "S":
                         var s = character.GetComponent<CharacterSkillS>();
@@ -310,6 +310,8 @@ namespace Aethoria.UI
             overlayRect.offsetMin = new Vector2(1f, 1f);
             overlayRect.offsetMax = new Vector2(-1f, -1f);
             var overlay = overlayGO.GetComponent<Image>();
+            overlay.UseAsFilled();
+            overlay.raycastTarget = false;
             overlay.type = Image.Type.Filled;
             overlay.fillMethod = Image.FillMethod.Vertical;
             overlay.fillOrigin = (int)Image.OriginVertical.Bottom;

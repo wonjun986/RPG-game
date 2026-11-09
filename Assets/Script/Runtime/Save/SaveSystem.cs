@@ -49,6 +49,10 @@ namespace Aethoria.Save
         public bool lunabelIntroSeen;
         // 황금 모래룡(잊혀진 폐허 보스) 등장 연출을 본 적 있는지. 본 뒤로는 Esc로 건너뛸 수 있다.
         public bool sandDragonIntroSeen;
+        // 푸른 바다 추격전의 아쿠아 등장 연출을 본 적 있는지. 본 뒤로는 Esc로 건너뛸 수 있다.
+        public bool seaChaseIntroSeen;
+        // 루나벨 첫 응시의 대사를 본 적 있는지. 본 뒤로는 Esc로 건너뛸 수 있다.
+        public bool lunabelGazeTalkSeen;
         // 노아와의 첫 만남(스토리 대사)이 아직 남았는지. 새 게임에서만 true로 시작한다 — 이 값이 없던 예전 세이브는
         // false로 읽혀서, 이미 노아를 만난 캐릭터에게 첫 만남 대사가 다시 나오지 않는다.
         public bool noaFirstMeetingPending;

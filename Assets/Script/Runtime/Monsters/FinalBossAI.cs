@@ -3,6 +3,7 @@ using UnityEngine;
 using Aethoria.Bootstrap;
 using Aethoria.Characters;
 using Aethoria.Combat;
+using Aethoria.UI;
 
 namespace Aethoria.Monsters
 {
@@ -60,19 +61,24 @@ namespace Aethoria.Monsters
         [SerializeField] private float specialBurstHitTime = 0.36f;    // 기둥 하나가 맞히는 시간(솟는 6프레임)
 
         [Header("2페이즈 개막: 공중에서 거대한 구체 → 플레이어를 빨아들임 → 맵 가운데 거대한 핏기둥")]
-        [SerializeField] private float openingAirHeight = 3.5f;      // 맵 가운데 이만큼 위 공중으로 순간이동한다
-        [SerializeField] private float openingOrbScale = 0.9f;       // 다 모았을 때 거대한 에너지 구체(LunabelGiantOrb, 구슬 지름 2.2) 배율
+        [SerializeField] private float openingAirHeight = 2.8f;      // 맵 가운데 이만큼 위 공중으로 순간이동한다(머리 위 구체까지 화면에 들어오는 높이)
+        [SerializeField] private float openingOrbScale = 1.4f;       // 다 모았을 때 거대한 에너지 구체(LunabelGiantOrb, 배율 1에서 구슬 지름 2.2) 배율
         [SerializeField] private float openingOrbFrameTime = 0.08f;  // 에너지 구체 6프레임이 도는 빠르기
         // 2페이즈 전투 중에도 간간히 개막 패턴(공중으로 올라가 거대한 구체 → 플레이어를 빨아들임 → 거대한 핏기둥)을 다시 쓴다.
         // 이때는 광기 어린 웃음 대사 없이 구체만 모은다.
         [SerializeField] private float giantOrbCooldown = 26f;
         [SerializeField] private float giantOrbFirstDelay = 20f;     // 변신 개막이 끝난 뒤 처음 다시 쓰기까지
         [SerializeField] private float openingChargeDuration = 3f;   // 구체를 모으는 동안 플레이어가 가운데로 빨려 든다
-        [SerializeField] private float openingOrbDropTime = 0.35f;   // 구체가 바로 아래 맵 가운데 바닥으로 내리꽂힌다
-        [SerializeField] private float openingWarnTime = 0.5f;       // 떨어진 자리 바닥이 핏빛으로 들끓는 예고
-        [SerializeField] private float openingPillarScale = 3f;      // 피의 기둥 그림(약 2.2칸 폭)을 이만큼 키운다
-        [SerializeField] private float openingPillarHitWidth = 4.2f;
-        [SerializeField] private float openingTornadoTime = 2f;      // 다 솟은 뒤 회오리치는 시간(그동안 계속 할퀸다)
+        [SerializeField] private float openingOrbDropTime = 1.2f;    // 구체가 바로 아래 맵 가운데 바닥으로 내려온다(처음엔 천천히, 갈수록 빠르게)
+        // 바닥에 닿으면 핵폭발 직전처럼 눈부신 빛이 화면을 덮었다가, 터지는 순간부터 걷힌다.
+        [SerializeField] private float openingFlashRise = 0.45f;
+        [SerializeField] private float openingFlashHold = 0.25f;
+        [SerializeField] private float openingFlashRelease = 0.6f;
+        [SerializeField] private float openingFlashSwell = 1.3f;     // 빛이 덮이는 동안 구체가 이 배율까지 부푼다
+        [SerializeField] private float openingExplosionShake = 0.9f;
+        [SerializeField] private float openingPillarScale = 9f;      // 거대 기둥 그림(444px 칸, 약 1.85칸)을 이만큼 키운다. 화면 위로 뚫고 나갈 만큼 크다
+        [SerializeField] private float openingPillarHitWidth = 9f;     // 기둥 몸통과 양옆 촉수까지의 폭
+        [SerializeField] private float openingTornadoTime = 2f;      // 다 솟은 뒤 일렁이는 시간(그동안 계속 할퀸다)
         [SerializeField] private float openingHitInterval = 0.125f;  // 기둥 안에 있으면 이 간격으로 연타
         [SerializeField] private float openingDamageMultiplier = 0.35f; // 연타 한 번의 피해(초당 8번 들어가므로 작게)
         // 빨아들이는 힘(가로 속도). 걷기(4)보다 빨라 걸어서는 못 빠져나가고, 대시(1.5초마다 3칸, 대시 중엔 끌리지 않음)를
@@ -80,7 +86,7 @@ namespace Aethoria.Monsters
         [SerializeField] private float pullStartSpeed = 2f;
         [SerializeField] private float pullMaxSpeed = 5.5f;
         [SerializeField] private float pullRampTime = 1.5f;
-        [SerializeField] private float openingCameraSize = 5.2f;     // 공중의 루나벨과 플레이어가 한 화면에 들어오게 넓힌다(기본 4)
+        [SerializeField] private float openingCameraSize = 5.8f;     // 공중의 루나벨과 플레이어가 한 화면에 들어오게 넓힌다(기본 4)
         // 공중에서 변신을 마친 순간의 핏빛 충격파(모래룡 포효와 같은 연출).
         [SerializeField] private float awakeningShockwaveSize = 13f; // 고리 지름(유닛) — 넓힌 화면을 가로지를 만큼
         [SerializeField] private float awakeningShakeDuration = 1.4f;
@@ -227,12 +233,19 @@ namespace Aethoria.Monsters
         public bool BloodCharged { get; set; }
         // 변신 직전 대사. 대화창을 가진 등장 연출(LunabelIntroCutscene)이 채워 넣는다(없으면 대사 없이 변신한다).
         public System.Func<IEnumerator> PhaseTwoTalk { get; set; }
+        // 변신 직후의 개막 패턴이 터지고 나서, 공중에서 내려오기 전에 바로 이어지는 첫 응시(LunabelGazeCurse).
+        public System.Func<IEnumerator> OpeningGaze { get; set; }
         // 2페이즈 개막에서 피를 모으는 동안 화면 가운데에 띄우는 광기 어린 웃음(저절로 사라진다). 이게 끝나야 구체를 던진다.
         public System.Func<IEnumerator> ChargeLaugh { get; set; }
         public int BloodMisses { get; set; }
         public const string HitPath = "Art/Monsters/FinalBoss/Phase1/Hit";
         [SerializeField] private float phaseTwoCooldownScale = 0.6f;
+        [SerializeField] private float bleedRatioPerSecond = 0.01f;  // 2페이즈 출혈: 초당 최대 체력의 이 비율만큼 깎인다
+        [SerializeField] private float bleedDuration = 4f;
         public bool PhaseTwoStarted { get; private set; }
+        public bool IsTransforming => isTransforming;
+        // 공격이나 순간이동 도중이면 true. 응시 패턴(LunabelGazeCurse)은 이게 끝나기를 기다렸다가 온다.
+        public bool IsBusy => isCasting || isTransforming || isTeleporting;
 
         // 변신 연출이 끝나는 순간 리듬전투가 부른다: 체력을 모두 채우고 대기 모습을 변신한 모습으로 바꾼다.
         public void EnterPhaseTwo(Sprite[] phaseTwoIdleFrames)
@@ -265,6 +278,9 @@ namespace Aethoria.Monsters
         public const string ThrowPath = "Art/Monsters/FinalBoss/Phase2/Throw";
         public const string BloodPillarRisePath = "Art/Effects/BloodPillarRise";
         public const string BloodPillarTornadoPath = "Art/Effects/BloodPillarTornado";
+        // 거대한 구체가 터질 때의 기둥: 솟구치는 폭발(8장) → 다 솟아 일렁이는 기둥(8장). 프레임마다 바닥 가운데를 같은 자리에 맞춰 잘랐다.
+        public const string GiantPillarRisePath = "Art/Effects/LunabelGiantPillarRise";
+        public const string GiantPillarLoopPath = "Art/Effects/LunabelGiantPillarLoop";
         // 지금까지 쓴 필살기 횟수(0부터). 두 번째 필살기는 더 어려운 채보로 나온다.
         public int SpecialMovesUsed { get; private set; }
         public bool ShouldUseSpecialMove => PhaseTwoStarted && !monster.IsDead && SpecialMovesUsed < CrossedSpecialThresholds();
@@ -295,6 +311,7 @@ namespace Aethoria.Monsters
             {
                 foreach (var effect in patternEffects) if (effect != null) Destroy(effect);
                 patternEffects.Clear();
+                if (target != null) target.ClearBleed(); // 이기고 나서 출혈로 쓰러지지 않게
             };
             body = GetComponent<Rigidbody2D>();
             spriteRenderer = GetComponent<SpriteRenderer>();
@@ -308,6 +325,7 @@ namespace Aethoria.Monsters
             thornTimer = thornFirstDelay;
 
             target = Object.FindFirstObjectByType<Character>();
+            if (target != null) target.OnDamaged += HandleTargetDamaged;
             if (attackAnimator != null)
             {
                 attackAnimator.AddClip(PhaseTwoClip, PhaseTwoPath);
@@ -967,31 +985,108 @@ namespace Aethoria.Monsters
                 yield return null;
             }
 
-            attackAnimator.PlayClip(ThrowClip, specialThrowDuration);
+            // 던진 자세 그대로 공중에 멈춰 서서 구체가 터지는 모습을 내려다본다.
+            attackAnimator.PlayClipAndHold(ThrowClip, specialThrowDuration);
             yield return new WaitForSeconds(specialThrowDuration * specialReleaseTiming);
 
             Vector2 center = new Vector2(centerX, groundY);
             if (specialOrb != null)
             {
-                Vector2 from = specialOrb.transform.position;
-                for (float t = 0f; t < openingOrbDropTime; t += Time.deltaTime)
-                {
-                    orbAge += Time.deltaTime;
-                    if (orbRenderer != null) orbRenderer.sprite = orbFrames[(int)(orbAge / openingOrbFrameTime) % orbFrames.Length];
-                    specialOrb.transform.position = Vector2.Lerp(from, center, t / openingOrbDropTime);
-                    yield return null;
-                }
-                Destroy(specialOrb);
-                specialOrb = null;
+                // 새 구체는 가운데가 기준점이라 아래끝이 바닥에 닿도록 반지름만큼 위에 멈춘다.
+                Vector2 landing = center + Vector2.up * (animatedOrb ? GiantOrbCoreRadius * openingOrbScale : 0f);
+                yield return DropGiantOrb(orbRenderer, orbFrames, orbAge, landing);
+                if (monster.IsDead) { StopOpeningPull(); EndOpeningCamera(); yield break; }
             }
-            attackAnimator.PlayClipLoop(ChargeClip, specialChargeCycle);
-            yield return GiantBloodPillar(center, spriteRenderer.flipX ? -1f : 1f);
+
+            var flash = CreateOpeningFlash();
+            yield return CoverWithFlash(flash, orbRenderer, orbFrames, orbAge);
+            if (specialOrb != null) Destroy(specialOrb);
+            specialOrb = null;
+            if (monster.IsDead) { StopOpeningPull(); EndOpeningCamera(); yield break; }
+
+            // 터진다: 빛이 걷히며 핏빛 충격파가 퍼지고 맵 가운데에서 거대한 기둥이 솟는다(화면 흔들림은 기둥이 건다).
+            if (flash != null) StartCoroutine(FadeAndDestroy(flash.gameObject, flash, openingFlashRelease));
+            ShockwaveBurst.Play(this, center, transform.parent, new ShockwaveBurst.Settings
+            {
+                rings = 5,
+                interval = 0.09f,
+                duration = 0.7f,
+                maxSize = 16f,
+                squash = 0.7f,
+                ringColor = new Color(1f, 0.25f, 0.3f, 0.9f),
+                sortingOrder = 55,
+            });
+            yield return GiantBloodPillar(center);
             StopOpeningPull();
+            // laugh는 변신 직후의 개막일 때만 켜져 있다(전투 중 반복할 때는 응시가 끼어들지 않는다).
+            if (laugh && OpeningGaze != null && !monster.IsDead && target != null && !target.IsDead) yield return OpeningGaze();
             attackAnimator.Stop();
             if (monster.IsDead || target == null) { EndOpeningCamera(); yield break; }
 
             yield return PortalHopTo(new Vector3(PickTeleportX(), floorPosY, transform.position.z), keepAirborne: false);
             EndOpeningCamera();
+        }
+
+        // 모을 때와 같은 모습(6프레임 반복, 맥동) 그대로 처음엔 천천히, 갈수록 빠르게 곧장 내려온다.
+        private IEnumerator DropGiantOrb(SpriteRenderer orbRenderer, Sprite[] orbFrames, float orbAge, Vector2 landing)
+        {
+            Vector2 from = specialOrb.transform.position;
+            for (float t = 0f; t < openingOrbDropTime; t += Time.deltaTime)
+            {
+                if (monster.IsDead || specialOrb == null) yield break;
+
+                float progress = t / openingOrbDropTime;
+                float pulse = 1f + 0.08f * Mathf.Sin(t * 16f);
+                orbRenderer.sprite = orbFrames[(int)((orbAge + t) / openingOrbFrameTime) % orbFrames.Length];
+                specialOrb.transform.position = Vector2.Lerp(from, landing, progress * progress * progress);
+                specialOrb.transform.localScale = Vector3.one * (openingOrbScale * pulse);
+                yield return null;
+            }
+            specialOrb.transform.position = landing;
+        }
+
+        // 카메라 앞을 통째로 덮는 눈부신 빛. 구체보다 앞에 그려서 빛이 다 차면 구체도 보이지 않는다.
+        private SpriteRenderer CreateOpeningFlash()
+        {
+            var cam = Camera.main;
+            if (cam == null) return null;
+
+            var go = new GameObject("LunabelOpeningFlash");
+            go.transform.SetParent(cam.transform, false);
+            go.transform.localPosition = new Vector3(0f, 0f, 1f);
+            Vector2 pixel = UISprites.WhitePixel.bounds.size;
+            go.transform.localScale = new Vector3(60f / pixel.x, 60f / pixel.y, 1f);
+            var flash = go.AddComponent<SpriteRenderer>();
+            flash.sprite = UISprites.WhitePixel;
+            flash.color = new Color(1f, 0.97f, 0.92f, 0f);
+            flash.sortingOrder = 60;
+            patternEffects.Add(go);
+            return flash;
+        }
+
+        // 구체가 부풀어 오르는 동안 빛이 점점 빠르게 차올라 화면을 덮고, 잠깐 그대로 멈춘다.
+        private IEnumerator CoverWithFlash(SpriteRenderer flash, SpriteRenderer orbRenderer, Sprite[] orbFrames, float orbAge)
+        {
+            float total = openingFlashRise + openingFlashHold;
+            for (float t = 0f; t < total; t += Time.deltaTime)
+            {
+                if (monster.IsDead) yield break;
+
+                float rise = Mathf.Clamp01(t / openingFlashRise);
+                if (flash != null)
+                {
+                    var color = flash.color;
+                    color.a = rise * rise;
+                    flash.color = color;
+                }
+                if (specialOrb != null)
+                {
+                    float pulse = 1f + 0.12f * rise * Mathf.Sin(t * 40f);
+                    specialOrb.transform.localScale = Vector3.one * (openingOrbScale * Mathf.Lerp(1f, openingFlashSwell, rise) * pulse);
+                    orbRenderer.sprite = orbFrames[(int)((orbAge + t) / openingOrbFrameTime) % orbFrames.Length];
+                }
+                yield return null;
+            }
         }
 
         private static IEnumerator RunThen(IEnumerator routine, System.Action done)
@@ -1094,39 +1189,30 @@ namespace Aethoria.Monsters
             if (movement != null) movement.ExternalPullX = 0f;
         }
 
-        private IEnumerator GiantBloodPillar(Vector2 bottomCenter, float facing)
+        private IEnumerator GiantBloodPillar(Vector2 bottomCenter)
         {
-            var rise = LoadSorted(BloodPillarRisePath);
-            var tornado = LoadSorted(BloodPillarTornadoPath);
+            var rise = LoadSorted(GiantPillarRisePath);
+            var tornado = LoadSorted(GiantPillarLoopPath);
             if (rise.Length == 0) yield break;
+            var loop = tornado.Length > 0 ? tornado : new[] { rise[rise.Length - 1] };
+
+            float riseTime = rise.Length * 0.06f;
+            float total = riseTime + openingTornadoTime;
+            var cam = Camera.main;
+            var cameraFollow = cam != null ? cam.GetComponent<CameraFollow>() : null;
+            if (cameraFollow != null) cameraFollow.Shake(total, openingExplosionShake);
+
             var go = new GameObject("LunabelGiantPillar");
             go.transform.position = bottomCenter;
             go.transform.localScale = new Vector3(openingPillarScale, openingPillarScale, 1f);
             var renderer = go.AddComponent<SpriteRenderer>();
             renderer.sortingOrder = 5;
-            renderer.flipX = facing < 0f;
             patternEffects.Add(go);
             float hitHeight = rise[rise.Length - 1].bounds.size.y * openingPillarScale;
-
-            // 예고: 바닥에 핏물이 번져 들끓는다.
             renderer.sprite = rise[0];
-            for (float t = 0f; t < openingWarnTime; t += Time.deltaTime)
-            {
-                if (go == null) yield break;
-                renderer.color = new Color(1f, 1f, 1f, 0.4f + 0.3f * Mathf.Sin(t * 30f));
-                yield return null;
-            }
-            renderer.color = Color.white;
-
-            var cam = Camera.main;
-            var cameraFollow = cam != null ? cam.GetComponent<CameraFollow>() : null;
-            if (cameraFollow != null) cameraFollow.Shake(openingTornadoTime + 0.4f, 0.4f);
 
             // 솟구치는 동안과 회오리치는 동안 내내, 기둥 안에 있으면 openingHitInterval마다 연타(넉백/피격 무적 없이)로 맞는다.
-            var loop = tornado.Length > 0 ? tornado : new[] { rise[rise.Length - 1] };
-            float riseTime = rise.Length * 0.06f;
-            float total = riseTime + openingTornadoTime;
-            float nextHit = 0.12f; // 세 번째 장(기둥이 솟기 시작)부터 맞는다
+            float nextHit = 0.18f; // 네 번째 장(기둥이 높이 솟음)부터 맞는다
             for (float t = 0f; t < total; t += Time.deltaTime)
             {
                 if (go == null) yield break;
@@ -1287,8 +1373,20 @@ namespace Aethoria.Monsters
             return collider != null ? collider.bounds.min.y : transform.position.y;
         }
 
+        // 2페이즈의 공격은 맞을 때마다 출혈을 건다. 이 맵에서 플레이어를 때리는 건 루나벨의 공격뿐이라
+        // 공격마다(투사체/기둥/회오리 등) 따로 걸지 않고 플레이어 피격 이벤트 한 곳에서 건다.
+        private void HandleTargetDamaged(Character character, float damage)
+        {
+            if (PhaseTwoStarted && !monster.IsDead) character.ApplyBleed(bleedRatioPerSecond, bleedDuration);
+        }
+
         private void OnDestroy()
         {
+            if (target != null)
+            {
+                target.OnDamaged -= HandleTargetDamaged;
+                target.ClearBleed();
+            }
             if (specialOrb != null) Destroy(specialOrb);
             foreach (var effect in patternEffects) if (effect != null) Destroy(effect);
             if (pullActive) StopOpeningPull();

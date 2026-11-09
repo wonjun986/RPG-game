@@ -85,6 +85,14 @@ namespace Aethoria.Monsters
         }
 
         // 기를 모으는 모션처럼 끝나지 않고 계속 도는 클립. Stop이나 다른 Play를 부를 때까지 반복한다.
+        // 한 번 재생하고 마지막 프레임을 그대로 붙잡는다. Stop을 부를 때까지 평소 모션으로 돌아가지 않는다.
+        public void PlayClipAndHold(string clipName, float duration)
+        {
+            if (!HasClip(clipName)) return;
+            if (playRoutine != null) StopCoroutine(playRoutine);
+            playRoutine = StartCoroutine(HoldRoutine(clips[clipName], duration));
+        }
+
         public void PlayClipLoop(string clipName, float cycleDuration)
         {
             if (!HasClip(clipName)) return;
@@ -96,6 +104,18 @@ namespace Aethoria.Monsters
         {
             if (playRoutine != null) StopCoroutine(playRoutine);
             playRoutine = StartCoroutine(PlayRoutine(clip, duration));
+        }
+
+        private IEnumerator HoldRoutine(Sprite[] clip, float duration)
+        {
+            if (walkAnimator != null) walkAnimator.enabled = false;
+
+            float frameDuration = duration / clip.Length;
+            for (int i = 0; i < clip.Length; i++)
+            {
+                spriteRenderer.sprite = clip[i];
+                yield return new WaitForSeconds(frameDuration);
+            }
         }
 
         private IEnumerator LoopRoutine(Sprite[] clip, float cycleDuration)

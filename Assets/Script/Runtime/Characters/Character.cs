@@ -61,7 +61,9 @@ namespace Aethoria.Characters
         public float CritDamagePercent => BaseCritDamagePercent + equipmentStats.critDamage + BlessingRules.CritDamageBonus(blessingLevel);
         public float SkillDamagePercent => equipmentStats.skillDamage + BlessingRules.SkillDamageBonus(blessingLevel);
         public float CurrentHp => currentHp;
-        public float MaxHp => currentStats.hp;
+        public float MaxHp => currentStats.hp * (1f - MaxHpPenalty);
+        // 전투 중에만 쌓이는 최대 체력 감소 비율(루나벨의 응시). 저장되지 않고 ClearMaxHpPenalty로 풀린다.
+        public float MaxHpPenalty { get; private set; }
         public float CurrentMana => currentMana;
         public float MaxMana => currentStats.mana;
         public bool IsDead => currentHp <= 0f;
@@ -100,6 +102,8 @@ namespace Aethoria.Characters
                 postHitInvincibleRemaining = Mathf.Max(0f, postHitInvincibleRemaining - Time.unscaledDeltaTime);
             }
 
+            UpdateBleed();
+
             if (IsDead || manaRegenPerSecond <= 0f) return;
             RestoreMana(manaRegenPerSecond * Time.deltaTime);
         }
@@ -132,7 +136,7 @@ namespace Aethoria.Characters
 
             level = Mathf.Clamp(newLevel, data.minLevel, data.maxLevel);
             currentStats = data.GetStatsAtLevel(level);
-            currentHp = currentStats.hp * hpRatio;
+            currentHp = MaxHp * hpRatio;
             currentMana = currentStats.mana * mpRatio;
 
             OnLevelUp?.Invoke(this);
@@ -294,6 +298,49 @@ namespace Aethoria.Characters
         {
             if (IsDead) return;
             currentHp = Mathf.Clamp(hp, 1f, MaxHp);
+        }
+
+        // 줄어든 최대치를 넘는 체력은 잘려 나가지만, 이것만으로 쓰러지지는 않는다.
+        public void ReduceMaxHp(float ratio, float maxPenalty)
+        {
+            MaxHpPenalty = Mathf.Min(maxPenalty, MaxHpPenalty + ratio);
+            currentHp = Mathf.Min(currentHp, MaxHp);
+        }
+
+        public void ClearMaxHpPenalty() => MaxHpPenalty = 0f;
+
+        private const float BleedTickInterval = 1f;
+        private static readonly Color BleedPopupColor = new Color(0.75f, 0.1f, 0.15f);
+        private float bleedRemaining;
+        private float bleedRatioPerTick;
+        private float bleedTickTimer;
+
+        // 출혈: 다시 걸리면 겹치지 않고 남은 시간만 새로 채운다. ratioPerSecond는 최대 체력 대비 초당 피해 비율.
+        public void ApplyBleed(float ratioPerSecond, float duration)
+        {
+            if (bleedRemaining <= 0f) bleedTickTimer = BleedTickInterval;
+            bleedRatioPerTick = ratioPerSecond * BleedTickInterval;
+            bleedRemaining = duration;
+        }
+
+        public void ClearBleed() => bleedRemaining = 0f;
+
+        // 피격 포즈/넉백 없이 체력만 줄인다(OnDamaged를 내지 않아서 출혈이 출혈을 다시 걸지 않는다). 연출용 무적 중에는 멈춘다.
+        private void UpdateBleed()
+        {
+            if (bleedRemaining <= 0f || IsDead) return;
+
+            bleedRemaining -= Time.deltaTime;
+            bleedTickTimer -= Time.deltaTime;
+            if (bleedTickTimer > 0f) return;
+
+            bleedTickTimer += BleedTickInterval;
+            if (isInvincible || GodMode) return;
+
+            float damage = MaxHp * bleedRatioPerTick;
+            currentHp = Mathf.Max(SurviveLethalHit ? Mathf.Min(1f, currentHp) : 0f, currentHp - damage);
+            DamagePopup.Create(transform.position, damage, BleedPopupColor, 0.8f);
+            if (currentHp <= 0f) OnDied?.Invoke(this);
         }
 
         public void Heal(float amount)

@@ -14,7 +14,8 @@ namespace Aethoria.Bootstrap
         private float lastTime;
 
         // restartIfPlaying=false면 같은 곡이 이미 나오고 있을 때 처음으로 되감지 않고 그대로 둔다.
-        public static void Play(string resourcePath, float loopStartSeconds, bool restartIfPlaying = true)
+        // startSeconds: 파일 맨 앞에 무음이 들어 있는 곡은 그만큼 건너뛰고 튼다.
+        public static void Play(string resourcePath, float loopStartSeconds, bool restartIfPlaying = true, float startSeconds = 0f)
         {
             var clip = Resources.Load<AudioClip>(resourcePath);
             if (!restartIfPlaying && instance != null && instance.source.clip == clip && clip != null) return;
@@ -28,8 +29,9 @@ namespace Aethoria.Bootstrap
             bgm.source.Stop();
             bgm.source.clip = clip;
             bgm.loopStart = Mathf.Clamp(loopStartSeconds, 0f, clip.length - 1f);
-            bgm.source.time = 0f;
-            bgm.lastTime = 0f;
+            float start = Mathf.Clamp(startSeconds, 0f, clip.length - 1f);
+            bgm.source.time = start;
+            bgm.lastTime = start;
             bgm.source.Play();
         }
 

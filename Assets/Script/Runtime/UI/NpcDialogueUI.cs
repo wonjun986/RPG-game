@@ -38,6 +38,15 @@ namespace Aethoria.UI
         private const float LunabelTextBottom = 1f - 632f / ImageHeight;
         private const float LunabelPlateX0 = 810f, LunabelPlateY0 = 405f, LunabelPlateX1 = 1070f, LunabelPlateY1 = 465f;
 
+        // 아쿠아 대화창(UI/Aqua_Talk, 2172x724). 어두운 대사 칸은 x 942~2020, y 342~585이고, 글자는 테두리에 붙지 않게
+        // 안쪽(x 970~1980, y 370~560)에 쓴다. 이름판이 없는 그림이라 네크로시아 창처럼 이름은 대사 첫 줄에 붙인다.
+        private const string AquaTalkFrame = "UI/Aqua_Talk";
+        private const float AquaTextLeft = 970f / ImageWidth;
+        private const float AquaTextRight = 1980f / ImageWidth;
+        private const float AquaTextTop = 1f - 370f / ImageHeight;
+        private const float AquaTextBottom = 1f - 560f / ImageHeight;
+        private const string AquaNameTag = "<b><color=#8FD8FF>아쿠아</color></b>\n";
+
         // 대화창 그림마다 캔버스(2172x724) 안에서 어두운 대사 칸이 차지하는 크기/자리가 달라서(노아·이리아처럼 그림을 꽉
         // 채운 것도, 네크로시아처럼 작게 그린 것도 있다) 그대로 그리면 말하는 사람이 바뀔 때마다 창 크기가 들쑥날쑥했다.
         // 그림별로 대사 칸의 왼쪽/오른쪽/아랫변(그림 픽셀)을 적어 두고, 창을 열 때 대사 칸이 기준 칸(네크로시아 창)과
@@ -60,6 +69,7 @@ namespace Aethoria.UI
                 { "UI/Iria_Talk", new FrameBox(498f, 2052f, 545f) },
                 { "UI/BossKnight_Talk", new FrameBox(557f, 1940f, 677f) },
                 { "UI/Lily_Talk", new FrameBox(815f, 2040f, 546f) },
+                { "UI/Aqua_Talk", new FrameBox(942f, 2020f, 585f) },
             };
         private const float BoxBottomMargin = 30f;
 
@@ -220,6 +230,13 @@ namespace Aethoria.UI
         {
             Show(PlayerTalkFrame, PlayerNameTag + line, PlayerTextLeft,
                 textBottom: PlayerTextBottom, textRight: PlayerTextRight, textTop: PlayerTextTop);
+        }
+
+        // 물의 여왕 아쿠아 대사. 이름을 첫 줄에 붙여 아쿠아 대화창에 띄운다.
+        public void ShowAqua(string line)
+        {
+            Show(AquaTalkFrame, AquaNameTag + line, AquaTextLeft,
+                textBottom: AquaTextBottom, textRight: AquaTextRight, textTop: AquaTextTop);
         }
 
         // 루나벨 대사. 이름은 이름판 안에 쓴다.
