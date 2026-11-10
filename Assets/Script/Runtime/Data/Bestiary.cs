@@ -115,6 +115,16 @@ namespace Aethoria.Data
             },
             new BestiaryEntry
             {
+                key = "아쿠아", kind = "정령 · 여왕", size = "큼", habitat = "푸른 바다 가장 깊은 곳", danger = 4,
+                portraitPath = "Art/Monsters/Aqua/Idle", drops = BossDrops,
+                description = "푸른 바다를 다스리는 물의 여왕이야! 창을 휘두르다가 회오리 드릴로 변신해서 쌩 날아오고, " +
+                              "화가 나면 하늘에서 파란 번개까지 떨어뜨린대. 물속에서는 절대 화나게 하면 안 되는 사람 1위!",
+                secretKills = 3,
+                secret = "심해 정령들이 부르는 자장가, 그거 원래 아쿠아가 정령들한테 가르쳐 준 노래래. 붉은 달 때문에 다들 화가 나 있지만... " +
+                         "언젠가 바다가 잔잔해지면 여왕님이 직접 부르는 걸 들을 수 있을지도 몰라.",
+            },
+            new BestiaryEntry
+            {
                 key = "루나벨", kind = "흡혈귀 · 여왕", size = "보통", habitat = "절망의 언덕", danger = 5,
                 portraitPath = "Art/Monsters/FinalBoss/Phase1/Idle", drops = BossDrops,
                 description = "붉은 달의 주인, 피의 여왕 루나벨. ...이 페이지는 손이 떨려서 글씨가 삐뚤빼뚤해. " +

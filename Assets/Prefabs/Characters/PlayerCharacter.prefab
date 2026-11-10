@@ -226,5 +226,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 450ce076a9a8fcc4194a57e7f4a3503b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Aethoria.Characters.CharacterAttack2D
-  attackRange: 0.9
-  attackRadius: 0.6
+  attackNear: 0.1
+  attackFar: 1.6
+  attackBottom: 0
+  attackTop: 1.4

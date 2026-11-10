@@ -9,7 +9,8 @@ namespace Aethoria.Characters
     public class AttackSpriteAnimator : MonoBehaviour
     {
         [SerializeField] private string resourcesPath = "Art/Necrosia/Attack";
-        [SerializeField] private float totalDuration = 0.5f;
+        // 이 시간 동안 제자리에 묶이므로(후딜) 짧게 둔다.
+        [SerializeField] private float totalDuration = 0.35f;
         // 공격 시트(보랏빛 낫의 연속 베기 자세, 8프레임)는 다리를 넓게 벌린 자세라 서 있는 키를 잴 수 없어서,
         // 캔버스 키(364px)를 통째로 맞춘다. 8장 모두 뒷발 부츠와 부츠 바닥을 같은 자리에 맞춰 두었고,
         // 기준점은 1번째 프레임 두 발 한가운데(CharacterArtPostprocessor의 Attack 기준점)다.

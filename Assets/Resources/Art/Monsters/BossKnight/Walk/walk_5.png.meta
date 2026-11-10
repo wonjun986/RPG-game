@@ -1,9 +1,9 @@
 fileFormatVersion: 2
-guid: f8d07c7a2ba5c4042b8e06ee1f532ac4
+guid: 54af9891dec84945bc55716a085e9aa6
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -7521193429440156453
+      213: 3230446163322624519
     second: walk_5_0
   externalObjects: {}
   serializedVersion: 13
@@ -51,7 +51,7 @@ TextureImporter:
   spriteMeshType: 1
   alignment: 7
   spritePivot: {x: 0.5, y: 0}
-  spritePixelsToUnits: 192
+  spritePixelsToUnits: 160
   spriteBorder: {x: 0, y: 0, z: 0, w: 0}
   spriteGenerateFallbackPhysicsShape: 1
   alphaUsage: 1
@@ -90,7 +90,7 @@ TextureImporter:
     maxTextureSize: 2048
     resizeAlgorithm: 0
     textureFormat: -1
-    textureCompression: 1
+    textureCompression: 0
     compressionQuality: 50
     crunchedCompression: 0
     allowsAlphaSplitting: 0
@@ -120,18 +120,18 @@ TextureImporter:
         serializedVersion: 2
         x: 0
         y: 0
-        width: 417
-        height: 484
+        width: 439
+        height: 381
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: bdca737cc6a5f9790800000000000000
-      internalID: -7521193429440156453
+      spriteID: 
+      internalID: 3230446163322624519
       vertices: []
       indices: 
       edges: []

@@ -323,7 +323,7 @@ namespace Aethoria.UI
             skillIcons.Add((overlay, null, cooldownRatio, countdown, remainingSeconds));
         }
 
-        // 스킬 아이콘(Art/UI/SkillIcons)에서 테두리와 글자 배지를 빼고 안쪽 그림만 잘라 둔 것(Art/UI/SkillSlotArt)을 불러온다.
+        // 스킬 아이콘 원본(쓰레기통/Resources/Art/UI/SkillIcons에 보관)에서 테두리와 글자 배지를 빼고 안쪽 그림만 잘라 둔 것(Art/UI/SkillSlotArt)을 불러온다.
         // 슬롯 테두리·글자는 HUD 프레임 아트에 그려져 있어서 아이콘의 것과 겹치지 않게 한다.
         private static Sprite LoadSkillIcon(string label)
         {

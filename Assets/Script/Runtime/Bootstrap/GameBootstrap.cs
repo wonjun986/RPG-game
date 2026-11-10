@@ -79,6 +79,10 @@ namespace Aethoria.Bootstrap
         // 카메라가 고정이라 맵 폭 없이 화면 한 칸만 쓴다. 쓰러지면 추격전 처음부터 다시 시작한다.
         private const int SeaChaseStage = -17;
         private const int SeaChaseFloorY = -2;
+        // 추격전에서 이기면 곧바로 이어지는 아쿠아 2차전: 배경이 흐르지 않는 바닷속 고정 투기장(AquaAI).
+        // 화면 한 칸 폭이라 카메라가 움직이지 않는다. 쓰러지면 추격전이 아니라 2차전부터 다시 시작한다.
+        private const int SeaArenaStage = -18;
+        private const int SeaArenaWidth = 14;
 
         // 마을에 들어올 때 서는 자리. Edge는 들어온 방향에 따라 왼쪽/오른쪽 끝, Center는 마을 한가운데(게임을 이어서 시작할 때).
         private enum VillageSpawn { Edge, Noa, Isis, Center }
@@ -113,6 +117,8 @@ namespace Aethoria.Bootstrap
         // 황금 모래룡 등장 연출을 본 적 있는지(세이브에 저장). 본 뒤로는 Esc로 건너뛸 수 있다.
         private static bool sandDragonIntroSeen;
         private static bool seaChaseIntroSeen;
+        // 아쿠아 2차전 등장 대사를 이번 실행에서 본 적 있는지. 쓰러져 다시 도전할 때 Esc로 건너뛸 수 있게 한다.
+        private static bool aquaArenaIntroSeen;
         private static bool lunabelGazeTalkSeen;
         // 노아와의 첫 만남 대사가 아직 남았는지(새 게임에서만 true, 한 번 보면 false로 저장된다).
         private static bool noaFirstMeetingPending;
@@ -444,6 +450,7 @@ namespace Aethoria.Bootstrap
             ("푸른 바다 1", BlueSeaStage1),
             ("푸른 바다 3 (붕괴)", BlueSeaStage3),
             ("푸른 바다 추격전", SeaChaseStage),
+            ("푸른 바다 아쿠아 2차전", SeaArenaStage),
             ("엔스룸 마을", EnsroomStage),
             ("천상의 신전", TempleStage),
             ("이리아의 성소", SanctuaryStage),
@@ -514,7 +521,9 @@ namespace Aethoria.Bootstrap
             // (SandDragonIntroCutscene)이 보스 곡으로 바꾼다.
             else if (currentStage <= RuinsStage1 && currentStage >= RuinsStage3) BgmPlayer.Play(RuinsBgmPath, 0f, restartIfPlaying: false);
             // 추격전 전용 곡이 나오기 전까지 모래룡 보스 곡을 임시로 쓴다.
+            // 2차전은 추격전에서 곧바로 이어지므로 곡을 끊지 않고 이어서 튼다.
             else if (currentStage == SeaChaseStage) BgmPlayer.Play(SandDragonIntroCutscene.BossBgmPath, 0f);
+            else if (currentStage == SeaArenaStage) BgmPlayer.Play(SandDragonIntroCutscene.BossBgmPath, 0f, restartIfPlaying: false);
             else BgmPlayer.Stop();
             // 던전 첫 맵에 앞으로 걸어 들어왔으면(마을/월드맵에서 출발) 스테이지 클리어 창에 보여줄 획득 기록을 새로 시작한다.
             if (enteringForward && (currentStage == 1 || currentStage == PlainsStage1 || currentStage == RuinsStage1 || currentStage == BlueSeaStage1 || currentStage == HillStage)) stageClearUI.BeginRun();
@@ -588,6 +597,12 @@ namespace Aethoria.Bootstrap
             if (currentStage == SeaChaseStage)
             {
                 BuildSeaChase();
+                return;
+            }
+
+            if (currentStage == SeaArenaStage)
+            {
+                BuildSeaArena();
                 return;
             }
 
@@ -1423,9 +1438,67 @@ namespace Aethoria.Bootstrap
             var chaseGO = new GameObject("SeaChase");
             chaseGO.transform.SetParent(stageRoot.transform);
             chaseGO.AddComponent<SeaChaseController>().Initialize(player, npcDialogueUI, seaChaseIntroSeen,
-                () => seaChaseIntroSeen = true, () => ReturnToVillage(spawnAtNoa: true));
+                () => seaChaseIntroSeen = true, EnterSeaArena);
 
             Debug.Log("Aethoria: 푸른 바다 추격전 진입");
+        }
+
+        private static void EnterSeaArena()
+        {
+            currentStage = SeaArenaStage;
+            BuildStage(enteringForward: true);
+        }
+
+        // 아쿠아 2차전 투기장: 무너진 해저 신전 유적(1672x941) — 석상과 삼지창 깃발이 선 신전 앞 돌바닥 광장.
+        // 광장 윗면이 그림 위에서 712~795px라, 앞쪽 가장자리보다 조금 안쪽(785px)을 바닥으로 삼는다.
+        // 양옆에 낮은 돌판 발판을 두어 바닥을 훑는 드릴을 피할 수 있게 한다.
+        private const float SeaArenaGroundFraction = 785f / 941f;
+
+        private static void BuildSeaArena()
+        {
+            BuildMap(stageRoot.transform, SeaArenaWidth, MapHeight, out int xMin, out int xMax, out int yMin, out int yMax,
+                "Backgrounds/sea_arena", SeaArenaGroundFraction);
+            mapXMin = xMin; mapXMax = xMax; mapYMin = yMin; mapYMax = yMax;
+
+            player.SetCombatLocked(false);
+            PlacePlayerAtSpawn(xMin + 2.5f, yMin);
+            FitCamera(xMin, xMax, yMin);
+            // 고정된 공간: 높이 뛰어도 카메라가 따라 올라가지 않는다(맵 폭이 화면 한 칸이라 좌우로도 움직이지 않는다).
+            var follow = Camera.main != null ? Camera.main.GetComponent<CameraFollow>() : null;
+            if (follow != null) follow.Follow(player.transform, xMin, xMax, yMin + 4f * 0.6f, yMin, 0f);
+
+            SpawnPlatform(stageRoot.transform, "sea_slab_wide", xMin + 2.6f, yMin + 2.3f, 58, BlueSeaPropFolder);
+            SpawnPlatform(stageRoot.transform, "sea_slab_wide", xMax - 1.6f, yMin + 2.3f, 58, BlueSeaPropFolder);
+            SpawnAqua(stageRoot.transform, xMin, xMax, yMin);
+
+            var stageManagerGO = new GameObject("StageManager");
+            stageManagerGO.transform.SetParent(stageRoot.transform);
+            stageManagerGO.AddComponent<StageManager>().Initialize(player);
+
+            Debug.Log("Aethoria: 아쿠아 2차전 진입");
+        }
+
+        private static void SpawnAqua(Transform parent, int xMin, int xMax, int floorY)
+        {
+            var data = AquaData();
+            var go = new GameObject("Boss_Aqua");
+            go.transform.SetParent(parent);
+            go.transform.position = new Vector3(xMax + 4f, floorY, 0f);
+            go.transform.localScale = new Vector3(AquaAI.VisualScale, AquaAI.VisualScale, 1f);
+            go.AddComponent<SpriteRenderer>();
+            // 떠 있는 몸이라 플레이어와 밀치지 않게 트리거로 두고, 접촉 피해는 AquaAI가 직접 잰다.
+            var collider = go.AddComponent<BoxCollider2D>();
+            collider.isTrigger = true;
+            collider.size = AquaAI.BodyColliderSize;
+            collider.offset = AquaAI.BodyColliderOffset;
+            var body = go.AddComponent<Rigidbody2D>();
+            body.bodyType = RigidbodyType2D.Kinematic;
+            var monster = go.AddComponent<Monster>();
+            monster.AssignData(data);
+            go.AddComponent<AquaAI>().Initialize(player, npcDialogueUI, xMin, xMax + 1f, floorY, aquaArenaIntroSeen,
+                introShown: () => aquaArenaIntroSeen = true,
+                reveal: () => bossHealthUI.Bind(monster, data.monsterName),
+                finished: () => ReturnToVillage(spawnAtNoa: true));
         }
 
         // 바다 발판: 해저 유적 플랫폼과 산호 에셋 시트에서 잘라낸 떠 있는 돌섬/유적 다리. 폐허와 같은 규칙 —
@@ -2132,6 +2205,8 @@ namespace Aethoria.Bootstrap
         // 천천히 다가오다 가까이 붙으면 대지 강타로 앞쪽 바닥을 내려찍는다(SandDragonAI).
         // 잡으면 맵 오른쪽 끝에 마을로 돌아가는 포탈이 열린다.
         private const string SandDragonWalkPath = "Art/Monsters/SandDragon/Walk";
+        // 알리아스 걷기는 8프레임에 두 걸음이 들어 있다. 걸음 폭(약 1유닛)을 이동 속도(2.5)로 나눈 0.4초에 한 걸음이 되게 한다.
+        private const float AliasWalkFrameRate = 10f;
         private const string SandDragonAttackPath = "Art/Monsters/SandDragon/Attack";
         private const float SandDragonScale = 2f;
 
@@ -2275,6 +2350,7 @@ namespace Aethoria.Bootstrap
             go.AddComponent<Rigidbody2D>();
             var bossWalkAnimator = go.AddComponent<MonsterWalkSpriteAnimator>();
             bossWalkAnimator.Configure("Art/Monsters/BossKnight/Walk");
+            bossWalkAnimator.ConfigureFrameRate(AliasWalkFrameRate);
             bossWalkAnimator.ConfigureIdle("Art/Monsters/BossKnight/Idle", 6f);
             var bossAttackAnimator = go.AddComponent<MonsterAttackSpriteAnimator>();
             bossAttackAnimator.AddClip(BossAI.JumpAttackClip, "Art/Monsters/BossKnight/JumpAttack");
@@ -2394,6 +2470,20 @@ namespace Aethoria.Bootstrap
             data.defense = 6f;
             data.expReward = 700;
             data.goldReward = 450;
+            return data;
+        }
+
+        private static MonsterData AquaData()
+        {
+            var data = ScriptableObject.CreateInstance<MonsterData>();
+            data.monsterName = "아쿠아";
+            data.level = 13;
+            // 드릴(x1.2) 약 22, 번개 약 18. 모래룡 다음 바다의 주인이라 한 단계 단단하다.
+            data.maxHp = 2400f;
+            data.attack = 17f;
+            data.defense = 7f;
+            data.expReward = 900;
+            data.goldReward = 600;
             return data;
         }
 
@@ -2526,6 +2616,7 @@ namespace Aethoria.Bootstrap
                     data = AliasData();
                     var aliasWalk = go.AddComponent<MonsterWalkSpriteAnimator>();
                     aliasWalk.Configure("Art/Monsters/BossKnight/Walk");
+                    aliasWalk.ConfigureFrameRate(AliasWalkFrameRate);
                     aliasWalk.ConfigureIdle("Art/Monsters/BossKnight/Idle", 6f);
                     go.AddComponent<MonsterAttackSpriteAnimator>();
                     break;

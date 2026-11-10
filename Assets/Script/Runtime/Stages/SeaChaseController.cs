@@ -15,9 +15,11 @@ namespace Aethoria.Stages
     // 장애물에 부딪히면 아쿠아가 한 칸 가까워지고, 아쿠아는 주기적으로 경고선을 띄운 뒤 그 줄을 따라 돌진한다.
     // 돌진은 창 찌르기와 물의 드릴이 번갈아 나온다. 드릴은 회오리로 변신해 일직선으로 화면 밖까지 날아간 뒤,
     // 화면 양쪽에서 번갈아 네크로시아를 겨냥해 대각선으로 여러 번 다시 날아온다.
+    // 세 번째 공격은 푸른 번개: 세로 경고 기둥이 뜬 자리에 위에서 번개가 여러 차례 내리꽂힌다(바위로는 막을 수 없다).
     // 아쿠아와의 1차 전투(함정 유도형): 네크로시아는 직접 공격하지 못하고, 아쿠아의 돌진을 흘러오는 바위에 부딪히게 해서 피해를 준다.
     // 창 돌진은 바위에 박히면 그 자리에서 멈춰 피해를 입고 잠깐 정신을 잃는다(바위 뒤에 숨으면 안전하다).
-    // 드릴은 지나가는 길의 바위를 부술 때마다 피해를 입는다. 체력을 다 깎으면 아쿠아가 물러나고 마을로 돌아간다.
+    // 드릴은 지나가는 길의 바위를 부술 때마다 피해를 입는다. 체력을 다 깎으면 아쿠아가 물러나고
+    // 곧바로 바닷속 고정 투기장의 2차전(AquaAI)으로 이어진다.
     // 쓰러지면 DeathReturnUI가 이 맵을 처음부터 다시 짓는다.
     public class SeaChaseController : MonoBehaviour
     {
@@ -107,6 +109,25 @@ namespace Aethoria.Stages
         private const float LungeIntervalEnd = 3.5f;
         private static readonly Color LungeWarnColor = new Color(1f, 0.25f, 0.2f);
 
+        // 푸른 번개: 아쿠아가 제자리에서 기운을 모으는 동안 세로 경고 기둥이 뜨고, 그 자리에 위에서 번개가 내리꽂힌다.
+        // 한 줄기는 늘 네크로시아가 있던 자리를 노리고, 나머지는 겹치지 않게 흩어진다. 여러 번 연달아 떨어진다.
+        // 시트(6장)는 구름 → 내리꽂힘 → 사그라듦 순서이고, 그림의 기준점이 번개가 땅에 닿는 자리다.
+        private const string BoltFramesPath = "Art/Monsters/Aqua/Lightning";
+        private const float BoltDuration = 0.45f;
+        private const float BoltHitStart = 1f / 6f;     // 2번째 장(내리꽂힘)부터
+        private const float BoltHitEnd = 5f / 6f;       // 5번째 장까지 판정이 있다
+        private const float BoltGroundLift = 0.4f;      // 번개가 닿는 자리(화면 아래끝 기준)
+        private const float BoltTopOverscan = 0.3f;     // 구름이 화면 위로 이만큼 잘려 나간다
+        private const float BoltColumnWidth = 1.3f;     // 경고 기둥 폭이자 판정 폭
+        private const int LightningWaves = 3;
+        private const int LightningBoltsStart = 3;
+        private const int LightningBoltsEnd = 5;
+        private const float LightningWarnTime = 0.85f;
+        private const float LightningWaveGap = 0.25f;
+        private const float LightningDamageRatio = 0.15f;
+        private static readonly Color LightningWarnColor = new Color(0.45f, 0.75f, 1f);
+        private static readonly Color BossCastColor = new Color(0.7f, 0.85f, 1f);
+
         private const string ObstacleFolder = "Art/Props/Sea/";
         private static readonly string[] ObstacleSprites =
         {
@@ -165,11 +186,12 @@ namespace Aethoria.Stages
             (false, "떠내려오는 바위 뒤에 숨어서 끌어들이면... 저 녀석이 알아서 처박히겠지."),
         };
 
+        // 이 대사 뒤에 아쿠아가 물러나면 곧바로 바닷속 투기장의 2차전(AquaAI)으로 이어진다.
         private static readonly (bool aqua, string line)[] VictoryLines =
         {
             (true, "...내 바다의 바위를 창 삼아 휘두르다니. 영리한 사신이구나."),
-            (true, "좋아, 오늘은 물러나 주마. 하지만 기억하렴. 바다는 한 번 삼킨 것을 쉽게 놓아주지 않는단다."),
-            (false, "...그 말, 다음에 만나면 그대로 돌려주지."),
+            (true, "하지만 꾀는 여기까지란다. 내 왕좌로 오렴. 그곳엔 숨을 바위도, 흐르는 물살도 없단다."),
+            (false, "...좋아. 이번엔 정면으로 상대해 주지."),
         };
 
         private class ScrollLayer
@@ -220,9 +242,13 @@ namespace Aethoria.Stages
         private Sprite[] bossThrustFrames;
         private Sprite[] bossDrillTransformFrames;
         private Sprite[] bossDrillLoopFrames;
+        private Sprite[] boltFrames;
         private enum BossAttack { None, Spear, Drill }
         private BossAttack bossAttack;
-        private bool nextAttackIsDrill;
+        // 창 → 드릴 → 번개 순서로 돌아간다.
+        private int nextAttackIndex;
+        private bool casting;   // 번개를 부르는 중(아쿠아는 평소처럼 따라붙는다)
+        private readonly List<GameObject> lightningEffects = new List<GameObject>();
         // 재생 중인 공격 모션. 없으면 대기 모션을 돌린다.
         private Sprite[] bossPoseFrames;
         private float bossPoseStartTime;
@@ -304,6 +330,7 @@ namespace Aethoria.Stages
             var drillFrames = LoadSortedFrames(BossDrillFramesPath);
             bossDrillLoopFrames = new Sprite[Mathf.Max(0, drillFrames.Length - DrillLoopFirstFrame)];
             if (bossDrillLoopFrames.Length > 0) System.Array.Copy(drillFrames, DrillLoopFirstFrame, bossDrillLoopFrames, 0, bossDrillLoopFrames.Length);
+            boltFrames = LoadSortedFrames(BoltFramesPath);
 
             fade = CreateFade(transform, DeepWaterColor);
             SetFadeAlpha(fade, 1f);
@@ -674,7 +701,12 @@ namespace Aethoria.Stages
             AnimateBoss();
             UpdateDashGhosts();
             UpdateFragments();
-            if (bossRenderer != null) bossRenderer.color = Time.time < bossHurtUntil ? BossHurtColor : Color.white;
+            if (bossRenderer != null)
+            {
+                bossRenderer.color = Time.time < bossHurtUntil ? BossHurtColor
+                    : casting ? Color.Lerp(Color.white, BossCastColor, Mathf.PingPong(Time.time * 6f, 1f))
+                    : Color.white;
+            }
             if (swimming && !player.IsDead)
             {
                 if (inIntro) AnimateIntroIdle();
@@ -692,10 +724,17 @@ namespace Aethoria.Stages
                 SpawnObstacle();
                 nextObstacleTime = elapsed + Mathf.Lerp(ObstacleIntervalStart, ObstacleIntervalEnd, progress);
             }
-            if (elapsed >= nextLungeTime && !lunging)
+            if (elapsed >= nextLungeTime && !lunging && !casting)
             {
-                lungeRoutine = StartCoroutine(nextAttackIsDrill ? DrillRoutine() : LungeRoutine());
-                nextAttackIsDrill = !nextAttackIsDrill;
+                switch (nextAttackIndex)
+                {
+                    case 0: lungeRoutine = StartCoroutine(LungeRoutine()); break;
+                    case 1: lungeRoutine = StartCoroutine(DrillRoutine()); break;
+                    default: lungeRoutine = StartCoroutine(LightningRoutine()); break;
+                }
+                // 번개 그림이 없으면 창과 드릴만 번갈아 쓴다.
+                int attackCount = boltFrames != null && boltFrames.Length > 0 ? 3 : 2;
+                nextAttackIndex = (nextAttackIndex + 1) % attackCount;
             }
 
             UpdateBoss();
@@ -1128,6 +1167,118 @@ namespace Aethoria.Stages
             nextLungeTime = elapsed + Mathf.Lerp(LungeIntervalStart, LungeIntervalEnd, BattleProgress);
         }
 
+        // 푸른 번개: 경고 기둥을 띄운 뒤 그 자리에 번개를 내리꽂는다. 이걸 여러 번 되풀이한다.
+        private IEnumerator LightningRoutine()
+        {
+            casting = true;
+            int count = Mathf.RoundToInt(Mathf.Lerp(LightningBoltsStart, LightningBoltsEnd, BattleProgress));
+            for (int wave = 0; wave < LightningWaves; wave++)
+            {
+                var columns = PickBoltColumns(count);
+                var warnings = new List<SpriteRenderer>();
+                foreach (float x in columns) warnings.Add(CreateBoltWarning(x));
+                for (float t = 0f; t < LightningWarnTime; t += Time.deltaTime)
+                {
+                    var color = LightningWarnColor;
+                    color.a = 0.12f + 0.25f * Mathf.PingPong(t * 6f, 1f);
+                    foreach (var warning in warnings) warning.color = color;
+                    yield return null;
+                }
+                DestroyLightningEffects(warnings);
+
+                var bolts = new List<SpriteRenderer>();
+                foreach (float x in columns) bolts.Add(CreateBolt(x));
+                var follow = Camera.main != null ? Camera.main.GetComponent<CameraFollow>() : null;
+                if (follow != null) follow.Shake(0.25f, 0.2f);
+                for (float t = 0f; t < BoltDuration; t += Time.deltaTime)
+                {
+                    float k = t / BoltDuration;
+                    var frame = boltFrames[Mathf.Min(Mathf.FloorToInt(k * boltFrames.Length), boltFrames.Length - 1)];
+                    foreach (var bolt in bolts) bolt.sprite = frame;
+                    if (k >= BoltHitStart && k < BoltHitEnd) CheckBoltHits(columns);
+                    yield return null;
+                }
+                DestroyLightningEffects(bolts);
+                yield return new WaitForSeconds(LightningWaveGap);
+            }
+
+            casting = false;
+            lungeRoutine = null;
+            nextLungeTime = elapsed + Mathf.Lerp(LungeIntervalStart, LungeIntervalEnd, BattleProgress);
+        }
+
+        // 첫 줄기는 네크로시아가 있는 자리, 나머지는 서로 겹치지 않게 화면 안에 흩는다.
+        private List<float> PickBoltColumns(int count)
+        {
+            float min = ViewLeft + LeftMargin;
+            float max = ViewRight - RightMargin;
+            var columns = new List<float> { Mathf.Clamp(PlayerHitbox.center.x, min, max) };
+            for (int tries = 0; columns.Count < count && tries < 40; tries++)
+            {
+                float x = Random.Range(min, max);
+                bool clear = true;
+                foreach (float column in columns)
+                {
+                    if (Mathf.Abs(column - x) < BoltColumnWidth * 1.6f) { clear = false; break; }
+                }
+                if (clear) columns.Add(x);
+            }
+            return columns;
+        }
+
+        private SpriteRenderer CreateBoltWarning(float x)
+        {
+            var go = new GameObject("SeaChaseBoltWarning", typeof(SpriteRenderer));
+            go.transform.SetParent(transform);
+            Vector2 pixel = UISprites.WhitePixel.bounds.size;
+            go.transform.localScale = new Vector3(BoltColumnWidth / pixel.x, viewHalfHeight * 2f / pixel.y, 1f);
+            go.transform.position = new Vector3(x, viewCenter.y, 0f);
+            var renderer = go.GetComponent<SpriteRenderer>();
+            renderer.sprite = UISprites.WhitePixel;
+            renderer.sortingOrder = 3;
+            lightningEffects.Add(go);
+            return renderer;
+        }
+
+        // 그림의 기준점(번개가 닿는 자리)을 화면 아래쪽에 두고, 구름이 화면 위끝을 살짝 넘도록 키운다.
+        private SpriteRenderer CreateBolt(float x)
+        {
+            var go = new GameObject("SeaChaseBolt", typeof(SpriteRenderer));
+            go.transform.SetParent(transform);
+            float groundY = ViewBottom + BoltGroundLift;
+            float scale = (ViewTop + BoltTopOverscan - groundY) / boltFrames[0].bounds.max.y;
+            go.transform.localScale = new Vector3(scale, scale, 1f);
+            go.transform.position = new Vector3(x, groundY, 0f);
+            var renderer = go.GetComponent<SpriteRenderer>();
+            renderer.sprite = boltFrames[0];
+            renderer.sortingOrder = 6;
+            lightningEffects.Add(go);
+            return renderer;
+        }
+
+        private void DestroyLightningEffects(List<SpriteRenderer> renderers)
+        {
+            foreach (var renderer in renderers)
+            {
+                lightningEffects.Remove(renderer.gameObject);
+                Destroy(renderer.gameObject);
+            }
+        }
+
+        private void CheckBoltHits(List<float> columns)
+        {
+            if (Time.time < invincibleUntil || IsDashing || player.IsDead) return;
+
+            var hitbox = PlayerHitbox;
+            foreach (float x in columns)
+            {
+                if (hitbox.xMax < x - BoltColumnWidth / 2f || hitbox.xMin > x + BoltColumnWidth / 2f) continue;
+
+                HitPlayer(LightningDamageRatio, 0f);
+                return;
+            }
+        }
+
         private void SpawnObstacle()
         {
             var sprite = Resources.Load<Sprite>(ObstacleFolder + ObstacleSprites[Random.Range(0, ObstacleSprites.Length)]);
@@ -1254,7 +1405,7 @@ namespace Aethoria.Stages
             playerRenderer.enabled = !flickering || Mathf.FloorToInt(Time.time / HitFlickerInterval) % 2 == 0;
         }
 
-        // 체력을 다 깎음: 아쿠아가 비틀거리며 물러날 말을 남기고 사라진다.
+        // 체력을 다 깎음: 아쿠아가 비틀거리며 2차전을 예고하는 말을 남기고 사라진다.
         private IEnumerator VictoryRoutine()
         {
             victoryStarted = true;
@@ -1264,6 +1415,9 @@ namespace Aethoria.Stages
             if (lungeRoutine != null) StopCoroutine(lungeRoutine);
             lungeRoutine = null;
             lungeWarning.gameObject.SetActive(false);
+            casting = false;
+            foreach (var effect in lightningEffects) Destroy(effect);
+            lightningEffects.Clear();
             lunging = true;     // 평소 따라붙기(UpdateBoss)를 멈춘다
             EndBossAttack();
             bossStunned = true;

@@ -44,6 +44,9 @@ namespace Aethoria.Characters
 
         public void ResetCooldown() => cooldownRemaining = 0f;
 
+        // 보스 패턴이 대시로 빠져나가지 못하게 막을 때 켠다(아쿠아의 물의 소용돌이 흡입). 켜져 있는 동안 Shift를 눌러도 대시하지 않는다.
+        public bool Blocked { get; set; }
+
         private void Awake()
         {
             character = GetComponent<Character>();
@@ -87,7 +90,7 @@ namespace Aethoria.Characters
 
         private void TryUseSkill()
         {
-            if (character.IsCombatLocked) return;
+            if (character.IsCombatLocked || Blocked) return;
             if (isDashing || cooldownRemaining > 0f) return;
 
             cooldownRemaining = cooldown;

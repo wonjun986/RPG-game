@@ -40,12 +40,16 @@ namespace Aethoria.EditorTools
             // 모두 비슷한 키(약 2.55유닛)로 보이도록 시트별로 환산한 값을 쓴다.
             // 대기는 서 있는 모습이 작아 보인다는 피드백으로 걷기보다 조금 큰 약 2.57유닛(투구~부츠)으로 맞췄다.
             // 지금 대기(8프레임 다크 나이트 호흡 루프)는 투구~부츠 468px로, 예전 6프레임 대기(520px, 202)와 같은 키가 되게 환산한 값.
-            // 기본 공격(새 시트, 선 자세 키 약 311px)은 리듬전투에서 대기 모션과 같은 키로 보이도록 대기에 맞춘다.
-            ("Art/Monsters/BossKnight/Walk/", 192f), ("Art/Monsters/BossKnight/Idle/", 182f),
+            // 걷기(보랏빛 기사 8프레임 보행 스프라이트, 443x421 칸, 두 걸음 한 바퀴)는 투구~부츠 약 406px로,
+            // 예전 6프레임 걷기(489px, 192)와 같은 키가 되게 환산한 값.
+            ("Art/Monsters/BossKnight/Walk/", 160f), ("Art/Monsters/BossKnight/Idle/", 182f),
             // 필살기(검 들어올리기/기운 모으기) 프레임은 잘라낼 때 대기 모션과 같은 픽셀 크기로 맞춰 두었다.
             ("Art/Monsters/BossKnight/SpecialRaise/", 178f), ("Art/Monsters/BossKnight/SpecialCharge/", 178f),
             ("Art/Monsters/BossKnight/Die/", 178f),
-            ("Art/Monsters/BossKnight/Attack/", 117f), ("Art/Monsters/BossKnight/JumpAttack/", 126f),
+            // 기본 공격(Boss_Knight_Attack, 선 자세 키 약 311px)은 걷기와 같은 키로 보이게 환산한 값.
+            // 점프 내려찍기(보라빛 중갑 기사의 검격 연속)는 걷기 시트와 같은 크기로 그려져 있어 같은 값을 쓴다.
+            // 점프 시트는 공중 장면도 칸 바닥에 붙어 있어서, 1~4프레임 아래에 빈 칸을 덧대 뛰어오른 높이(최대 260px)를 만들었다.
+            ("Art/Monsters/BossKnight/Attack/", 117f), ("Art/Monsters/BossKnight/JumpAttack/", 160f),
             // 루나벨 시트들은 시트마다 그린 크기가 제각각이라(2페이즈/순간이동/패배 장면이 서로 커졌다 작아졌다 했다),
             // 의자에 앉은 모습을 뺀 모든 시트를 얼굴 가운데~부츠 끝 키가 1페이즈 대기와 같은 약 2.08유닛이 되도록 환산했다
             // (시트마다 첫 장의 얼굴 위치와 발끝을 재서 맞춘 값). 아래 각 줄의 옛 설명은 처음 값을 정할 때의 기록이다.
@@ -129,6 +133,11 @@ namespace Aethoria.EditorTools
             // 사슬 구속(감긴 사슬 기둥 약 300px → 1.7유닛, 네크로시아 몸을 감쌀 만큼), 참격(칼날 길이 약 600px → 2.2유닛).
             ("Art/Effects/AliasRitualSword/", 375f), ("Art/Effects/AliasMagicCircle/", 125f),
             ("Art/Effects/AliasChainBind/", 175f), ("Art/Effects/AliasRitualSlash/", 280f),
+            // 아쿠아 흡입 모션(물의 여왕 흡인 소환 애니메이션 시트, 443px 칸): 칸 키가 대기 모션 칸(564px, 240)과 같은 실제 키가 되게 한다.
+            // 흡입 깔때기(얼음빛 물 소용돌이)와 가두는 소용돌이(푸른 소용돌이 물마법)는 AquaAI가 원하는 크기로 다시 맞춘다.
+            ("Art/Monsters/Aqua/Pull/", 190f),
+            // 알리아스 점프 내려찍기의 어둠의 마력 기둥(6프레임): 다 솟은 기둥 키 약 700px가 약 3.5유닛(알리아스보다 조금 크게)이 되게 한다.
+            ("Art/Effects/AliasDarkPillar/", 200f),
             // 알리아스 검 꽂기(보랏빛 기사의 검 꽂기 연속 동작): 서 있는 1프레임 키 455px가 대기와 같은 키가 되게 한다.
             ("Art/Monsters/BossKnight/Plant/", 172f),
             // 알리아스 종막 검 꽂기(Final Pattern): 서 있는 1프레임 키 406px가 Plant 1프레임과 같은 키(약 2.64유닛)가 되게 한다.
@@ -189,6 +198,8 @@ namespace Aethoria.EditorTools
             ("Art/Effects/LunabelPortalCollapsePhase2/", new Vector2(0.5f, 0.5f)),
             // 거대한 에너지 구체: 프레임마다 하얗게 빛나는 구슬 한가운데를 캔버스 가운데에 맞춰 잘랐다.
             ("Art/Effects/LunabelGiantOrb/", new Vector2(0.5f, 0.5f)),
+            // 아쿠아가 플레이어를 가두는 둥근 소용돌이: 프레임마다 소용돌이 눈을 칸 가운데에 맞춰 잘랐다(가운데를 축으로 돌린다).
+            ("Art/Effects/AquaVortex/", new Vector2(0.5f, 0.5f)),
             // 알리아스 종막: 마검은 칼끝이 발판에 박히도록 키의 12% 위(칼끝보다 조금 위)가 기준점, 마법진·참격은 가운데,
             // 사슬 구속은 감긴 사슬 기둥의 아래 가운데(칸 556px 중 x 약 265px).
             ("Art/Effects/AliasRitualSword/", new Vector2(0.5f, 0.12f)), ("Art/Effects/AliasMagicCircle/", new Vector2(0.5f, 0.5f)),

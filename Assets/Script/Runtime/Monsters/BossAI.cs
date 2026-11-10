@@ -27,16 +27,19 @@ namespace Aethoria.Monsters
         [SerializeField] private float swordReach = 3.2f;
         [SerializeField] private float swordHitHeight = 2.6f;
 
-        [Header("패턴 A: 돌진 3연타 (근접, 조금씩 전진하며 베기)")]
-        [SerializeField] private int dashComboHits = 3;
-        [SerializeField] private float dashHitInterval = 0.35f;
+        // 공격 모션(Boss_Knight_Attack 8프레임)에서 칼이 지나가는 프레임: 3번째(가로 베기), 4번째(찌르기), 7번째(내려 베기).
+        // 콤보 판정은 이 프레임이 시작될 때 나간다.
+        private static readonly int[] SlashFrames = { 2, 3, 6 };
+        private const int AttackFrameCount = 8;
+
+        [Header("패턴 A: 돌진 3연타 (근접, 한 번 벨 때마다 조금씩 전진)")]
+        [SerializeField] private float dashComboDuration = 1.05f; // 공격 모션 한 번(세 번 베기) 길이
         [SerializeField] private float dashStepDistance = 0.4f;
         [SerializeField] private float dashHitRadius = 1f;
         [SerializeField] private float dashDamageMultiplier = 1f;
 
-        [Header("패턴 B: 휩쓸기 3연타 (넓은 범위, 마지막 타가 더 강함)")]
-        [SerializeField] private int sweepComboHits = 3;
-        [SerializeField] private float sweepHitInterval = 0.4f;
+        [Header("패턴 B: 휩쓸기 3연타 (넓은 범위, 마지막 내려 베기가 더 강함)")]
+        [SerializeField] private float sweepComboDuration = 1.2f;
         [SerializeField] private float sweepRadius = 2f;
         [SerializeField] private float sweepDamageMultiplier = 0.9f;
         [SerializeField] private float sweepFinisherMultiplier = 1.3f;
@@ -48,6 +51,15 @@ namespace Aethoria.Monsters
         [SerializeField] private float jumpSlamRadius = 2.2f;
         [SerializeField] private float jumpDamageMultiplier = 1.6f;
         [SerializeField] private float jumpCooldown = 5f;
+        // 검을 땅에 꽂는 순간 양옆 바닥에서 어둠의 기둥(BossDarkPillar)이 바깥쪽으로 차례로 세 번 솟구친다.
+        [SerializeField] private int darkPillarSteps = 3;
+        [SerializeField] private float darkPillarFirstOffset = 1.5f; // 몸 가운데에서 첫 기둥까지
+        [SerializeField] private float darkPillarSpacing = 1.8f;     // 기둥 사이 간격(그림 폭이 약 1.7이라 기둥 사이가 거의 비지 않는다)
+        [SerializeField] private float darkPillarInterval = 0.25f;
+        // 분노(2페이즈)하면 기둥이 세 번에서 멈추지 않고 맵 양 끝까지 파도처럼 이어진다. 거리가 길어서 조금 더 빨리 퍼진다.
+        [SerializeField] private float enragedDarkPillarInterval = 0.15f;
+        [SerializeField] private float darkPillarScale = 1f;
+        [SerializeField] private float darkPillarDamageMultiplier = 1f;
 
         [Header("패턴 D: 검기 (중거리에서 땅을 타고 미끄러지는 칼날)")]
         [SerializeField] private float waveMaxRange = 10f;
@@ -434,7 +446,7 @@ namespace Aethoria.Monsters
             }
         }
 
-        // 두 패턴을 번갈아 시전한다 (패턴 수는 적지만, 매번 3연타 콤보라 체감 공격 횟수는 많다).
+        // 두 패턴을 번갈아 시전한다. 둘 다 공격 모션 한 번(가로 베기 → 찌르기 → 내려 베기)에 맞춘 3연타다.
         private IEnumerator RunNextPattern()
         {
             isAttacking = true;
@@ -443,26 +455,33 @@ namespace Aethoria.Monsters
             bool useDash = nextIsDash;
             nextIsDash = !nextIsDash;
 
-            if (attackAnimator != null)
-            {
-                float patternDuration = useDash
-                    ? dashComboHits * dashHitInterval
-                    : sweepComboHits * sweepHitInterval;
-                attackAnimator.Play(patternDuration);
-            }
+            float patternDuration = useDash ? dashComboDuration : sweepComboDuration;
+            if (attackAnimator != null) attackAnimator.Play(patternDuration);
             SfxPlayer.Play(SfxPlayer.AliasAttack);
 
-            yield return useDash ? DashComboRoutine() : SweepComboRoutine();
+            yield return useDash ? DashComboRoutine(patternDuration) : SweepComboRoutine(patternDuration);
             yield return new WaitForSeconds(patternCooldown);
 
             isAttacking = false;
             patternRoutine = null;
         }
 
-        private IEnumerator DashComboRoutine()
+        // 공격 모션의 i번째 베기 프레임이 시작될 때까지 기다린다. elapsed는 모션 시작부터 지금까지 기다린 시간.
+        private static IEnumerator WaitForSlash(int slashIndex, float duration, float elapsed)
         {
-            for (int i = 0; i < dashComboHits; i++)
+            float slashTime = duration * SlashFrames[slashIndex] / AttackFrameCount;
+            if (slashTime > elapsed) yield return new WaitForSeconds(slashTime - elapsed);
+        }
+
+        private static float SlashTime(int slashIndex, float duration) => duration * SlashFrames[slashIndex] / AttackFrameCount;
+
+        private IEnumerator DashComboRoutine(float duration)
+        {
+            float elapsed = 0f;
+            for (int i = 0; i < SlashFrames.Length; i++)
             {
+                yield return WaitForSlash(i, duration, elapsed);
+                elapsed = SlashTime(i, duration);
                 if (monster.IsDead) yield break;
 
                 Vector2 direction = FacingToTarget();
@@ -470,26 +489,27 @@ namespace Aethoria.Monsters
                 body.position += direction * dashStepDistance;
 
                 DealDamageAt((Vector2)transform.position + direction * 0.6f, dashHitRadius, dashDamageMultiplier, direction.x);
-                if (i == dashComboHits - 1) FireEnragedWaves();
-
-                yield return new WaitForSeconds(dashHitInterval);
+                if (i == SlashFrames.Length - 1) FireEnragedWaves();
             }
+            yield return new WaitForSeconds(duration - elapsed);
         }
 
-        private IEnumerator SweepComboRoutine()
+        private IEnumerator SweepComboRoutine(float duration)
         {
-            for (int i = 0; i < sweepComboHits; i++)
+            float elapsed = 0f;
+            for (int i = 0; i < SlashFrames.Length; i++)
             {
+                yield return WaitForSlash(i, duration, elapsed);
+                elapsed = SlashTime(i, duration);
                 if (monster.IsDead) yield break;
 
-                bool isFinisher = i == sweepComboHits - 1;
+                bool isFinisher = i == SlashFrames.Length - 1;
                 float multiplier = isFinisher ? sweepFinisherMultiplier : sweepDamageMultiplier;
                 // 칼끝 판정은 그림이 보고 있는 쪽으로 건다(휩쓸기는 도중에 돌아서지 않는다).
                 DealDamageAt(transform.position, sweepRadius, multiplier, spriteRenderer.flipX ? -1f : 1f);
                 if (isFinisher) FireEnragedWaves();
-
-                yield return new WaitForSeconds(sweepHitInterval);
             }
+            yield return new WaitForSeconds(duration - elapsed);
         }
 
         // 검기: 플레이어 쪽을 보고 검을 크게 한 번 휘두르면(기본 공격 모션) 앞쪽 바닥에서 보랏빛 칼날이 솟아 땅을 타고 날아간다.
@@ -730,8 +750,8 @@ namespace Aethoria.Monsters
 
         public const string JumpAttackClip = "JumpAttack";
 
-        // 점프 공격 8프레임 기준 타이밍: 1 도약 준비 → 2~5 공중(이 동안 착지 지점까지 이동)
-        // → 6 내려찍기 충격(이때 피해) → 7~8 착지 후 자세 회복.
+        // 점프 공격 8프레임 기준 타이밍: 1 도약 → 2~4 공중(이 동안 착지 지점까지 이동) → 5 내려 베며 착지
+        // → 6 검을 땅에 꽂는 충격(이때 피해) → 7~8 꽂은 채 자세 회복.
         public const float JumpTakeoffFraction = 1f / 8f;
         public const float JumpImpactFraction = 5f / 8f;
 
@@ -779,13 +799,43 @@ namespace Aethoria.Monsters
             }
 
             DealDamageAt(transform.position, jumpSlamRadius, jumpDamageMultiplier);
-            FireEnragedWaves();
+            StartCoroutine(DarkPillarRoutine());
 
             yield return new WaitForSeconds(duration * (1f - JumpImpactFraction));
             yield return new WaitForSeconds(patternCooldown);
 
             isAttacking = false;
             patternRoutine = null;
+        }
+
+        // 꽂은 자리 양옆으로 기둥이 한 쌍씩 바깥쪽으로 퍼져 나간다. 맵 밖으로 나가는 기둥은 세우지 않는다.
+        // 분노 중이면 양쪽 모두 맵 끝에 닿을 때까지 계속 퍼진다.
+        private IEnumerator DarkPillarRoutine()
+        {
+            var bodyCollider = GetComponent<Collider2D>();
+            float groundY = bodyCollider != null ? bodyCollider.bounds.min.y : transform.position.y;
+            float centerX = transform.position.x;
+            Rect bounds = GameBootstrap.CurrentMapBounds;
+            bool toEdges = IsEnraged;
+            float interval = toEdges ? enragedDarkPillarInterval : darkPillarInterval;
+            var follow = Camera.main != null ? Camera.main.GetComponent<CameraFollow>() : null;
+            for (int step = 0; toEdges || step < darkPillarSteps; step++)
+            {
+                if (monster.IsDead) yield break;
+                float offset = darkPillarFirstOffset + step * darkPillarSpacing;
+                bool anyInside = false;
+                foreach (float side in new[] { -1f, 1f })
+                {
+                    float x = centerX + side * offset;
+                    if (x < bounds.xMin || x > bounds.xMax) continue;
+                    anyInside = true;
+                    BossDarkPillar.Erupt(new Vector2(x, groundY), monster.Attack * darkPillarDamageMultiplier, darkPillarScale);
+                }
+                // 양쪽 다 맵 밖으로 나갔으면 끝(맵 크기를 알 수 없는 경우를 대비해 넉넉한 상한도 둔다).
+                if (!anyInside || step >= 60) yield break;
+                if (follow != null) follow.Shake(0.15f, 0.12f);
+                yield return new WaitForSeconds(interval);
+            }
         }
 
         private Vector2 FacingToTarget()

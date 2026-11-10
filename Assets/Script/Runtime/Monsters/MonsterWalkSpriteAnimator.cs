@@ -39,6 +39,11 @@ namespace Aethoria.Monsters
             LoadFrames();
         }
 
+        public void ConfigureFrameRate(float newFrameRate)
+        {
+            frameRate = newFrameRate;
+        }
+
         public void ConfigureIdle(string idleResourcesPath, float newIdleFrameRate)
         {
             idleFrames = Resources.LoadAll<Sprite>(idleResourcesPath);
