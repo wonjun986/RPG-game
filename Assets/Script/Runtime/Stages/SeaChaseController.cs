@@ -38,6 +38,7 @@ namespace Aethoria.Stages
         private const int BossMaxHp = 8;
         private const float BossStunTime = 1.3f;
         private const float BossStunShake = 0.12f;
+        private const float BossCrashRecoil = 1.6f; // 바위에 박힌 뒤 비틀거리며 뒤로 물러나는 거리
         private const float BossHurtFlashTime = 0.25f;
         private static readonly Color BossHurtColor = new Color(1f, 0.5f, 0.5f);
         private const float FragmentLife = 0.7f;
@@ -266,6 +267,8 @@ namespace Aethoria.Stages
         private Image progressFill;     // 아쿠아 체력바
         private int bossHp = BossMaxHp;
         private bool bossStunned;
+        // 바위에 박혀 주춤한 뒤 제자리로 천천히 돌아가는 중. 이 동안은 몸에 닿아도 물지 않는다.
+        private bool bossRecovering;
         private float bossHurtUntil;
         private bool victoryStarted;
 
@@ -726,6 +729,7 @@ namespace Aethoria.Stages
             }
             if (elapsed >= nextLungeTime && !lunging && !casting)
             {
+                bossRecovering = false; // 다음 공격이 시작되면 다시 몸통 판정이 생긴다
                 switch (nextAttackIndex)
                 {
                     case 0: lungeRoutine = StartCoroutine(LungeRoutine()); break;
@@ -928,6 +932,7 @@ namespace Aethoria.Stages
             center.x = Mathf.MoveTowards(center.x, targetX, BossApproachSpeed * Time.deltaTime);
             center.y = Mathf.MoveTowards(center.y, PlayerHitbox.center.y, BossFollowYSpeed * Time.deltaTime);
             SetBossCenter(center);
+            if (bossRecovering && Mathf.Abs(center.x - targetX) < 0.2f) bossRecovering = false;
         }
 
         // 경고선을 띄워 줄을 알려 준 뒤 그 줄을 따라 창을 찌르며 화면 끝까지 돌진하고, 왼쪽 밖에서 다시 따라붙는다.
@@ -941,6 +946,7 @@ namespace Aethoria.Stages
             PlayBossPose(bossThrustFrames, LungeDuration, loops: false);
             float fromX = BossCenter.x;
             float toX = ViewRight + BossHeight;
+            bool crashed = false;
             for (float t = 0f; t < LungeDuration; t += Time.deltaTime)
             {
                 SetBossCenter(new Vector2(Mathf.Lerp(fromX, toX, t / LungeDuration), laneY));
@@ -949,11 +955,13 @@ namespace Aethoria.Stages
                 if (rock != null)
                 {
                     yield return CrashIntoRock(rock);
+                    crashed = true;
                     break;
                 }
                 yield return null;
             }
-            FinishCharge(laneY);
+            // 바위에 박혔으면 화면 밖으로 순간이동하지 않고, 주춤하며 물러난 그 자리에서 UpdateBoss가 천천히 제자리로 데려간다.
+            FinishCharge(laneY, resetPosition: !crashed);
         }
 
         // 화면 안에 들어와 있는 바위 중 area에 닿은 것.
@@ -968,7 +976,7 @@ namespace Aethoria.Stages
             return null;
         }
 
-        // 창이 바위에 박힘: 바위가 부서지고 아쿠아가 피해를 입은 채 잠깐 그 자리에서 비틀거린다.
+        // 창이 바위에 박힘: 바위가 부서지고 아쿠아가 피해를 입은 채 비틀거리며 뒤로 천천히 주춤 물러난다.
         private IEnumerator CrashIntoRock(Obstacle rock)
         {
             ShatterRock(rock);
@@ -976,15 +984,20 @@ namespace Aethoria.Stages
             bossAttack = BossAttack.None;
             bossStunned = true;
             bossPoseFrames = null;
+            SetBossAngle(0f);
             Vector2 center = BossCenter;
             for (float t = 0f; t < BossStunTime; t += Time.deltaTime)
             {
-                float fade = 1f - t / BossStunTime;
-                SetBossCenter(center + new Vector2(Mathf.Sin(t * 40f) * BossStunShake * fade, 0f));
+                float k = t / BossStunTime;
+                float fade = 1f - k;
+                // 처음엔 튕기듯 물러나다 점점 느려진다(ease-out).
+                float recoil = BossCrashRecoil * (1f - fade * fade);
+                SetBossCenter(center + new Vector2(-recoil + Mathf.Sin(t * 40f) * BossStunShake * fade, 0f));
                 yield return null;
             }
-            SetBossCenter(center);
+            SetBossCenter(center + Vector2.left * BossCrashRecoil);
             bossStunned = false;
+            bossRecovering = true;
         }
 
         // 드릴이 지나가며 닿은 바위를 모두 부수고, 부순 만큼 피해를 입는다(멈추지 않고 그대로 뚫고 간다).
@@ -1157,10 +1170,11 @@ namespace Aethoria.Stages
             }
         }
 
-        private void FinishCharge(float y)
+        // resetPosition: true면 화면 왼쪽 밖으로 옮겨 다시 따라붙게 한다(화면 끝까지 돌진했을 때).
+        private void FinishCharge(float y, bool resetPosition = true)
         {
             EndBossAttack();
-            SetBossCenter(new Vector2(ViewLeft - BossHeight, y));
+            if (resetPosition) SetBossCenter(new Vector2(ViewLeft - BossHeight, y));
             lunging = false;
             lungeRoutine = null;
             // 공격 길이가 패턴마다 달라서, 다음 공격까지의 간격은 끝난 시점부터 잰다.
@@ -1367,7 +1381,7 @@ namespace Aethoria.Stages
                     return;
                 }
             }
-            else if (!bossStunned && bossRenderer.sprite != null && (hitbox.Overlaps(BossBodyHitbox) || (bossAttack == BossAttack.Spear && hitbox.Overlaps(BossSpearHitbox))))
+            else if (!bossStunned && !bossRecovering && bossRenderer.sprite != null && (hitbox.Overlaps(BossBodyHitbox) || (bossAttack == BossAttack.Spear && hitbox.Overlaps(BossSpearHitbox))))
             {
                 HitPlayer(BossDamageRatio, BossHitShove);
                 bossCloseness = Mathf.Max(0f, bossCloseness - 0.5f);

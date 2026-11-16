@@ -107,18 +107,18 @@ namespace Aethoria.UI
 
             // 아래 좌표들은 All_Area_Map.png 안에 이미 그려진 각 지역 라벨 위치에 맞춘 값
             // (0~1, 왼쪽 아래 기준). 마을 = 취소하고 그대로 있기.
-            // RequiredQuests는 QuestDatabase 순서(0 슬라임, 1 보스 슬라임, 2 기사, 3 보스 기사, 4 콜로서스, 5 심해 정령,
-            // 6 이리아 찾기, 7 루나벨)에서 "그 지역을 소개하는 퀘스트의 번호" — 앞 퀘스트를 보고해야 열린다.
+            // RequiredQuests는 QuestDatabase 순서(0 슬라임, 1 보스 슬라임, 2 기사, 3 보스 기사, 4 콜로서스, 5 황금 모래룡,
+            // 6 심해 정령, 7 아쿠아, 8 이리아 찾기, 9 루나벨)에서 "그 지역을 소개하는 퀘스트의 번호" — 앞 퀘스트를 보고해야 열린다.
             nodes = new[]
             {
                 new MapNode { Name = "마을", AnchorMin = new Vector2(0.11f, 0.69f), AnchorMax = new Vector2(0.25f, 0.81f) },
                 new MapNode { Name = "어둠의 숲", AnchorMin = new Vector2(0.34f, 0.67f), AnchorMax = new Vector2(0.48f, 0.78f), RequiredQuests = 2, OnSelect = HandleEnterDarkForest },
                 new MapNode { Name = "잊혀진 폐허", AnchorMin = new Vector2(0.59f, 0.68f), AnchorMax = new Vector2(0.73f, 0.79f), RequiredQuests = 4, OnSelect = HandleEnterRuins },
-                new MapNode { Name = "절망의 언덕", AnchorMin = new Vector2(0.78f, 0.74f), AnchorMax = new Vector2(0.92f, 0.84f), RequiredQuests = 7, OnSelect = HandleEnterHill },
+                new MapNode { Name = "절망의 언덕", AnchorMin = new Vector2(0.78f, 0.74f), AnchorMax = new Vector2(0.92f, 0.84f), RequiredQuests = 9, OnSelect = HandleEnterHill },
                 new MapNode { Name = "광활한 평야", AnchorMin = new Vector2(0.17f, 0.42f), AnchorMax = new Vector2(0.33f, 0.52f), OnSelect = HandleEnterPlains },
                 new MapNode { Name = "엔스룸 마을", AnchorMin = new Vector2(0.39f, 0.27f), AnchorMax = new Vector2(0.54f, 0.36f), OnSelect = HandleEnterEnsroom },
-                new MapNode { Name = "푸른 바다", AnchorMin = new Vector2(0.73f, 0.35f), AnchorMax = new Vector2(0.88f, 0.44f), RequiredQuests = 5, OnSelect = HandleEnterBlueSea },
-                new MapNode { Name = "천상으로 향하는 계단", AnchorMin = new Vector2(0.433f, 0.082f), AnchorMax = new Vector2(0.531f, 0.121f), RequiredQuests = 6, OnSelect = HandleEnterTemple },
+                new MapNode { Name = "푸른 바다", AnchorMin = new Vector2(0.73f, 0.35f), AnchorMax = new Vector2(0.88f, 0.44f), RequiredQuests = 6, OnSelect = HandleEnterBlueSea },
+                new MapNode { Name = "천상으로 향하는 계단", AnchorMin = new Vector2(0.433f, 0.082f), AnchorMax = new Vector2(0.531f, 0.121f), RequiredQuests = 8, OnSelect = HandleEnterTemple },
             };
 
             villageNode = nodes[0];

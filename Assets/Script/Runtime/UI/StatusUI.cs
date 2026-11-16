@@ -10,13 +10,15 @@ namespace Aethoria.UI
     // 치명타 피해량/스킬 피해량)에 지금 능력치(레벨 + 장비)를 채워 보여준다. C/Esc/X로 닫는다.
     public class StatusUI : MonoBehaviour
     {
-        // UI/NecrosiaStatus(1448x1086) 그림 속 값 칸 좌표를 픽셀로 잰 값.
-        private const float ImageWidth = 1448f;
-        private const float ImageHeight = 1086f;
-        private const float ValueBoxLeft = 1145f;
-        private const float ValueBoxRight = 1350f;
-        private const float ValueBoxHalfHeight = 24f;
-        private static readonly float[] ValueRowCenterY = { 356f, 485f, 614f, 743f, 872f };
+        // UI/NecrosiaStatus(네크로시아 판타지 캐릭터 스탯 UI, 1536x1024, 바깥 배경은 투명) 그림 속 칸 좌표를 픽셀로 잰 값.
+        // 오른쪽 아래 다섯 줄(줄 사이 구분선 y 391/468/541/615/689/767)의 육각 값 칸, 위쪽 "Lv." 옆 밑줄(y 302, x 999~1280).
+        private const float ImageWidth = 1536f;
+        private const float ImageHeight = 1024f;
+        private const float ValueBoxLeft = 1165f;
+        private const float ValueBoxRight = 1365f;
+        private const float ValueBoxHalfHeight = 22f;
+        private static readonly float[] ValueRowCenterY = { 430f, 504f, 578f, 652f, 728f };
+        private static readonly Rect LevelBox = new Rect(1018f, 254f, 257f, 46f); // x, y(위), 너비, 높이
 
         // 기준 해상도(1280x720) 높이에 거의 꽉 차게 그린다. 너비는 그림 비율대로.
         private const float WindowHeight = 700f;
@@ -25,6 +27,7 @@ namespace Aethoria.UI
         private CharacterMovement2D playerMovement;
         private GameObject panel;
         private readonly Text[] valueTexts = new Text[ValueRowCenterY.Length];
+        private Text levelText;
 
         public bool IsOpen => panel != null && panel.activeSelf;
 
@@ -59,30 +62,32 @@ namespace Aethoria.UI
 
             for (int i = 0; i < ValueRowCenterY.Length; i++)
             {
-                valueTexts[i] = BuildValueText(windowRect, i);
+                float top = ValueRowCenterY[i] - ValueBoxHalfHeight;
+                valueTexts[i] = BuildText(windowRect, "Value_" + i,
+                    new Rect(ValueBoxLeft, top, ValueBoxRight - ValueBoxLeft, ValueBoxHalfHeight * 2f), 22, TextAnchor.MiddleCenter);
             }
+            // "Lv." 옆 밑줄 위에 지금 레벨을 쓴다.
+            levelText = BuildText(windowRect, "Level", LevelBox, 26, TextAnchor.MiddleLeft);
 
             panel.SetActive(false);
         }
 
-        private static Text BuildValueText(Transform parent, int row)
+        // box: 그림 픽셀 좌표(x, 위쪽 y, 너비, 높이).
+        private static Text BuildText(Transform parent, string name, Rect box, int fontSize, TextAnchor alignment)
         {
-            float top = ValueRowCenterY[row] - ValueBoxHalfHeight;
-            float bottom = ValueRowCenterY[row] + ValueBoxHalfHeight;
-
-            var textGO = new GameObject("Value_" + row, typeof(RectTransform), typeof(Text));
+            var textGO = new GameObject(name, typeof(RectTransform), typeof(Text));
             var textRect = (RectTransform)textGO.transform;
             textRect.SetParent(parent, false);
-            textRect.anchorMin = new Vector2(ValueBoxLeft / ImageWidth, 1f - bottom / ImageHeight);
-            textRect.anchorMax = new Vector2(ValueBoxRight / ImageWidth, 1f - top / ImageHeight);
+            textRect.anchorMin = new Vector2(box.xMin / ImageWidth, 1f - box.yMax / ImageHeight);
+            textRect.anchorMax = new Vector2(box.xMax / ImageWidth, 1f - box.yMin / ImageHeight);
             textRect.offsetMin = Vector2.zero;
             textRect.offsetMax = Vector2.zero;
 
             var text = textGO.GetComponent<Text>();
             text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            text.fontSize = 22;
+            text.fontSize = fontSize;
             text.fontStyle = FontStyle.Bold;
-            text.alignment = TextAnchor.MiddleCenter;
+            text.alignment = alignment;
             text.color = new Color(0.93f, 0.88f, 1f);
             text.raycastTarget = false;
             return text;
@@ -92,6 +97,7 @@ namespace Aethoria.UI
         {
             if (player == null) return;
 
+            levelText.text = player.Level.ToString();
             var stats = player.Stats;
             valueTexts[0].text = stats.attack.ToString("0.#");
             valueTexts[1].text = stats.defense.ToString("0.#");

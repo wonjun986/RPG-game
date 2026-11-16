@@ -76,9 +76,13 @@ namespace Aethoria.Monsters
         [SerializeField] private float openingFlashRelease = 0.6f;
         [SerializeField] private float openingFlashSwell = 1.3f;     // 빛이 덮이는 동안 구체가 이 배율까지 부푼다
         [SerializeField] private float openingExplosionShake = 0.9f;
-        [SerializeField] private float openingPillarScale = 9f;      // 거대 기둥 그림(444px 칸, 약 1.85칸)을 이만큼 키운다. 화면 위로 뚫고 나갈 만큼 크다
-        [SerializeField] private float openingPillarHitWidth = 9f;     // 기둥 몸통과 양옆 촉수까지의 폭
-        [SerializeField] private float openingTornadoTime = 2f;      // 다 솟은 뒤 일렁이는 시간(그동안 계속 할퀸다)
+        // 거대 기둥 그림(320x548 칸, 약 2.28유닛 키)을 이만큼 키운다 — 키 약 11.4유닛으로 넓힌 화면(카메라 5.8)을 위아래로 꽉 채운다.
+        // 원본보다 너무 크게 늘리면 흐릿해지므로(예전 9배는 화면에서 3배 넘게 늘어나 뭉개졌다) 2배 안쪽으로 둔 값.
+        [SerializeField] private float openingPillarScale = 5f;
+        [SerializeField] private float openingPillarHitWidth = 5.5f;   // 기둥 몸통과 감아 도는 핏줄기까지의 폭
+        [SerializeField] private float pillarShockwaveSize = 12f;    // 기둥이 터질 때 퍼지는 충격파 고리 지름(모래룡 포효 11과 비슷하게)
+        [SerializeField] private float pillarShockwaveLift = 1.2f;   // 충격파 중심을 바닥에서 이만큼 올린다(기둥 아래쪽 폭발 자리)
+        [SerializeField] private float openingTornadoTime = 2f;     // 다 솟은 뒤 일렁이는 시간(그동안 계속 할퀸다)
         [SerializeField] private float openingHitInterval = 0.125f;  // 기둥 안에 있으면 이 간격으로 연타
         [SerializeField] private float openingDamageMultiplier = 0.35f; // 연타 한 번의 피해(초당 8번 들어가므로 작게)
         // 빨아들이는 힘(가로 속도). 걷기(4)보다 빨라 걸어서는 못 빠져나가고, 대시(1.5초마다 3칸, 대시 중엔 끌리지 않음)를
@@ -1196,11 +1200,27 @@ namespace Aethoria.Monsters
             if (rise.Length == 0) yield break;
             var loop = tornado.Length > 0 ? tornado : new[] { rise[rise.Length - 1] };
 
-            float riseTime = rise.Length * 0.06f;
+            // 솟구치기 4장 → 일렁이는 회오리 4장(반복).
+            const float riseFrameTime = 0.09f, loopFrameTime = 0.08f;
+            float riseTime = rise.Length * riseFrameTime;
             float total = riseTime + openingTornadoTime;
             var cam = Camera.main;
             var cameraFollow = cam != null ? cam.GetComponent<CameraFollow>() : null;
             if (cameraFollow != null) cameraFollow.Shake(total, openingExplosionShake);
+
+            // 기둥이 터지는 순간 모래룡 포효처럼 핏빛 충격파 고리가 연달아 퍼지고 화면이 붉게 번쩍인다.
+            ShockwaveBurst.Play(this, bottomCenter + Vector2.up * pillarShockwaveLift, transform.parent, new ShockwaveBurst.Settings
+            {
+                rings = 4,
+                interval = 0.14f,
+                duration = 0.75f,
+                maxSize = pillarShockwaveSize,
+                squash = 0.8f,
+                ringColor = new Color(1f, 0.25f, 0.3f, 0.9f),
+                flashColor = new Color(1f, 0.2f, 0.25f, 0.45f),
+                flashDuration = 0.35f,
+                sortingOrder = 55,
+            });
 
             var go = new GameObject("LunabelGiantPillar");
             go.transform.position = bottomCenter;
@@ -1212,12 +1232,12 @@ namespace Aethoria.Monsters
             renderer.sprite = rise[0];
 
             // 솟구치는 동안과 회오리치는 동안 내내, 기둥 안에 있으면 openingHitInterval마다 연타(넉백/피격 무적 없이)로 맞는다.
-            float nextHit = 0.18f; // 네 번째 장(기둥이 높이 솟음)부터 맞는다
+            float nextHit = 0.18f; // 세 번째 장(기둥이 높이 솟음)부터 맞는다
             for (float t = 0f; t < total; t += Time.deltaTime)
             {
                 if (go == null) yield break;
-                renderer.sprite = t < riseTime ? rise[Mathf.Min(rise.Length - 1, Mathf.FloorToInt(t / 0.06f))]
-                    : loop[Mathf.FloorToInt((t - riseTime) / 0.07f) % loop.Length];
+                renderer.sprite = t < riseTime ? rise[Mathf.Min(rise.Length - 1, Mathf.FloorToInt(t / riseFrameTime))]
+                    : loop[Mathf.FloorToInt((t - riseTime) / loopFrameTime) % loop.Length];
                 while (t >= nextHit)
                 {
                     HitPlayerInBox(bottomCenter, openingPillarHitWidth, hitHeight, openingDamageMultiplier, hitReaction: false);

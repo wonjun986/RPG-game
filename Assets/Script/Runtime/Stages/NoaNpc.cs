@@ -43,7 +43,12 @@ namespace Aethoria.Stages
         private int storyIndex;
 
         [SerializeField] private string resourcesPath = "Art/NPC/Noa/Idle";
-        [SerializeField] private float frameInterval = 0.5f;
+        // 숨쉬기(Breath 5장): 윙크 시트 첫 장에서 다리·망토 아랫단은 그대로 두고 허리 위만 0~4px 들어 올린 그림.
+        // 1→5→1을 오가며 숨을 쉬고, 숨을 다 내쉰 순간에 가끔 윙크(Idle 8장)를 한 번 넣는다(NpcIdleAnimation).
+        [SerializeField] private string breathResourcesPath = "Art/NPC/Noa/Breath";
+        [SerializeField] private float breathPeriod = 3.2f;    // 한 번 들이쉬고 내쉬는 데 걸리는 시간(초)
+        [SerializeField] private float frameInterval = 0.12f;  // 윙크 한 장 시간
+        [SerializeField] private float blinkInterval = 4f;     // 윙크 사이 평균 간격(초). 매번 0.7~1.4배로 흔든다
         [SerializeField] private float interactRadius = 2f;
         [SerializeField] private float promptHeight = 2f;
         [SerializeField] private string promptLabel = "[Z] 대화하기";
@@ -60,9 +65,7 @@ namespace Aethoria.Stages
         [SerializeField] private float markerHeight = 2.5f;
 
         private SpriteRenderer spriteRenderer;
-        private Sprite[] frames;
-        private int frameIndex;
-        private float animTimer;
+        private NpcIdleAnimation idleAnimation;
         private Transform player;
         private CharacterMovement2D playerMovement;
         private NpcDialogueUI dialogueUI;
@@ -110,12 +113,12 @@ namespace Aethoria.Stages
         {
             spriteRenderer = GetComponent<SpriteRenderer>();
 
-            frames = Resources.LoadAll<Sprite>(resourcesPath);
-            if (frames != null && frames.Length > 0)
+            idleAnimation = new NpcIdleAnimation(spriteRenderer, resourcesPath, breathResourcesPath)
             {
-                System.Array.Sort(frames, (a, b) => string.CompareOrdinal(a.name, b.name));
-                spriteRenderer.sprite = frames[0];
-            }
+                BreathPeriod = breathPeriod,
+                BlinkFrameTime = frameInterval,
+                BlinkInterval = blinkInterval,
+            };
 
             CreatePrompt();
             CreateQuestMarker();
@@ -182,21 +185,9 @@ namespace Aethoria.Stages
 
         private void Update()
         {
-            AdvanceIdleFrame();
+            idleAnimation?.Tick(Time.deltaTime);
             UpdateProximity();
             UpdateInteraction();
-        }
-
-        private void AdvanceIdleFrame()
-        {
-            if (frames == null || frames.Length == 0) return;
-
-            animTimer += Time.deltaTime;
-            if (animTimer < frameInterval) return;
-
-            animTimer -= frameInterval;
-            frameIndex = (frameIndex + 1) % frames.Length;
-            spriteRenderer.sprite = frames[frameIndex];
         }
 
         private void UpdateProximity()

@@ -35,6 +35,15 @@ namespace Aethoria.Characters
         private JumpSpriteAnimator jumpAnimator;
         private Sprite[] dashFrames;
 
+        [Header("대시 잔상")]
+        // 바다 추격전 대시(SeaChaseController)와 같은 보랏빛 잔상을 지나간 자리에 남긴다.
+        [SerializeField] private float ghostInterval = 0.04f;
+        [SerializeField] private float ghostLife = 0.25f;
+        [SerializeField] private Color ghostColor = new Color(0.75f, 0.55f, 1f, 0.55f);
+
+        private readonly List<(SpriteRenderer renderer, float bornAt)> ghosts = new List<(SpriteRenderer, float)>();
+        private float nextGhostTime;
+
         private float cooldownRemaining;
         private bool isDashing;
 
@@ -74,6 +83,8 @@ namespace Aethoria.Characters
 
         private void Update()
         {
+            UpdateGhosts();
+
             if (cooldownRemaining > 0f)
             {
                 cooldownRemaining = Mathf.Max(0f, cooldownRemaining - Time.deltaTime);
@@ -140,6 +151,11 @@ namespace Aethoria.Characters
                 }
                 body.MovePosition(next);
                 UpdateDashFrame(t);
+                if (Time.time >= nextGhostTime)
+                {
+                    nextGhostTime = Time.time + ghostInterval;
+                    SpawnGhost();
+                }
             }
 
             RestoreMonsterCollisions(monsterColliders);
@@ -184,6 +200,52 @@ namespace Aethoria.Characters
             // 점프 애니메이터는 스스로 스케일을 보정하지 않고 1배를 그대로 쓰므로, 대시가 남긴
             // 보정 스케일을 원래대로 되돌려 둔다(ESkill이 시작할 때 하는 것과 같은 이유).
             if (visualRenderer != null) SkillFrameNormalizer.Reset(visualRenderer.transform);
+        }
+
+        // 지금 모습을 그대로 본뜬 반투명 그림을 그 자리에 남긴다(플레이어를 따라가지 않는다).
+        private void SpawnGhost()
+        {
+            if (visualRenderer == null || visualRenderer.sprite == null) return;
+
+            var source = visualRenderer.transform;
+            var go = new GameObject("DashGhost", typeof(SpriteRenderer));
+            go.transform.SetPositionAndRotation(source.position, source.rotation);
+            go.transform.localScale = source.lossyScale;
+            var renderer = go.GetComponent<SpriteRenderer>();
+            renderer.sprite = visualRenderer.sprite;
+            renderer.flipX = visualRenderer.flipX;
+            renderer.flipY = visualRenderer.flipY;
+            renderer.color = ghostColor;
+            renderer.sortingLayerID = visualRenderer.sortingLayerID;
+            renderer.sortingOrder = visualRenderer.sortingOrder - 1;
+            ghosts.Add((renderer, Time.time));
+        }
+
+        private void UpdateGhosts()
+        {
+            for (int i = ghosts.Count - 1; i >= 0; i--)
+            {
+                var (renderer, bornAt) = ghosts[i];
+                float age = Time.time - bornAt;
+                if (renderer == null || age >= ghostLife)
+                {
+                    if (renderer != null) Destroy(renderer.gameObject);
+                    ghosts.RemoveAt(i);
+                    continue;
+                }
+                var color = ghostColor;
+                color.a *= 1f - age / ghostLife;
+                renderer.color = color;
+            }
+        }
+
+        private void OnDisable()
+        {
+            foreach (var (renderer, _) in ghosts)
+            {
+                if (renderer != null) Destroy(renderer.gameObject);
+            }
+            ghosts.Clear();
         }
 
         private List<Collider2D> BeginIgnoringMonsterCollisions()

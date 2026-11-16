@@ -96,12 +96,16 @@ namespace Aethoria.EditorTools
             ("Art/Monsters/SandDragon/", 150f),
             // 모래룡 꼬리 대지 폭발: 다 솟은 꼬리(약 650px)가 약 3.2유닛(모래룡 머리보다 조금 높게)이 되게 한다.
             ("Art/Effects/SandTailBurst/", 200f),
-            // 노아 대기 프레임도 Jump처럼 캐릭터가 프레임을 거의 꽉 채워서, 150을 쓰면 실제로 거대해진다.
-            ("Art/NPC/Noa/Idle/", 400f),
-            // 이시스(연습장 NPC)는 갑옷 기사라 플레이어(1.5)보다 조금 큰 약 1.8유닛(프레임 키 약 704px).
-            ("Art/NPC/Isis/Idle/", 390f),
-            // 대장장이 엘리도 이시스와 비슷한 키(약 1.8유닛, 프레임 키 724px).
-            ("Art/NPC/Elly/Idle/", 400f),
+            // 노아 대기(고딕 마녀의 8프레임 윙크, 250x443 칸): 머리~부츠 약 428px가 예전 대기와 같은 약 1.66유닛이 되게 한다.
+            ("Art/NPC/Noa/Idle/", 257f),
+            // 노아 숨쉬기(윙크 첫 장에서 허리 위만 0~4px 들어 올린 5장): 같은 칸이라 같은 값.
+            ("Art/NPC/Noa/Breath/", 257f),
+            // 이시스(연습장 NPC, 8프레임 기사 시트, 362x498 칸)는 갑옷 기사라 플레이어(1.5)보다 조금 큰 약 1.8유닛 —
+            // 머리 장식~부츠 약 470px 기준. 숨쉬기(Breath 5장)는 첫 장에서 만든 같은 칸이라 같은 값.
+            ("Art/NPC/Isis/Idle/", 260f), ("Art/NPC/Isis/Breath/", 260f),
+            // 대장장이 엘리(애니 판타지 캐릭터 8프레임, 365x717 칸): 두건~부츠 약 680px가 예전 대기와 같은 약 1.8유닛이 되게 한다.
+            // 숨쉬기(Breath 5장)는 첫 장에서 만든 같은 칸이라 같은 값.
+            ("Art/NPC/Elly/Idle/", 379f), ("Art/NPC/Elly/Breath/", 379f),
             // 엔스룸 릴리: 프레임 키 538px가 약 1.8유닛(LilyNpc가 실제 높이로 다시 맞추지만 기본값도 비슷하게 둔다).
             ("Art/NPC/Lily/Idle/", 300f),
             // 연습장 허수아비: 배경에 그려진 허수아비보다 작아 보이지 않게 약 2.4유닛(프레임 키 약 739px).
@@ -136,6 +140,8 @@ namespace Aethoria.EditorTools
             // 아쿠아 흡입 모션(물의 여왕 흡인 소환 애니메이션 시트, 443px 칸): 칸 키가 대기 모션 칸(564px, 240)과 같은 실제 키가 되게 한다.
             // 흡입 깔때기(얼음빛 물 소용돌이)와 가두는 소용돌이(푸른 소용돌이 물마법)는 AquaAI가 원하는 크기로 다시 맞춘다.
             ("Art/Monsters/Aqua/Pull/", 190f),
+            // 아쿠아 사망 모션(물거품으로 사라지는 물의 여왕, 443px 칸): 흡입 시트와 같은 칸이라 같은 값으로 대기와 키를 맞춘다.
+            ("Art/Monsters/Aqua/Death/", 190f),
             // 알리아스 점프 내려찍기의 어둠의 마력 기둥(6프레임): 다 솟은 기둥 키 약 700px가 약 3.5유닛(알리아스보다 조금 크게)이 되게 한다.
             ("Art/Effects/AliasDarkPillar/", 200f),
             // 알리아스 검 꽂기(보랏빛 기사의 검 꽂기 연속 동작): 서 있는 1프레임 키 455px가 대기와 같은 키가 되게 한다.
@@ -200,6 +206,10 @@ namespace Aethoria.EditorTools
             ("Art/Effects/LunabelGiantOrb/", new Vector2(0.5f, 0.5f)),
             // 아쿠아가 플레이어를 가두는 둥근 소용돌이: 프레임마다 소용돌이 눈을 칸 가운데에 맞춰 잘랐다(가운데를 축으로 돌린다).
             ("Art/Effects/AquaVortex/", new Vector2(0.5f, 0.5f)),
+            // 루나벨 거대 기둥(진홍빛 혈마법 기둥 소용돌이, 320x548 칸): 프레임마다 바닥 빛의 가운데를 x 160, 위에서 508px에 맞춰 잘랐다.
+            // 그 아래 40px은 바닥에 비친 핏물이라 땅에 살짝 겹쳐 보인다.
+            ("Art/Effects/LunabelGiantPillarRise/", new Vector2(0.5f, 40f / 548f)),
+            ("Art/Effects/LunabelGiantPillarLoop/", new Vector2(0.5f, 40f / 548f)),
             // 알리아스 종막: 마검은 칼끝이 발판에 박히도록 키의 12% 위(칼끝보다 조금 위)가 기준점, 마법진·참격은 가운데,
             // 사슬 구속은 감긴 사슬 기둥의 아래 가운데(칸 556px 중 x 약 265px).
             ("Art/Effects/AliasRitualSword/", new Vector2(0.5f, 0.12f)), ("Art/Effects/AliasMagicCircle/", new Vector2(0.5f, 0.5f)),

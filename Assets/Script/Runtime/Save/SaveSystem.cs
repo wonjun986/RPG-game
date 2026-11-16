@@ -26,7 +26,9 @@ namespace Aethoria.Save
     [Serializable]
     public class SaveData
     {
-        public int version = 1;
+        // 2: 메인 퀘스트에 황금 모래룡(5번)과 아쿠아(7번)가 끼워 들어갔다. 1이면 불러올 때 퀘스트 번호를 옮긴다.
+        public const int CurrentVersion = 2;
+        public int version = CurrentVersion;
         public int level = 1;
         public int exp;
         public int gold;
@@ -174,13 +176,36 @@ namespace Aethoria.Save
 
             try
             {
-                return JsonUtility.FromJson<SaveData>(File.ReadAllText(SlotPath(slot)));
+                var data = JsonUtility.FromJson<SaveData>(File.ReadAllText(SlotPath(slot)));
+                if (data != null) Upgrade(data);
+                return data;
             }
             catch (Exception e)
             {
                 Debug.LogError($"Aethoria: 슬롯 {slot} 저장 파일을 읽지 못했습니다 - {e.Message}");
                 return null;
             }
+        }
+
+        // 예전 버전 세이브를 지금 형식으로 옮긴다(파일은 다음 저장 때 새 형식으로 덮어써진다).
+        private static void Upgrade(SaveData data)
+        {
+            if (data.version < 2)
+            {
+                // 버전 1의 메인 퀘스트: 0 슬라임, 1 보스 슬라임, 2 기사, 3 알리아스, 4 콜로서스, 5 심해 정령, 6 이리아, 7 루나벨.
+                // 5(황금 모래룡)와 7(아쿠아)이 끼워 들어가서 5번부터 뒤로 밀린다. 이미 지나온 지역이 다시 잠기지 않게,
+                // 예전 5번 이상에 있던 캐릭터는 새로 생긴 퀘스트를 건너뛴 자리로 옮긴다.
+                data.questIndex = ShiftV1QuestIndex(data.questIndex);
+                if (data.mapUnlockSeen >= 0) data.mapUnlockSeen = ShiftV1QuestIndex(data.mapUnlockSeen);
+            }
+            data.version = SaveData.CurrentVersion;
+        }
+
+        private static int ShiftV1QuestIndex(int index)
+        {
+            if (index <= 4) return index;
+            if (index == 5) return 6;
+            return index + 2;
         }
 
         private static void MigrateLegacySave()

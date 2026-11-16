@@ -82,7 +82,7 @@ namespace Aethoria.Bootstrap
         // 추격전에서 이기면 곧바로 이어지는 아쿠아 2차전: 배경이 흐르지 않는 바닷속 고정 투기장(AquaAI).
         // 화면 한 칸 폭이라 카메라가 움직이지 않는다. 쓰러지면 추격전이 아니라 2차전부터 다시 시작한다.
         private const int SeaArenaStage = -18;
-        private const int SeaArenaWidth = 14;
+        private const int SeaArenaWidth = 22; // 예전 14는 한 화면이라 피할 자리가 없어서 넓혔다(카메라가 좌우로 따라간다)
 
         // 마을에 들어올 때 서는 자리. Edge는 들어온 방향에 따라 왼쪽/오른쪽 끝, Center는 마을 한가운데(게임을 이어서 시작할 때).
         private enum VillageSpawn { Edge, Noa, Isis, Center }
@@ -1463,12 +1463,14 @@ namespace Aethoria.Bootstrap
             player.SetCombatLocked(false);
             PlacePlayerAtSpawn(xMin + 2.5f, yMin);
             FitCamera(xMin, xMax, yMin);
-            // 고정된 공간: 높이 뛰어도 카메라가 따라 올라가지 않는다(맵 폭이 화면 한 칸이라 좌우로도 움직이지 않는다).
+            // 높이 뛰어도 카메라가 따라 올라가지 않는다. 좌우로는 넓어진 투기장을 따라간다.
             var follow = Camera.main != null ? Camera.main.GetComponent<CameraFollow>() : null;
             if (follow != null) follow.Follow(player.transform, xMin, xMax, yMin + 4f * 0.6f, yMin, 0f);
 
             SpawnPlatform(stageRoot.transform, "sea_slab_wide", xMin + 2.6f, yMin + 2.3f, 58, BlueSeaPropFolder);
             SpawnPlatform(stageRoot.transform, "sea_slab_wide", xMax - 1.6f, yMin + 2.3f, 58, BlueSeaPropFolder);
+            // 넓어진 가운데에도 발판을 하나 더 둬서, 드릴을 위로 피하거나 아쿠아를 넘어갈 디딤돌로 쓴다.
+            SpawnPlatform(stageRoot.transform, "sea_slab_wide", (xMin + xMax + 1) / 2f, yMin + 2.6f, 58, BlueSeaPropFolder);
             SpawnAqua(stageRoot.transform, xMin, xMax, yMin);
 
             var stageManagerGO = new GameObject("StageManager");

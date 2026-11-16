@@ -65,6 +65,7 @@ namespace Aethoria.Characters
         [SerializeField] private float gateFrontDistance = 3.2f;
         [SerializeField] private float roarShakeDuration = 0.6f;
         [SerializeField] private float roarShakeMagnitude = 0.35f;
+        [SerializeField] private float roarShockwaveSize = 14f;   // 포효 충격파 고리 지름(악룡이 커서 모래룡 포효 11보다 크게)
         // 기본 화면(orthographicSize 4)은 바닥 위로 5.6유닛까지만 보여서 거대한 문과 악룡이 잘린다. 소환하는 동안 화면을 넓혀
         // 바닥 위 약 7.7유닛까지 보이게 하고, 네크로시아와 문 사이를 비춘다. 문이 가라앉고 나면 원래 크기로 되돌린다.
         [SerializeField] private float summonCameraSize = 5.5f;
@@ -74,6 +75,8 @@ namespace Aethoria.Characters
         // 날개를 편 악룡은 폭 약 11유닛이 된다. 임포트 설정이 달라도 이 값으로 맞춰 그린다.
         private static readonly Vector2 GateAnchorPixel = new Vector2(290f, 19f);
         private const float GatePixelsPerUnit = 50f;
+        // 포효 프레임(589x374 칸, 아래 왼쪽 기준)에서 입을 크게 벌린 자리. 충격파가 여기서 퍼진다.
+        private static readonly Vector2 RoarMouthPixel = new Vector2(340f, 289f);
         private const int GateSortingOrder = -1; // 배경/발판(-5 이하)보다 앞, 캐릭터(0)보다 뒤
 
         [Header("연출: 땅을 타고 번지는 충격파 폭발 / 에너지 기둥")]
@@ -306,6 +309,7 @@ namespace Aethoria.Characters
                 {
                     if (cameraFollow != null) cameraFollow.Shake(roarShakeDuration, roarShakeMagnitude);
                     SfxPlayer.Play(SfxPlayer.SandDragonRoar);
+                    RoarShockwave(summon);
                 }
                 yield return new WaitForSeconds(roarFrameDuration);
             }
@@ -538,6 +542,27 @@ namespace Aethoria.Characters
 
         // 프레임 임포트 PPU/기준점이 무엇이든 pixelsPerUnit 크기로 그리고, anchorPixel(아래 왼쪽에서 잰 픽셀)이
         // 부모 위치(땅 위 한 점)에 오게 한다. 좌우가 뒤집혀 있으면 기준 픽셀도 반대쪽으로 잰다.
+        // 입을 가장 크게 벌린 순간, 모래룡 포효처럼 입에서 보랏빛 충격파 고리가 연달아 퍼지고 화면이 한 번 번쩍인다.
+        private void RoarShockwave(SpriteRenderer summon)
+        {
+            Transform anchor = summon.transform.parent != null ? summon.transform.parent : summon.transform;
+            Vector2 mouth = RoarMouthPixel - GateAnchorPixel;
+            if (summon.flipX) mouth.x = -mouth.x;
+            Vector3 origin = anchor.position + (Vector3)(mouth / GatePixelsPerUnit);
+            ShockwaveBurst.Play(this, origin, null, new ShockwaveBurst.Settings
+            {
+                rings = 4,
+                interval = 0.14f,
+                duration = 0.75f,
+                maxSize = roarShockwaveSize,
+                squash = 0.8f,
+                ringColor = new Color(0.8f, 0.5f, 1f, 0.85f),
+                flashColor = new Color(0.75f, 0.45f, 1f, 0.4f),
+                flashDuration = 0.35f,
+                sortingOrder = 55,
+            });
+        }
+
         private static void SetAnchoredFrame(SpriteRenderer renderer, Sprite frame, Vector2 anchorPixel, float pixelsPerUnit)
         {
             renderer.sprite = frame;

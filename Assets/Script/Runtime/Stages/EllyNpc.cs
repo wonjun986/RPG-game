@@ -17,8 +17,13 @@ namespace Aethoria.Stages
         // 초상화 오른쪽, 이름판 왼쪽 끝(그림 x 약 650px)에서 대사를 시작한다.
         private const float TalkTextLeft = 0.3f;
 
+        // 대기 모션: 숨쉬기(Breath 5장, 눈 깜빡임 시트 첫 장에서 허리 위만 0~6px 들어 올린 그림)를 1→5→1로 오가며 숨을 쉬고,
+        // 숨을 다 내쉰 순간에 가끔 눈을 깜빡인다(Idle 8장 — 애니 판타지 캐릭터 8프레임 스프라이트 시트, NpcIdleAnimation).
         [SerializeField] private string resourcesPath = "Art/NPC/Elly/Idle";
-        [SerializeField] private float frameInterval = 0.5f;
+        [SerializeField] private string breathResourcesPath = "Art/NPC/Elly/Breath";
+        [SerializeField] private float breathPeriod = 3.4f;    // 한 번 들이쉬고 내쉬는 데 걸리는 시간(초)
+        [SerializeField] private float frameInterval = 0.12f;  // 깜빡임 한 장 시간
+        [SerializeField] private float blinkInterval = 4.5f;   // 깜빡임 사이 평균 간격(초)
         [SerializeField] private float interactRadius = 2f;
         [SerializeField] private float promptHeight = 2.1f;
         [SerializeField] private float talkDuration = 3.5f;
@@ -45,9 +50,7 @@ namespace Aethoria.Stages
         };
 
         private SpriteRenderer spriteRenderer;
-        private Sprite[] frames;
-        private int frameIndex;
-        private float animTimer;
+        private NpcIdleAnimation idleAnimation;
         private Transform player;
         private CharacterMovement2D playerMovement;
         private NpcDialogueUI dialogueUI;
@@ -79,12 +82,12 @@ namespace Aethoria.Stages
         {
             spriteRenderer = GetComponent<SpriteRenderer>();
 
-            frames = Resources.LoadAll<Sprite>(resourcesPath);
-            if (frames != null && frames.Length > 0)
+            idleAnimation = new NpcIdleAnimation(spriteRenderer, resourcesPath, breathResourcesPath)
             {
-                System.Array.Sort(frames, (a, b) => string.CompareOrdinal(a.name, b.name));
-                spriteRenderer.sprite = frames[0];
-            }
+                BreathPeriod = breathPeriod,
+                BlinkFrameTime = frameInterval,
+                BlinkInterval = blinkInterval,
+            };
 
             CreatePrompt();
         }
@@ -116,21 +119,9 @@ namespace Aethoria.Stages
 
         private void Update()
         {
-            AdvanceIdleFrame();
+            idleAnimation?.Tick(Time.deltaTime);
             UpdateProximity();
             UpdateInteraction();
-        }
-
-        private void AdvanceIdleFrame()
-        {
-            if (frames == null || frames.Length == 0) return;
-
-            animTimer += Time.deltaTime;
-            if (animTimer < frameInterval) return;
-
-            animTimer -= frameInterval;
-            frameIndex = (frameIndex + 1) % frames.Length;
-            spriteRenderer.sprite = frames[frameIndex];
         }
 
         private void UpdateProximity()

@@ -36,6 +36,11 @@ namespace Aethoria.Monsters
         private const string PullPath = "Art/Monsters/Aqua/Pull";
         private const string StreamPath = "Art/Effects/AquaTornado";
         private const string TrapPath = "Art/Effects/AquaVortex";
+        // 사망 모션(물거품으로 사라지는 물의 여왕, 8장): 쓰러진 뒤 대사가 끝나면 한 번 재생한다.
+        private const string DeathPath = "Art/Monsters/Aqua/Death";
+        private const float DeathAnimDuration = 1.8f;
+        private const float DeathRiseSpeed = 0.3f;   // 흩어지는 동안 천천히 떠오르는 속도(유닛/초)
+        private const float DeathFadeTime = 0.5f;    // 마지막 장(물방울)이 옅어지는 시간
         // 흡입 모션(8장)은 앞 네 장이 손을 내미는 동작, 뒤 네 장이 손끝에 소용돌이가 휘도는 동작이다.
         private const int PullLoopFirstFrame = 4;
         // 흡입 모션에서 내민 손끝(소용돌이 가운데)은 그림 기준점(아래 가운데)보다 앞쪽 1.31, 위 2.15유닛에 있다(443px 칸의 (393, 161)).
@@ -56,6 +61,8 @@ namespace Aethoria.Monsters
         [Header("이동")]
         [SerializeField] private float moveSpeed = 2.6f;
         [SerializeField] private float keepDistance = 4f;
+        [SerializeField] private float restDriftSpeed = 1.6f;  // 쉬는 동안 자리를 옮기는 속도(걷기 4보다 느려 따라잡을 수 있다)
+        private const float ReferenceArenaWidth = 14f;         // 드릴 돌진 시간(drillDuration)을 맞춰 둔 예전 투기장 폭
         [SerializeField] private float edgeMargin = 1.6f;
         [SerializeField] private float bobAmplitude = 0.12f;
         [SerializeField] private float restPhaseOne = 1.5f;
@@ -192,6 +199,7 @@ namespace Aethoria.Monsters
         private Sprite[] pullLoopFrames;
         private Sprite[] streamFrames;
         private Sprite[] trapFrames;
+        private Sprite[] deathFrames;
         private Rigidbody2D targetBody;
         private CharacterSkillDash targetDash;
         // 흡입/가두기가 플레이어에게 걸어 둔 상태. 패턴이 중간에 끊겨도(아쿠아가 쓰러짐 등) ReleasePlayer로 되돌린다.
@@ -271,6 +279,7 @@ namespace Aethoria.Monsters
             Array.Copy(pull, split, pullLoopFrames, 0, pullLoopFrames.Length);
             streamFrames = LoadSorted(StreamPath);
             trapFrames = LoadSorted(TrapPath);
+            deathFrames = LoadSorted(DeathPath);
             if (idleFrames.Length > 0) spriteRenderer.sprite = idleFrames[0];
         }
 
@@ -372,28 +381,35 @@ namespace Aethoria.Monsters
 
         private Vector2 PlayerCenter => targetCollider != null ? (Vector2)targetCollider.bounds.center : (Vector2)target.transform.position + Vector2.up * 0.75f;
 
-        // 네크로시아와 keepDistance만큼 떨어진 자리(지금 있는 쪽)로 떠다니며 기다린다.
+        // 쉬는 동안 떠다닐 자리를 처음에 한 번 정하고 그쪽으로 천천히 떠간다. 예전에는 네크로시아가 다가오는 만큼 매 프레임
+        // 뒤로 물러나서 따라붙거나 뛰어넘을 수가 없었다 — 이제는 다가와도 그 자리에 머물러, 붙어서 때리거나 넘어갈 수 있다.
+        // 너무 멀리 떨어지면(keepDistance의 2배 넘게) 그때만 다시 다가간다.
         private IEnumerator Rest(float duration)
         {
+            float desiredX = PickRestX();
             for (float t = 0f; t < duration && !monster.IsDead; t += Time.deltaTime)
             {
                 if (!monster.IsImmobilized && target != null)
                 {
-                    float px = target.transform.position.x;
-                    float side = Center.x >= px ? 1f : -1f;
-                    float desiredX = Mathf.Clamp(px + side * keepDistance, arenaMinX + edgeMargin, arenaMaxX - edgeMargin);
-                    // 벽에 몰리면 반대편으로 넘어간다.
-                    if (Mathf.Abs(desiredX - px) < keepDistance * 0.6f)
-                        desiredX = Mathf.Clamp(px - side * keepDistance, arenaMinX + edgeMargin, arenaMaxX - edgeMargin);
+                    if (Mathf.Abs(Center.x - target.transform.position.x) > keepDistance * 2f) desiredX = PickRestX();
                     bobTime += Time.deltaTime;
                     var center = Center;
-                    center.x = Mathf.MoveTowards(center.x, desiredX, moveSpeed * Time.deltaTime);
+                    center.x = Mathf.MoveTowards(center.x, desiredX, restDriftSpeed * Time.deltaTime);
                     center.y = Mathf.MoveTowards(center.y, HoverCenterY + Mathf.Sin(bobTime * 2.2f) * bobAmplitude, moveSpeed * Time.deltaTime);
                     SetCenter(center);
                 }
                 FacePlayer();
                 yield return null;
             }
+        }
+
+        // 지금 있는 쪽에서 네크로시아와 keepDistance쯤 떨어진 자리. 이미 그 안쪽이면 제자리에 머문다(물러나지 않는다).
+        private float PickRestX()
+        {
+            float px = target != null ? target.transform.position.x : Center.x;
+            float side = Center.x >= px ? 1f : -1f;
+            float x = Mathf.Abs(Center.x - px) <= keepDistance ? Center.x : px + side * keepDistance;
+            return Mathf.Clamp(x, arenaMinX + edgeMargin, arenaMaxX - edgeMargin);
         }
 
         // ── 등장 / 2페이즈 / 퇴장 ──────────────────────────────
@@ -464,17 +480,31 @@ namespace Aethoria.Monsters
             dialogueUI?.Hide();
             talking = false;
 
-            // 물거품처럼 옅어지며 떠오른다.
+            // 물거품으로 흩어지는 사망 모션(Death 8장)을 한 번 재생하며 천천히 떠오르고, 마지막 장의 물방울이 옅어지며 사라진다.
+            enabled = false; // Update가 그림/색을 덮어쓰지 않게 여기서 직접 넘긴다
+            spriteRenderer.color = BaseColor;
             Vector2 start = Center;
-            for (float t = 0f; t < 1.2f; t += Time.deltaTime)
+            if (deathFrames.Length > 0)
             {
-                SetCenter(start + Vector2.up * (t * 0.8f));
+                for (float t = 0f; t < DeathAnimDuration; t += Time.deltaTime)
+                {
+                    int index = Mathf.Min(deathFrames.Length - 1, Mathf.FloorToInt(t / DeathAnimDuration * deathFrames.Length));
+                    spriteRenderer.sprite = deathFrames[index];
+                    SetCenter(start + Vector2.up * (t * DeathRiseSpeed));
+                    yield return null;
+                }
+                start = Center;
+            }
+            float fadeTime = deathFrames.Length > 0 ? DeathFadeTime : 1.2f;
+            for (float t = 0f; t < fadeTime; t += Time.deltaTime)
+            {
+                SetCenter(start + Vector2.up * (t * DeathRiseSpeed));
                 var color = spriteRenderer.color;
-                color.a = 1f - t / 1.2f;
+                color.a = 1f - t / fadeTime;
                 spriteRenderer.color = color;
-                enabled = false; // Update가 색을 덮어쓰지 않게
                 yield return null;
             }
+            spriteRenderer.color = Color.clear;
             yield return SeaChaseController.FadeTo(fade, 1f, 0.8f);
             targetMovement?.SetCutsceneLocked(false);
             onFinished?.Invoke();
@@ -534,9 +564,11 @@ namespace Aethoria.Monsters
             PlayPose(drillLoopFrames, 0.3f, loops: true);
             float fromX = Center.x;
             float toX = dir > 0f ? arenaMaxX + drillTravelMargin : arenaMinX - drillTravelMargin;
-            for (float t = 0f; t < drillDuration; t += Time.deltaTime)
+            // 투기장이 넓어져도 돌진 속도는 예전(폭 14) 그대로 — 거리에 비례해 시간을 늘린다.
+            float duration = drillDuration * Mathf.Max(1f, (arenaMaxX - arenaMinX) / ReferenceArenaWidth);
+            for (float t = 0f; t < duration; t += Time.deltaTime)
             {
-                SetCenter(new Vector2(Mathf.Lerp(fromX, toX, t / drillDuration), centerY));
+                SetCenter(new Vector2(Mathf.Lerp(fromX, toX, t / duration), centerY));
                 CheckDrillHit();
                 yield return null;
             }
