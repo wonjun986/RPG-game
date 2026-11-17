@@ -155,6 +155,9 @@ namespace Aethoria.EditorTools
             // 궁극기 소환: 땅에서 솟는 악마의 문(문틀 키 342px)이 약 6.8유닛(네크로시아 키의 4배 남짓), 날개를 편 악룡은 폭 약 11유닛.
             // (CharacterSkillR이 그릴 때 같은 크기로 다시 맞추므로 이 값이 달라도 게임 속 크기는 같다.)
             ("Art/Effects/UltGate/", 50f), ("Art/Effects/UltDragon/", 50f),
+            // Q스킬 차원 참격: 차원 균열(보랏빛 차원 균열 시트, 462x708 칸)은 키 약 1.8유닛(네크로시아보다 조금 크게),
+            // 보랏빛 참격(보랏빛 마법 참격 시퀀스, 555x608 칸)은 키 약 1.6유닛.
+            ("Art/Effects/VoidRift/", 400f), ("Art/Effects/VoidSlash/", 380f),
         };
 
         // 대부분의 캐릭터/이펙트 스프라이트는 바닥에 서 있는 기준(BottomCenter)이 맞지만,
@@ -220,6 +223,8 @@ namespace Aethoria.EditorTools
             // 꽂은 뒤 대기(378x476 칸, 프레임마다 갑옷 위치를 맞춰 잘랐다): FinalePlant 마지막 프레임의 기준점 자리
             // (칼날에서 뒤쪽 62px, 부츠 아래 11px)에 맞춘 점.
             ("Art/Monsters/BossKnight/FinalePlantIdle/", new Vector2(226f / 378f, 18f / 476f)),
+            // 차원 균열·보랏빛 참격: 시트에서 프레임마다 그림 한가운데를 칸 가운데에 맞춰 잘랐다.
+            ("Art/Effects/VoidRift/", new Vector2(0.5f, 0.5f)), ("Art/Effects/VoidSlash/", new Vector2(0.5f, 0.5f)),
         };
 
         // 화면을 꽉 채울 만큼 크게 키워 쓰는 그림은 Point로 두면 픽셀이 네모나게 드러나서 부드럽게 늘린다.

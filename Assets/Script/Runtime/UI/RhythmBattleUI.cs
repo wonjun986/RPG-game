@@ -3177,7 +3177,7 @@ namespace Aethoria.UI
             while (!BattleEnded())
             {
                 var keyboard = Keyboard.current;
-                if (keyboard != null && (keyboard.zKey.wasPressedThisFrame || keyboard.enterKey.wasPressedThisFrame)) yield break;
+                if (NpcDialogueUI.AdvancePressed(keyboard, allowEnter: true)) yield break; // 타이핑 마저 보여 주기/다음 장은 대화창이 먼저 쓴다
                 yield return null;
             }
         }

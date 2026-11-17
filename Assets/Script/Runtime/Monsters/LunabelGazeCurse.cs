@@ -262,8 +262,7 @@ namespace Aethoria.Monsters
         {
             var keyboard = Keyboard.current;
             if (keyboard == null) return false;
-            return keyboard.zKey.wasPressedThisFrame || keyboard.enterKey.wasPressedThisFrame
-                || keyboard.numpadEnterKey.wasPressedThisFrame;
+            return NpcDialogueUI.AdvancePressed(keyboard, allowEnter: true); // 타이핑 마저 보여 주기/다음 장은 대화창이 먼저 쓴다
         }
 
         private static IEnumerator Fade(System.Action<float> apply, float from, float to, float duration)

@@ -47,6 +47,7 @@ namespace Aethoria.Characters
 
         public float CooldownRemaining => cooldownRemaining;
         public float Cooldown => cooldown;
+        public float ManaCost => manaCost;
 
         public void ResetCooldown() => cooldownRemaining = 0f;
 
@@ -76,6 +77,7 @@ namespace Aethoria.Characters
         private void TryUseSkill()
         {
             if (character.IsCombatLocked) return;
+            if (!SkillBook.Allows(this, "W")) return; // 아직 익히지 않은 스킬(SkillBook)
             if (!movement.IsGrounded) return; // 공중에서는 공격과 스킬을 쓸 수 없다
             if (isBusy || cooldownRemaining > 0f) return;
             if (!character.TrySpendMana(manaCost)) return;

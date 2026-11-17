@@ -9,7 +9,7 @@ using Aethoria.Quests;
 
 namespace Aethoria.UI
 {
-    // 테스트용 관리자 모드. F1로 화면 오른쪽에 명령 목록을 여닫고, 열려 있는 동안 F2~F12로 바로 실행한다.
+    // 테스트용 관리자 모드. F1로 화면 오른쪽에 명령 목록을 여닫고, 열려 있는 동안 F2~F12(와 Home)로 바로 실행한다.
     // 숫자/Z/X 키는 NPC 대화·리듬 전투와 겹치므로 기능 키만 쓴다. 순간이동(F8)은 목록을 펼친 뒤
     // PageUp/PageDown 으로 고르고 F8을 한 번 더 눌러 이동한다. 창이 떠 있어도 게임은 멈추지 않는다.
     public class AdminUI : MonoBehaviour
@@ -58,7 +58,7 @@ namespace Aethoria.UI
             rect.anchorMax = new Vector2(1f, 0.5f);
             rect.pivot = new Vector2(1f, 0.5f);
             rect.anchoredPosition = new Vector2(-12f, 0f);
-            rect.sizeDelta = new Vector2(360f, 660f);
+            rect.sizeDelta = new Vector2(360f, 690f);
             var image = panel.GetComponent<Image>();
             image.color = new Color(0.05f, 0.03f, 0.08f, 0.88f);
             image.raycastTarget = false;
@@ -111,8 +111,16 @@ namespace Aethoria.UI
             }
             else if (keyboard.f3Key.wasPressedThisFrame)
             {
-                player.LevelUp();
+                // Shift를 누른 채면 한 번에 10레벨을 올린다(이시스에게 배울 기술의 레벨 조건을 빨리 확인할 때).
+                int levels = keyboard.shiftKey.isPressed ? 10 : 1;
+                for (int i = 0; i < levels; i++) player.LevelUp();
                 ShowMessage($"레벨 {player.Level}");
+            }
+            else if (keyboard.homeKey.wasPressedThisFrame)
+            {
+                var skillBook = player.GetComponent<SkillBook>();
+                if (skillBook != null) skillBook.LearnAll();
+                ShowMessage("스킬 모두 해금", skillBook != null);
             }
             else if (keyboard.f4Key.wasPressedThisFrame)
             {
@@ -277,7 +285,8 @@ namespace Aethoria.UI
             sb.AppendLine("<b><color=#E8C94A>관리자 모드</color></b>   <size=13>[F1] 닫기</size>");
             sb.AppendLine();
             sb.AppendLine($"[F2] 골드 +{GoldAmount:N0}   <size=13>(보유 {player.Gold:N0})</size>");
-            sb.AppendLine($"[F3] 레벨 +1   <size=13>(현재 {player.Level})</size>");
+            sb.AppendLine($"[F3] 레벨 +1  <size=13>/ Shift+F3 +10  (현재 {player.Level})</size>");
+            sb.AppendLine("[Home] 스킬 모두 해금");
             sb.AppendLine("[F4] 체력/마나 회복");
             sb.AppendLine($"[F5] 무적   {(player.GodMode ? "<color=#73F27F>ON</color>" : "<color=#888888>OFF</color>")}");
             sb.AppendLine("[F6] 적 즉사 <size=13>(전투 중: 상대 / 밖: 맵 전체)</size>");

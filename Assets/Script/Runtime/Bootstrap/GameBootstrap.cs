@@ -42,7 +42,7 @@ namespace Aethoria.Bootstrap
         private const string RuinsBgmPath = "Audio/Bgm/ruins";
         // 연습장: 마을의 이시스에게 말을 걸어 들어가는 허수아비 맵. 몬스터도 경험치도 없고 마나/체력이 계속 가득 찬다.
         private const int PracticeStage = -4;
-        private const int PracticeWidth = 28;
+        private const int PracticeWidth = 20; // 배경 그림(배율 1에서 폭 20.48) 한 장으로 덮이게 — 좌우 반전 복사본을 붙이지 않는다
         // 잊혀진 폐허: 평야처럼 월드맵에서 바로 들어가는 3연속 필드(-5 → -6 → -7). 첫 맵만 폐허 입구 배경이고,
         // 그 뒤로는 평평한 폐허 마당 배경이 이어진다. 떠 있는 발판 배치는 세 맵이 모두 다르다.
         private const int RuinsStage1 = -5;
@@ -104,6 +104,8 @@ namespace Aethoria.Bootstrap
         private static ShopUI shopUI;
         private static EnhanceUI enhanceUI;
         private static BlessingUI blessingUI;
+        private static SkillLearnUI skillLearnUI;
+        private static QuestTrackerUI questTrackerUI;
         private static BestiaryUI bestiaryUI;
         private static QuestManager questManager;
         private static DailyQuestManager dailyQuestManager;
@@ -184,6 +186,10 @@ namespace Aethoria.Bootstrap
                 inventory.RestoreEquipped(save.equipped);
                 inventory.RestoreEnhanceLevels(save.enhanceLevels);
                 player.RestoreBlessingLevel(save.blessingLevel);
+                // 스킬 배우기가 생기기 전의 세이브는 이미 모든 스킬을 쓰던 캐릭터라 전부 익힌 채로 시작한다.
+                var skillBook = player.GetComponent<SkillBook>();
+                if (save.skillBookSaved) skillBook.Restore(save.learnedSkills);
+                else skillBook.LearnAll();
             }
 
             BuildHud(player);
@@ -269,6 +275,8 @@ namespace Aethoria.Bootstrap
                 isisFirstMeetingPending = isisFirstMeetingPending,
                 mapUnlockSeen = worldMapUI != null ? worldMapUI.UnlockSeen : 0,
                 bestiaryKills = Bestiary.ToSaveEntries(),
+                learnedSkills = player.GetComponent<SkillBook>().ToSaveEntries(),
+                skillBookSaved = true,
             });
             saveToast?.Show();
             return true;
@@ -301,6 +309,8 @@ namespace Aethoria.Bootstrap
             shopUI = null;
             enhanceUI = null;
             blessingUI = null;
+            skillLearnUI = null;
+            questTrackerUI = null;
             bestiaryUI = null;
             questManager = null;
             dailyQuestManager = null;
@@ -513,6 +523,8 @@ namespace Aethoria.Bootstrap
             // 끊어두고, 보스 스테이지면 SpawnBoss에서 다시 Bind해서 보여준다.
             bossHealthUI.Hide();
             stageClearUI.Cancel();
+            // 튜토리얼 숲에서는 오른쪽 위 퀘스트를 숨기고, 숲을 나와 마을에 들어오면 띄운다.
+            questTrackerUI?.SetSuppressed(currentStage == TutorialStage);
             // 알리아스 보스 맵에 들어오면 보스전 곡을 처음부터 튼다. 3분 넘게 싸워 곡이 끝나면 도입부를 건너뛰고 15초부터 되풀이한다.
             // 마을은 마을 곡을 끝까지 듣고 처음부터 되풀이한다(마을 안에서 맵을 다시 지어도 끊지 않고 이어서 튼다).
             if (currentStage == BossStage) BgmPlayer.Play(AliasBossBgmPath, AliasBossBgmLoopStart);
@@ -1450,9 +1462,9 @@ namespace Aethoria.Bootstrap
         }
 
         // 아쿠아 2차전 투기장: 무너진 해저 신전 유적(1672x941) — 석상과 삼지창 깃발이 선 신전 앞 돌바닥 광장.
-        // 광장 윗면이 그림 위에서 712~795px라, 앞쪽 가장자리보다 조금 안쪽(785px)을 바닥으로 삼는다.
+        // 광장 윗면이 그림 위에서 712~795px다. 785px로 두니 캐릭터가 돌바닥에 파묻혀 보여서 조금 더 안쪽(765px)을 바닥으로 삼는다.
         // 양옆에 낮은 돌판 발판을 두어 바닥을 훑는 드릴을 피할 수 있게 한다.
-        private const float SeaArenaGroundFraction = 785f / 941f;
+        private const float SeaArenaGroundFraction = 765f / 941f;
 
         private static void BuildSeaArena()
         {
@@ -1746,7 +1758,7 @@ namespace Aethoria.Bootstrap
             isisGO.transform.SetParent(parent);
             isisGO.transform.position = new Vector3(IsisX, floorY - IsisSink, 0f);
             var isis = isisGO.AddComponent<IsisNpc>();
-            isis.Initialize(player.transform, npcDialogueUI, inventoryUI);
+            isis.Initialize(player.transform, npcDialogueUI, inventoryUI, skillLearnUI);
             // 새 게임에서 처음 말을 걸면 연습장 입장 질문 전에 스토리 대사가 먼저 나온다. 다 보면 기록하고 저장한다.
             if (isisFirstMeetingPending)
             {
@@ -1795,14 +1807,20 @@ namespace Aethoria.Bootstrap
         }
 
         // 연습장: 왼쪽 끝 포탈로 마을(이시스 앞)로 돌아간다. 허수아비는 절대 쓰러지지 않고, 머무는 동안 마나/체력이 계속 가득 찬다.
-        // 배경(Practice_room) 속 반들반들한 바닥 한가운데가 그림 위에서 약 74% 높이라 그 줄을 바닥으로 삼는다.
-        private const float PracticeGroundFraction = 0.74f;
-        private static readonly float[] DummyXs = { -3f, 1f, 5f, 9f };
+        // 배경(TrainingHall — Sprite/Map Sprite/Backgrounds/고딕 성당의 보랏빛 훈련장, 1774x887): 허수아비가 선 뒤쪽보다 조금 앞,
+        // 반들반들한 돌바닥 가운데(그림 위에서 약 755px)를 바닥으로 삼는다.
+        private const float PracticeGroundFraction = 755f / 887f;
+        // 1.2배: 그림 아래끝이 화면 아래끝(카메라 높이 바닥+2.4, 크기 4 → 바닥 아래 1.6)까지 덮이는 가장 작은 크기이고,
+        // 난간이 캐릭터 허리께에 와서 비율도 자연스럽다. 그림 폭(약 21유닛)이 맵 폭(20)을 한 장으로 덮어 좌우 반전 복사본은
+        // 붙지 않고, 그림 위끝도 화면 위끝보다 한참 높아 위로 늘린 하늘(어색하게 늘어져 보였다)도 붙이지 않는다.
+        private const float PracticeBackgroundScale = 1.2f;
+        // 배경 그림 속 허수아비(약 -0.9, 1.5, 3.9, 6.3)와 겹쳐 둘로 보이지 않게 그 사이에 세운다.
+        private static readonly float[] DummyXs = { 0.3f, 5.1f };
 
         private static void BuildPracticeRoom()
         {
             BuildMap(stageRoot.transform, PracticeWidth, MapHeight, out int xMin, out int xMax, out int yMin, out int yMax,
-                "Backgrounds/practice_room", PracticeGroundFraction);
+                "Backgrounds/TrainingHall", PracticeGroundFraction, PracticeBackgroundScale, skyExtension: false);
             mapXMin = xMin; mapXMax = xMax; mapYMin = yMin; mapYMax = yMax;
 
             player.SetCombatLocked(false);
@@ -1841,6 +1859,8 @@ namespace Aethoria.Bootstrap
                 var collider = go.AddComponent<BoxCollider2D>();
                 collider.size = new Vector2(1.2f, 2.2f);
                 collider.offset = new Vector2(0f, 1.1f);
+                // 플레이어가 머리 위에 올라서지 못하게 트리거로 둔다(공격/스킬 판정은 트리거도 잡으므로 그대로 맞는다).
+                collider.isTrigger = true;
 
                 // 중력/넉백으로 밀려나지 않게 고정한다(사슬로 끌어오는 것처럼 위치를 직접 옮기는 스킬은 그대로 먹힌다).
                 var body = go.AddComponent<Rigidbody2D>();
@@ -1859,14 +1879,14 @@ namespace Aethoria.Bootstrap
         }
 
         private static void BuildMap(Transform parent, int width, int height, out int xMin, out int xMax, out int yMin, out int yMax,
-            string backgroundResourcePath, float groundFraction, float backgroundScale = 0f)
+            string backgroundResourcePath, float groundFraction, float backgroundScale = 0f, bool skyExtension = true)
         {
             xMin = -width / 2;
             xMax = xMin + width - 1;
             yMin = -height / 2;
             yMax = yMin + height - 1;
 
-            BuildMapBackground(parent, xMin, xMax, yMin, backgroundResourcePath, groundFraction, backgroundScale);
+            BuildMapBackground(parent, xMin, xMax, yMin, backgroundResourcePath, groundFraction, backgroundScale, skyExtension: skyExtension);
             BuildBoundaryWalls(parent, xMin, xMax, yMin, yMax);
         }
 
@@ -1885,7 +1905,7 @@ namespace Aethoria.Bootstrap
         // fixedScale > 0이면 그 배율을 그대로 쓴다(그림 속 건물이 캐릭터에 비해 너무 커 보일 때). 그러면 맵 폭을
         // 다 못 덮을 수 있어서, 좌우 반전한 복사본을 양옆에 이어 붙여 이음매 없이 채운다.
         private static void BuildMapBackground(Transform parent, int xMin, int xMax, int yMin,
-            string backgroundResourcePath, float groundFraction, float fixedScale = 0f, int sortingOrder = -10)
+            string backgroundResourcePath, float groundFraction, float fixedScale = 0f, int sortingOrder = -10, bool skyExtension = true)
         {
             bool isMainBackground = sortingOrder == -10;
             if (isMainBackground) backgroundTopAboveFloor = 0f;
@@ -1908,7 +1928,7 @@ namespace Aethoria.Bootstrap
             float scaledHeight = nativeSize.y * scale;
             float centerY = yMin + scaledHeight * (groundFraction - 0.5f);
             // 메인 배경은 그림 위끝 몇 줄을 위로 길게 늘린 하늘을 덧대서, 이단 점프로 카메라가 올라가도 맵이 잘려 보이지 않게 한다.
-            Sprite skySprite = isMainBackground ? CreateSkyExtensionSprite(sprite) : null;
+            Sprite skySprite = isMainBackground && skyExtension ? CreateSkyExtensionSprite(sprite) : null;
             if (isMainBackground)
                 backgroundTopAboveFloor = scaledHeight * groundFraction + (skySprite != null ? SkyExtensionHeight : 0f);
 
@@ -2059,6 +2079,10 @@ namespace Aethoria.Bootstrap
             blessingUI = canvasGO.AddComponent<BlessingUI>();
             blessingUI.Initialize(player, player.GetComponent<CharacterMovement2D>());
 
+            // 이시스에게 기술을 배우는 화면. 하나 배울 때마다 저장한다.
+            skillLearnUI = canvasGO.AddComponent<SkillLearnUI>();
+            skillLearnUI.Initialize(player, player.GetComponent<CharacterMovement2D>(), SaveGame);
+
             bestiaryUI = canvasGO.AddComponent<BestiaryUI>();
             bestiaryUI.Initialize(player.GetComponent<CharacterMovement2D>());
 
@@ -2070,7 +2094,8 @@ namespace Aethoria.Bootstrap
             questManager.Initialize(player, QuestDatabase.CreateMainLine());
             // 월드맵 지역은 메인 퀘스트(스토리) 진행에 맞춰 열린다.
             worldMapUI.SetQuestManager(questManager);
-            canvasGO.AddComponent<QuestTrackerUI>().Initialize(questManager);
+            questTrackerUI = canvasGO.AddComponent<QuestTrackerUI>();
+            questTrackerUI.Initialize(questManager);
 
             dailyQuestManager = canvasGO.AddComponent<DailyQuestManager>();
             dailyQuestManager.Initialize(player, DailyQuestDatabase.CreatePool());
@@ -2131,6 +2156,7 @@ namespace Aethoria.Bootstrap
             character.AssignData(data);
             go.AddComponent<HitReactSpriteAnimator>();
             go.AddComponent<Inventory>();
+            go.AddComponent<SkillBook>();
             // 필드에서 직접 싸우는 실시간 전투: 기본 공격 + 스킬(마나/쿨타임은 PlayerHUD에 표시).
             go.AddComponent<CharacterAttack2D>();
             go.AddComponent<CharacterSkillDash>();

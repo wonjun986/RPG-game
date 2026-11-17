@@ -65,6 +65,9 @@ namespace Aethoria.Save
         public int mapUnlockSeen = -1;
         // 릴리의 몬스터 도감: 몬스터 이름(itemId 자리)별 처치 수. 이 값이 없던 예전 세이브는 빈 도감에서 시작한다.
         public List<ItemSaveEntry> bestiaryKills = new();
+        // 익힌 스킬 키(A/S/D/Q/W/E/R, SkillBook). skillBookSaved가 false인 예전 세이브는 모든 스킬을 익힌 것으로 본다.
+        public List<string> learnedSkills = new();
+        public bool skillBookSaved;
         public string savedAt;
     }
 

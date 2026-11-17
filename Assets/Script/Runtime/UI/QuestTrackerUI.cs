@@ -12,6 +12,14 @@ namespace Aethoria.UI
         private GameObject panel;
         private Text titleText;
         private Text progressText;
+        // 튜토리얼 숲에서는 퀘스트를 띄우지 않는다(마을에 들어와야 노아의 첫 이야기가 보인다).
+        private bool suppressed;
+
+        public void SetSuppressed(bool value)
+        {
+            suppressed = value;
+            Refresh();
+        }
 
         public void Initialize(QuestManager questManager)
         {
@@ -71,7 +79,7 @@ namespace Aethoria.UI
         {
             // 받을 퀘스트가 있을 때도 띄워서, 다음 이야기를 누구에게 들으러 가야 하는지 늘 보이게 한다.
             var quest = quests.Current;
-            bool visible = quest != null && quests.Status != QuestStatus.AllDone;
+            bool visible = !suppressed && quest != null && quests.Status != QuestStatus.AllDone;
             panel.SetActive(visible);
             if (!visible) return;
 

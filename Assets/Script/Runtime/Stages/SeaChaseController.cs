@@ -645,8 +645,7 @@ namespace Aethoria.Stages
         {
             var keyboard = Keyboard.current;
             if (keyboard == null) return false;
-            return keyboard.zKey.wasPressedThisFrame || keyboard.enterKey.wasPressedThisFrame
-                || keyboard.numpadEnterKey.wasPressedThisFrame;
+            return NpcDialogueUI.AdvancePressed(keyboard, allowEnter: true); // 타이핑 마저 보여 주기/다음 장은 대화창이 먼저 쓴다
         }
 
         private void BeginSwim()
@@ -1435,7 +1434,6 @@ namespace Aethoria.Stages
             lunging = true;     // 평소 따라붙기(UpdateBoss)를 멈춘다
             EndBossAttack();
             bossStunned = true;
-            hintText.text = "아쿠아를 물리쳤다!";
 
             // 화면 밖에서 쓰러졌을 수도 있으니 대화하는 동안 보이는 자리로 데려온다.
             Vector2 from = BossCenter;

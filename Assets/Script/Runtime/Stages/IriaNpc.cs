@@ -113,6 +113,8 @@ namespace Aethoria.Stages
         private void Awake()
         {
             spriteRenderer = GetComponent<SpriteRenderer>();
+            // 플레이어(0)와 같은 순서면 겹칠 때 앞뒤가 번갈아 깜빡여서, 늘 네크로시아 뒤(건물 -5보다는 앞)에 그린다.
+            spriteRenderer.sortingOrder = -1;
 
             frames = Resources.LoadAll<Sprite>(resourcesPath);
             if (frames != null && frames.Length > 0)
@@ -230,7 +232,7 @@ namespace Aethoria.Stages
             }
 
             var keyboard = Keyboard.current;
-            bool zPressed = keyboard != null && keyboard.zKey.wasPressedThisFrame;
+            bool zPressed = NpcDialogueUI.AdvancePressed(keyboard); // 타이핑 중이거나 남은 장이 있으면 대화창이 먼저 쓴다
 
             switch (state)
             {
@@ -255,7 +257,7 @@ namespace Aethoria.Stages
                     break;
 
                 case TalkState.Line:
-                    talkTimer += Time.deltaTime;
+                    if (dialogueUI == null || !dialogueUI.IsBusy) talkTimer += Time.deltaTime; // 타이핑·남은 장을 다 볼 때까지는 저절로 닫지 않는다
                     if (zPressed || talkTimer >= talkDuration) EndTalk();
                     break;
 

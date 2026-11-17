@@ -201,8 +201,7 @@ namespace Aethoria.Stages
         {
             var keyboard = Keyboard.current;
             if (keyboard == null) return false;
-            return keyboard.zKey.wasPressedThisFrame || keyboard.enterKey.wasPressedThisFrame
-                || keyboard.numpadEnterKey.wasPressedThisFrame;
+            return NpcDialogueUI.AdvancePressed(keyboard, allowEnter: true); // 타이핑 마저 보여 주기/다음 장은 대화창이 먼저 쓴다
         }
 
         // 착지 직후(또는 연출이 중간에 끊겼을 때) 조작과 카메라를 원래대로 돌려준다. 두 번 불려도 안전하다.

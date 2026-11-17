@@ -305,8 +305,7 @@ namespace Aethoria.Stages
         {
             var keyboard = Keyboard.current;
             if (keyboard == null) return false;
-            return keyboard.zKey.wasPressedThisFrame || keyboard.enterKey.wasPressedThisFrame
-                || keyboard.numpadEnterKey.wasPressedThisFrame;
+            return NpcDialogueUI.AdvancePressed(keyboard, allowEnter: true); // 타이핑 마저 보여 주기/다음 장은 대화창이 먼저 쓴다
         }
 
         // 대사가 끝났을 때(또는 연출이 중간에 끊겼을 때) 루나벨을 일으켜 세우고 조작과 카메라, 보스 AI를 원래대로 돌려준다.

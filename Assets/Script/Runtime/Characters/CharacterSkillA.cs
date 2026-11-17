@@ -16,7 +16,7 @@ namespace Aethoria.Characters
         [SerializeField] private int maxCharges = 3;
         [SerializeField] private float rechargeCooldown = 2f;
         [SerializeField] private float damageMultiplier = 1.0f;
-        [SerializeField] private float radius = 1.5f;
+        [SerializeField] private float radius = 2.2f;
 
         private Character character;
         private CharacterMovement2D movement;
@@ -28,6 +28,8 @@ namespace Aethoria.Characters
         public int CurrentCharges => currentCharges;
         public int MaxCharges => maxCharges;
         public float RechargeRemaining => rechargeTimer;
+        public float RechargeCooldown => rechargeCooldown;
+        public float ManaCost => manaCost;
 
         public void ResetCooldown()
         {
@@ -68,6 +70,7 @@ namespace Aethoria.Characters
         private void TryUseSkill()
         {
             if (character.IsCombatLocked) return;
+            if (!SkillBook.Allows(this, "A")) return; // 아직 익히지 않은 스킬(SkillBook)
             if (!movement.IsGrounded) return; // 공중에서는 공격과 스킬을 쓸 수 없다
             if (currentCharges <= 0) return;
             if (!character.TrySpendMana(manaCost)) return;
@@ -82,7 +85,7 @@ namespace Aethoria.Characters
         {
             skillAnimator.Play(movement.FacingDirection);
 
-            Vector2 origin = transform.position;
+            Vector2 origin = SlashCenter;
             var hits = Physics2D.OverlapCircleAll(origin, radius);
 
             foreach (var hit in hits)
@@ -94,10 +97,14 @@ namespace Aethoria.Characters
             }
         }
 
+        // 발밑을 중심으로 재면 원의 절반이 땅속이라, 몸 가운데(키 1.5유닛의 절반)를 중심으로 벤다.
+        // 플레이어 충돌 상자는 발치만 덮는 낮은 상자라 그 가운데를 쓰면 안 된다.
+        private Vector2 SlashCenter => (Vector2)transform.position + Vector2.up * 0.75f;
+
         private void OnDrawGizmosSelected()
         {
             Gizmos.color = Color.magenta;
-            Gizmos.DrawWireSphere(transform.position, radius);
+            Gizmos.DrawWireSphere(SlashCenter, radius);
         }
     }
 }

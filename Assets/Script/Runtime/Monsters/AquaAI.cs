@@ -524,8 +524,7 @@ namespace Aethoria.Monsters
                 {
                     var keyboard = Keyboard.current;
                     if (keyboard != null && skippable && keyboard.escapeKey.wasPressedThisFrame) yield break;
-                    if (keyboard != null && (keyboard.zKey.wasPressedThisFrame || keyboard.enterKey.wasPressedThisFrame
-                        || keyboard.numpadEnterKey.wasPressedThisFrame)) break;
+                    if (NpcDialogueUI.AdvancePressed(keyboard, allowEnter: true)) break;
                     yield return null;
                 }
             }

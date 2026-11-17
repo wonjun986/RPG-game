@@ -41,15 +41,23 @@ namespace Aethoria.Stages
             "낫을 쥐는 감각부터 되찾아야겠다.",
         };
 
+        // 정령이 약해졌을 때: 첫 스킬(A)이 깨어난다.
+        private static readonly string[] AwakenLines =
+        {
+            "...이 감각. 낫이 손 안에서 돌고 싶어 한다.",
+            "몸이 기억하고 있다 — 낫 회전 베기.",
+        };
+
         private static readonly string[] ClearLines =
         {
-            "몸이 기억하고 있다. 낫도, 사슬도.",
+            "낫은 돌아왔다. 하지만 나머지 기술은... 아직 흐릿하군.",
             "루나벨... 이번에는 내가 이긴다. 잃어버린 모든 것을 되찾겠다.",
         };
 
         private Character player;
         private CharacterMovement2D movement;
         private CharacterSkillDash dash;
+        private SkillBook skillBook;
         private NpcDialogueUI dialogueUI;
         private TutorialUI tutorialUI;
         private StoryIntroUI storyUI;
@@ -64,6 +72,7 @@ namespace Aethoria.Stages
             player = targetPlayer;
             movement = player.GetComponent<CharacterMovement2D>();
             dash = player.GetComponent<CharacterSkillDash>();
+            skillBook = player.GetComponent<SkillBook>();
             dialogueUI = dialogue;
             tutorialUI = tutorial;
             storyUI = story;
@@ -89,7 +98,12 @@ namespace Aethoria.Stages
 
         private void OnDestroy()
         {
-            if (movement != null) movement.OnDoubleJump -= HandleDoubleJump;
+            if (movement != null)
+            {
+                movement.OnDoubleJump -= HandleDoubleJump;
+                // 독백 도중 숲이 지워지면(관리자 이동 등) 묶인 조작을 풀어 준다.
+                movement.SetCutsceneLocked(false);
+            }
             // 튜토리얼 도중 쓰러지거나 타이틀로 나가 숲이 지워지면 안내/눈꺼풀/대사창이 남지 않게 정리한다.
             if (tutorialUI != null)
             {
@@ -172,7 +186,12 @@ namespace Aethoria.Stages
             if (!enemyDead)
             {
                 yield return tutorialUI.CompleteGuide();
-                tutorialUI.ShowGuide("약해졌다! 스킬(A · S · D · Q · W · E)로 마무리하자");
+                // 정령이 약해진 순간 몸이 기억해 내며 첫 스킬(A 낫 회전 베기)이 깨어난다. 독백 동안은 정령을 세워 둔다.
+                if (enemyAI != null) enemyAI.enabled = false;
+                yield return Monologue(AwakenLines);
+                skillBook?.Learn("A");
+                if (enemyAI != null) enemyAI.enabled = true;
+                tutorialUI.ShowGuide("A 키 — 낫 회전 베기로 정령을 마무리하자!");
                 while (!enemyDead) yield return null;
             }
             yield return tutorialUI.CompleteGuide();
@@ -212,7 +231,7 @@ namespace Aethoria.Stages
         private static bool AdvancePressed()
         {
             var keyboard = Keyboard.current;
-            return keyboard != null && (keyboard.zKey.wasPressedThisFrame || keyboard.enterKey.wasPressedThisFrame);
+            return NpcDialogueUI.AdvancePressed(keyboard, allowEnter: true); // 타이핑 마저 보여 주기/다음 장은 대화창이 먼저 쓴다
         }
     }
 }

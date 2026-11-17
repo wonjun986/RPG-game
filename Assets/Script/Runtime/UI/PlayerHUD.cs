@@ -44,15 +44,19 @@ namespace Aethoria.UI
         private Text hpLabel;
         private Text mpLabel;
         private Text expLabel;
+        private Text levelLabel;
         private Text goldLabel;
 
         // 아이콘마다 "쿨타임 진행률(0=바로 사용 가능, 1=방금 씀)"을 구하는 함수만 따로 들고 있고,
         // 매 프레임 그 값을 오버레이 채우기/라벨 밝기에 그대로 반영한다.
-        private readonly List<(Image overlay, Text label, Func<float> cooldownRatio, Text countdown, Func<float> remainingSeconds)> skillIcons = new();
+        private readonly List<(Image overlay, Text label, Func<float> cooldownRatio, Text countdown, Func<float> remainingSeconds, Image icon, string key)> skillIcons = new();
+        // 아직 익히지 않은 스킬(SkillBook)은 칸을 어둡게 덮고 필요한 레벨을 적는다.
+        private SkillBook skillBook;
 
         public void Initialize(Character character)
         {
             target = character;
+            skillBook = character.GetComponent<SkillBook>();
             var frameRect = CreateArtFrame("PlayerHudFrame", "UI/PlayerHUD", new Vector2(16f, -16f), HudFrameWidth, HudFrameHeight);
             BuildBars(frameRect);
             BuildSkillIcons(frameRect, character);
@@ -72,10 +76,67 @@ namespace Aethoria.UI
             rootRect.anchorMax = new Vector2(0f, 1f);
             rootRect.pivot = new Vector2(0f, 1f);
             rootRect.anchoredPosition = new Vector2(16f, belowBothFrames);
-            rootRect.sizeDelta = new Vector2(220f, 60f);
+            rootRect.sizeDelta = new Vector2(ExpFrameWidth, ExpFrameHeight + 30f);
 
-            expFill = CreateBar(rootRect, "EXP", 0f, new Color(0.85f, 0.75f, 0.15f), out expLabel);
-            goldLabel = CreateGoldRow(rootRect, -26f);
+            BuildExpFrame(rootRect);
+            goldLabel = CreateGoldRow(rootRect, -ExpFrameHeight - 4f);
+        }
+
+        // 레벨/경험치 틀(UI/LevelExpBar — Sprite/UI/HUD/보라색 판타지 RPG 경험치 바 UI에서 투명 여백을 잘라낸 2081x533).
+        // 왼쪽 월계관 안 "LV" 아래에 레벨 숫자, 오른쪽 "EXP" 옆에 현재/필요 경험치, 그 아래 홈에 채우기 바를 얹는다.
+        private const float ExpArtWidth = 2081f;
+        private const float ExpArtHeight = 533f;
+        private const float ExpFrameWidth = 300f;
+        private const float ExpFrameHeight = ExpFrameWidth * ExpArtHeight / ExpArtWidth;
+
+        private void BuildExpFrame(RectTransform parent)
+        {
+            var frame = CreateArtFrame("LevelExpFrame", "UI/LevelExpBar", Vector2.zero, ExpFrameWidth, ExpFrameHeight);
+            frame.SetParent(parent, false);
+
+            var fillRect = ExpArtRect(frame, "EXP_Fill", 750f, 277f, 1811f, 323f, typeof(Image));
+            expFill = fillRect.GetComponent<Image>();
+            expFill.UseAsFilled();
+            expFill.color = new Color(0.78f, 0.45f, 0.98f);
+            expFill.type = Image.Type.Filled;
+            expFill.fillMethod = Image.FillMethod.Horizontal;
+            expFill.fillOrigin = (int)Image.OriginHorizontal.Left;
+            expFill.raycastTarget = false;
+
+            levelLabel = ExpArtText(frame, "Level", 287f, 234f, 607f, 354f, 17, TextAnchor.MiddleCenter);
+            expLabel = ExpArtText(frame, "EXP_Text", 955f, 169f, 1823f, 235f, 11, TextAnchor.MiddleRight);
+        }
+
+        // 틀 그림 픽셀(왼쪽 위 x0,y0 ~ 오른쪽 아래 x1,y1) 자리에 요소를 만든다.
+        private static RectTransform ExpArtRect(RectTransform frame, string name, float x0, float y0, float x1, float y1, params Type[] components)
+        {
+            var types = new Type[components.Length + 1];
+            types[0] = typeof(RectTransform);
+            components.CopyTo(types, 1);
+            var rect = (RectTransform)new GameObject(name, types).transform;
+            rect.SetParent(frame, false);
+            rect.anchorMin = new Vector2(x0 / ExpArtWidth, 1f - y1 / ExpArtHeight);
+            rect.anchorMax = new Vector2(x1 / ExpArtWidth, 1f - y0 / ExpArtHeight);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            return rect;
+        }
+
+        private static Text ExpArtText(RectTransform frame, string name, float x0, float y0, float x1, float y1, int fontSize, TextAnchor alignment)
+        {
+            var text = ExpArtRect(frame, name, x0, y0, x1, y1, typeof(Text)).GetComponent<Text>();
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.fontSize = fontSize;
+            text.fontStyle = FontStyle.Bold;
+            text.alignment = alignment;
+            text.horizontalOverflow = HorizontalWrapMode.Overflow;
+            text.verticalOverflow = VerticalWrapMode.Overflow;
+            text.color = new Color(0.97f, 0.9f, 1f);
+            text.raycastTarget = false;
+            var outline = text.gameObject.AddComponent<Outline>();
+            outline.effectColor = new Color(0f, 0f, 0f, 0.9f);
+            outline.effectDistance = new Vector2(1f, -1f);
+            return text;
         }
 
         // PlayerHUD.png를 원본 비율(3:1) 그대로 좌상단에 띄우는 배경 프레임.
@@ -172,52 +233,6 @@ namespace Aethoria.UI
             text.alignment = TextAnchor.MiddleLeft;
             text.color = new Color(1f, 0.85f, 0.3f);
             return text;
-        }
-
-        private Image CreateBar(RectTransform parent, string label, float yOffset, Color fillColor, out Text text)
-        {
-            const float width = 200f;
-            const float height = 20f;
-
-            var bg = new GameObject(label + "_BG", typeof(RectTransform), typeof(Image));
-            var bgRect = (RectTransform)bg.transform;
-            bgRect.SetParent(parent, false);
-            bgRect.anchorMin = new Vector2(0f, 1f);
-            bgRect.anchorMax = new Vector2(0f, 1f);
-            bgRect.pivot = new Vector2(0f, 1f);
-            bgRect.anchoredPosition = new Vector2(0f, yOffset);
-            bgRect.sizeDelta = new Vector2(width, height);
-            bg.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.5f);
-
-            var fillGO = new GameObject(label + "_Fill", typeof(RectTransform), typeof(Image));
-            var fillRect = (RectTransform)fillGO.transform;
-            fillRect.SetParent(bgRect, false);
-            fillRect.anchorMin = Vector2.zero;
-            fillRect.anchorMax = Vector2.one;
-            fillRect.offsetMin = new Vector2(2f, 2f);
-            fillRect.offsetMax = new Vector2(-2f, -2f);
-            var fillImage = fillGO.GetComponent<Image>();
-            fillImage.UseAsFilled();
-            fillImage.color = fillColor;
-            fillImage.type = Image.Type.Filled;
-            fillImage.fillMethod = Image.FillMethod.Horizontal;
-            fillImage.fillOrigin = (int)Image.OriginHorizontal.Left;
-            fillImage.fillAmount = 1f;
-
-            var textGO = new GameObject(label + "_Text", typeof(RectTransform), typeof(Text));
-            var textRect = (RectTransform)textGO.transform;
-            textRect.SetParent(bgRect, false);
-            textRect.anchorMin = Vector2.zero;
-            textRect.anchorMax = Vector2.one;
-            textRect.offsetMin = Vector2.zero;
-            textRect.offsetMax = Vector2.zero;
-            text = textGO.GetComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            text.fontSize = 13;
-            text.alignment = TextAnchor.MiddleCenter;
-            text.color = Color.white;
-
-            return fillImage;
         }
 
         // HUD 프레임 안의 Q/W/E/A/S/D/R 슬롯 자리에 맞춰 쿨타임이 있는 스킬 그림을 얹는다.
@@ -320,7 +335,7 @@ namespace Aethoria.UI
 
             Text countdown = remainingSeconds != null ? CreateCountdownText(parent, anchorMin, anchorMax) : null;
 
-            skillIcons.Add((overlay, null, cooldownRatio, countdown, remainingSeconds));
+            skillIcons.Add((overlay, null, cooldownRatio, countdown, remainingSeconds, iconImage, label));
         }
 
         // 스킬 아이콘 원본(쓰레기통/Resources/Art/UI/SkillIcons에 보관)에서 테두리와 글자 배지를 빼고 안쪽 그림만 잘라 둔 것(Art/UI/SkillSlotArt)을 불러온다.
@@ -349,11 +364,21 @@ namespace Aethoria.UI
 
             hpLabel.text = $"{Mathf.CeilToInt(target.CurrentHp)}/{Mathf.CeilToInt(target.MaxHp)}";
             mpLabel.text = $"{Mathf.CeilToInt(target.CurrentMana)}/{Mathf.CeilToInt(target.MaxMana)}";
-            expLabel.text = $"Lv.{target.Level}  EXP {target.CurrentExp}/{target.ExpToNextLevel}";
+            levelLabel.text = target.Level.ToString();
+            expLabel.text = $"{target.CurrentExp} / {target.ExpToNextLevel}";
             goldLabel.text = target.Gold.ToString("N0");
 
-            foreach (var (overlay, label, cooldownRatio, countdown, remainingSeconds) in skillIcons)
+            foreach (var (overlay, label, cooldownRatio, countdown, remainingSeconds, icon, key) in skillIcons)
             {
+                bool locked = skillBook != null && !skillBook.IsLearned(key);
+                icon.color = locked ? new Color(0.35f, 0.33f, 0.4f) : Color.white;
+                if (locked)
+                {
+                    overlay.fillAmount = 1f;
+                    if (countdown != null) countdown.text = $"Lv{SkillBook.RequiredLevel(key)}";
+                    continue;
+                }
+
                 float ratio = cooldownRatio();
                 overlay.fillAmount = Mathf.Clamp01(ratio);
                 if (label != null) label.color = ratio > 0f ? new Color(1f, 1f, 1f, 0.5f) : Color.white;

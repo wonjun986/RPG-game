@@ -1,11 +1,30 @@
+using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace Aethoria.UI
 {
     // NPC 근처에 가면 뜨는 짧은 대사창. 대화 프레임 이미지(예: UI/Noa_Talk) 위에 대사 텍스트를 얹어서 보여준다.
+    // 대사는 스토리처럼 한 글자씩 타이핑되고, 글자 크기를 고정한 채 대사 칸에 다 안 들어가면 여러 장으로 나눠
+    // [Z]로 넘긴다. 대사를 넘기는 쪽은 Z를 직접 읽지 말고 AdvancePressed로 물어야 한다 — 타이핑 중이면 먼저
+    // 그 장을 다 보여 주고, 남은 장이 있으면 다음 장으로 넘긴 뒤 false를 돌려준다(마지막 장을 다 본 뒤에만 true).
     public class NpcDialogueUI : MonoBehaviour
     {
+        private const float CharsPerSecond = 32f;   // 스토리(28)보다 조금 빠르게
+        private const int FontSize = 18;
+        private const string ContinueHint = "  <color=#B98CE8>▼</color>";
+
+        // 이름판이 없는 대화창은 이름을 대사 첫 줄에 붙인다. Show에서 이름을 따로 주지 않으면 그림에 맞는 이름을 쓴다.
+        private static readonly Dictionary<string, string> FrameNameTags = new Dictionary<string, string>
+        {
+            { "UI/Noa_Talk", "<b><color=#E8C47A>노아</color></b>\n" },
+            { "UI/Isis_Talk", "<b><color=#D8C6F5>이시스</color></b>\n" },
+        };
+
+        private static NpcDialogueUI instance;
+        private static int consumedFrame = -1;
         private const float ImageWidth = 2172f;
         private const float ImageHeight = 724f;
         private const float BoxWidth = 1000f;
@@ -72,6 +91,7 @@ namespace Aethoria.UI
                 { "UI/Aqua_Talk", new FrameBox(942f, 2020f, 585f) },
             };
         private const float BoxBottomMargin = 30f;
+        private const float NoaTextRight = 1700f / ImageWidth;
 
         private GameObject box;
         private RectTransform boxRect;
@@ -83,8 +103,46 @@ namespace Aethoria.UI
         private RectTransform textRect;
         private string currentResourcePath;
 
+        // 지금 띄운 대사(같은 대사를 매 프레임 다시 Show해도 타이핑을 처음부터 다시 하지 않게 비교한다).
+        private string currentKey;
+        private readonly List<string> pages = new List<string>();
+        private int pageIndex;
+        private bool typing;
+        private float typedChars;
+        private int pageVisibleChars;
+
+        // 타이핑 중이거나 아직 남은 장이 있다(시간이 지나면 저절로 닫히는 대사는 이 동안 기다려 줘야 한다).
+        public bool IsBusy => box != null && box.activeSelf && (typing || pageIndex < pages.Count - 1);
+
+        // 대사를 넘기는 입력(Z, allowEnter면 Enter도). 대화창이 그 입력을 타이핑 마저 보여 주기/다음 장 넘기기에 썼으면
+        // false다. 한 프레임에 여러 곳에서 물어도 한 번만 쓰인다.
+        public static bool AdvancePressed(Keyboard keyboard, bool allowEnter = false)
+        {
+            if (keyboard == null) return false;
+            bool pressed = keyboard.zKey.wasPressedThisFrame
+                || (allowEnter && (keyboard.enterKey.wasPressedThisFrame || keyboard.numpadEnterKey.wasPressedThisFrame));
+            if (!pressed) return false;
+            if (consumedFrame == Time.frameCount) return false;
+            if (instance == null || instance.box == null || !instance.box.activeSelf) return true;
+
+            if (instance.typing)
+            {
+                instance.FinishTyping();
+                consumedFrame = Time.frameCount;
+                return false;
+            }
+            if (instance.pageIndex < instance.pages.Count - 1)
+            {
+                instance.StartPage(instance.pageIndex + 1);
+                consumedFrame = Time.frameCount;
+                return false;
+            }
+            return true;
+        }
+
         public void Initialize()
         {
+            instance = this;
             box = new GameObject("NpcDialogueBox", typeof(RectTransform));
             var rect = (RectTransform)box.transform;
             rect.SetParent(transform, false);
@@ -131,16 +189,15 @@ namespace Aethoria.UI
 
             dialogueText = textGO.GetComponent<Text>();
             dialogueText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            dialogueText.fontSize = 22;
+            dialogueText.fontSize = FontSize;
             dialogueText.color = Color.white;
             dialogueText.alignment = TextAnchor.MiddleLeft;
             dialogueText.horizontalOverflow = HorizontalWrapMode.Wrap;
-            // 세로는 Overflow로 두면 대사가 길 때 칸 아래로 그냥 삐져나왔다. Best Fit으로 칸 높이에
-            // 맞춰 글자 크기를 자동으로 줄이고, 그래도 넘치면(극단적으로 긴 대사) 잘라내 안전망을 둔다.
+            // 예전에는 Best Fit으로 글자를 줄여 칸에 우겨넣다가 그래도 넘치면 잘라냈다. 이제는 글자 크기를 고정하고
+            // 칸에 다 안 들어가면 여러 장으로 나눈다(Paginate). Truncate는 혹시 모를 넘침에 대한 안전망이다.
             dialogueText.verticalOverflow = VerticalWrapMode.Truncate;
-            dialogueText.resizeTextForBestFit = true;
-            dialogueText.resizeTextMinSize = 12;
-            dialogueText.resizeTextMaxSize = 22;
+            dialogueText.resizeTextForBestFit = false;
+            dialogueText.supportRichText = true;
 
             // 이름판이 있는 프레임(예: UI/Elly_Talk, 대사 칸 왼쪽 위의 작은 판)에 말하는 사람 이름을 쓴다.
             // 기본 좌표는 Elly_Talk 기준(그림 x 620~990, y 318~372)이고, Show()에서 프레임마다 다시 줄 수 있다.
@@ -177,7 +234,7 @@ namespace Aethoria.UI
             float namePlateX0 = DefaultPlateX0, float namePlateY0 = DefaultPlateY0,
             float namePlateX1 = DefaultPlateX1, float namePlateY1 = DefaultPlateY1,
             Color? textColor = null, float textBottom = DefaultTextBottom, float textRight = DefaultTextRight,
-            float textTop = DefaultTextTop, float? namedTextTop = null)
+            float textTop = DefaultTextTop, float? namedTextTop = null, string namePrefix = null)
         {
             if (currentResourcePath != resourcePath)
             {
@@ -196,10 +253,229 @@ namespace Aethoria.UI
             float plateTopAnchor = 1f - namePlateY1 / ImageHeight;
             nameRect.anchorMin = new Vector2(namePlateX0 / ImageWidth, plateTopAnchor);
             nameRect.anchorMax = new Vector2(namePlateX1 / ImageWidth, 1f - namePlateY0 / ImageHeight);
+            // 노아 창은 대사 칸 오른쪽에 나침반 문양(그림 x 약 1640~)이 있어 기본 오른쪽 끝(0.92)이면 글자가 문양에 겹쳤다.
+            if (resourcePath == "UI/Noa_Talk" && Mathf.Approximately(textRight, DefaultTextRight)) textRight = NoaTextRight;
             textRect.anchorMax = new Vector2(hasFrame ? textRight : DefaultTextRight, hasName ? namedTextTop ?? plateTopAnchor : hasFrame ? textTop : DefaultTextTop);
-            dialogueText.text = line;
             dialogueText.color = textColor ?? Color.white;
+
+            // 이름판이 없는 그림이면 이름을 대사 첫 줄에 붙인다(장마다 다시 붙인다).
+            if (namePrefix == null && !hasName && resourcePath != null) FrameNameTags.TryGetValue(resourcePath, out namePrefix);
+            namePrefix ??= "";
+
+            string key = resourcePath + "\u0001" + namePrefix + "\u0001" + line;
+            bool wasOpen = box.activeSelf;
             box.SetActive(true);
+            if (wasOpen && key == currentKey) return; // 같은 대사를 다시 띄운 것뿐이면 타이핑을 이어 간다
+            currentKey = key;
+
+            Canvas.ForceUpdateCanvases();
+            Paginate(namePrefix, line ?? "");
+            StartPage(0);
+        }
+
+        private void Update()
+        {
+            if (!typing || box == null || !box.activeSelf) return;
+            typedChars += Time.unscaledDeltaTime * CharsPerSecond;
+            if (typedChars >= pageVisibleChars)
+            {
+                FinishTyping();
+                return;
+            }
+            dialogueText.text = RevealPrefix(pages[pageIndex], Mathf.FloorToInt(typedChars));
+        }
+
+        private void StartPage(int index)
+        {
+            pageIndex = index;
+            typedChars = 0f;
+            pageVisibleChars = CountVisible(pages[index]);
+            typing = pageVisibleChars > 0;
+            dialogueText.text = typing ? RevealPrefix(pages[index], 0) : pages[index];
+        }
+
+        private void FinishTyping()
+        {
+            typing = false;
+            dialogueText.text = pages[pageIndex];
+        }
+
+        // ---- 장 나누기 ----
+
+        // 대사 칸(고정 글자 크기)에 들어가는 만큼씩 끊어 장을 만든다. 끊는 자리는 띄어쓰기/줄바꿈 뒤를 고르고(태그 안은 피한다),
+        // 장 사이에 걸친 서식 태그(<b>, <color> 등)는 앞 장에서 닫고 다음 장에서 다시 연다. 마지막이 아닌 장 끝에는 ▼를 붙인다.
+        private void Paginate(string prefix, string body)
+        {
+            pages.Clear();
+            string remaining = body;
+            int guard = 0;
+            while (guard++ < 50)
+            {
+                if (Fits(prefix + remaining) || remaining.Length == 0)
+                {
+                    pages.Add(prefix + remaining);
+                    return;
+                }
+
+                int cut = -1;
+                foreach (int boundary in Boundaries(remaining))
+                {
+                    string part = remaining.Substring(0, boundary).TrimEnd();
+                    if (!Fits(prefix + part + CloseTags(OpenTagsAt(remaining, boundary)) + ContinueHint)) break;
+                    cut = boundary;
+                }
+                if (cut <= 0) cut = LongestFittingCut(prefix, remaining); // 띄어쓰기 없이 긴 덩어리면 글자 단위로
+                if (cut <= 0 || cut >= remaining.Length)
+                {
+                    pages.Add(prefix + remaining);
+                    return;
+                }
+
+                var open = OpenTagsAt(remaining, cut);
+                pages.Add(prefix + remaining.Substring(0, cut).TrimEnd() + CloseTags(open) + ContinueHint);
+                remaining = string.Concat(open) + remaining.Substring(cut).TrimStart(' ', '\n');
+            }
+            pages.Add(prefix + remaining);
+        }
+
+        private bool Fits(string text)
+        {
+            Vector2 size = textRect.rect.size;
+            if (size.x <= 1f || size.y <= 1f) return true;
+            var settings = dialogueText.GetGenerationSettings(new Vector2(size.x, 0f));
+            settings.verticalOverflow = VerticalWrapMode.Overflow;
+            settings.resizeTextForBestFit = false;
+            float height = dialogueText.cachedTextGeneratorForLayout.GetPreferredHeight(text, settings) / dialogueText.pixelsPerUnit;
+            return height <= size.y + 0.5f;
+        }
+
+        // 끊어도 되는 자리(띄어쓰기 바로 뒤, 줄바꿈 바로 앞). 태그 안은 건너뛴다.
+        private static IEnumerable<int> Boundaries(string text)
+        {
+            bool inTag = false;
+            for (int i = 0; i < text.Length; i++)
+            {
+                char c = text[i];
+                if (c == '<') inTag = true;
+                else if (c == '>') { inTag = false; continue; }
+                if (inTag) continue;
+                if (c == '\n' && i > 0) yield return i;
+                else if (c == ' ' && i + 1 < text.Length) yield return i + 1;
+            }
+        }
+
+        private int LongestFittingCut(string prefix, string text)
+        {
+            int best = -1;
+            for (int i = 1; i < text.Length; i++)
+            {
+                // 태그 한가운데에서는 끊지 않는다(i 앞에서 마지막으로 연 '<'가 아직 '>'로 닫히지 않았으면 태그 안).
+                if (text.LastIndexOf('<', i - 1) > text.LastIndexOf('>', i - 1)) continue;
+                if (!Fits(prefix + text.Substring(0, i) + CloseTags(OpenTagsAt(text, i)) + ContinueHint)) break;
+                best = i;
+            }
+            return best;
+        }
+
+        // text[0..index) 안에서 열린 채 남은 서식 태그들(여는 태그 원문, 연 순서대로).
+        private static List<string> OpenTagsAt(string text, int index)
+        {
+            var stack = new List<string>();
+            int i = 0;
+            while (i < index)
+            {
+                if (text[i] == '<')
+                {
+                    int end = text.IndexOf('>', i);
+                    if (end < 0 || end >= index) break;
+                    string tag = text.Substring(i, end - i + 1);
+                    if (tag.StartsWith("</")) { if (stack.Count > 0) stack.RemoveAt(stack.Count - 1); }
+                    else stack.Add(tag);
+                    i = end + 1;
+                }
+                else i++;
+            }
+            return stack;
+        }
+
+        private static string TagName(string openTag)
+        {
+            int end = openTag.IndexOfAny(new[] { '=', '>' }, 1);
+            return openTag.Substring(1, end - 1);
+        }
+
+        private static string CloseTags(List<string> open)
+        {
+            var sb = new StringBuilder();
+            for (int i = open.Count - 1; i >= 0; i--) sb.Append("</").Append(TagName(open[i])).Append('>');
+            return sb.ToString();
+        }
+
+        // ---- 타이핑 ----
+
+        private static int CountVisible(string text)
+        {
+            int count = 0;
+            for (int i = 0; i < text.Length; i++)
+            {
+                if (text[i] == '<')
+                {
+                    int end = text.IndexOf('>', i);
+                    if (end > i) { i = end; continue; }
+                }
+                count++;
+            }
+            return count;
+        }
+
+        // 앞에서부터 visible 글자만 보이게 하고, 나머지는 투명하게 그대로 둔다(글자가 늘어날 때 줄 배치가 흔들리지 않게).
+        // 숨긴 부분은 색 태그만 빼고(투명색을 덮어쓰지 않게) 굵기/크기 태그는 남겨 자리를 그대로 차지하게 한다.
+        private static string RevealPrefix(string text, int visible)
+        {
+            int shown = 0;
+            int i = 0;
+            while (i < text.Length && shown < visible)
+            {
+                if (text[i] == '<')
+                {
+                    int end = text.IndexOf('>', i);
+                    if (end > i) { i = end + 1; continue; }
+                }
+                shown++;
+                i++;
+            }
+            // 바로 뒤에 붙은 태그(닫는 태그 등)는 보이는 쪽에 포함시킨다.
+            while (i < text.Length && text[i] == '<')
+            {
+                int end = text.IndexOf('>', i);
+                if (end < 0) break;
+                i = end + 1;
+            }
+
+            var open = OpenTagsAt(text, i);
+            var sb = new StringBuilder(text.Length + 64);
+            sb.Append(text, 0, i).Append(CloseTags(open)).Append("<color=#00000000>");
+            foreach (var tag in open) if (TagName(tag) != "color") sb.Append(tag);
+            int j = i;
+            while (j < text.Length)
+            {
+                if (text[j] == '<')
+                {
+                    int end = text.IndexOf('>', j);
+                    if (end > j)
+                    {
+                        string tag = text.Substring(j, end - j + 1);
+                        bool isColor = tag.StartsWith("<color") || tag == "</color>";
+                        if (!isColor) sb.Append(tag);
+                        j = end + 1;
+                        continue;
+                    }
+                }
+                sb.Append(text[j]);
+                j++;
+            }
+            sb.Append("</color>");
+            return sb.ToString();
         }
 
         // 그림의 대사 칸이 기준 칸(ReferenceBox, 기본 크기 창 기준)과 같은 폭/왼쪽 끝/아랫변에 오도록 창 크기와 위치를 맞춘다.
@@ -228,15 +504,15 @@ namespace Aethoria.UI
         // 네크로시아(플레이어) 대사. 이름을 첫 줄에 붙여 네크로시아 대화창에 띄운다.
         public void ShowNecrosia(string line)
         {
-            Show(PlayerTalkFrame, PlayerNameTag + line, PlayerTextLeft,
-                textBottom: PlayerTextBottom, textRight: PlayerTextRight, textTop: PlayerTextTop);
+            Show(PlayerTalkFrame, line, PlayerTextLeft,
+                textBottom: PlayerTextBottom, textRight: PlayerTextRight, textTop: PlayerTextTop, namePrefix: PlayerNameTag);
         }
 
         // 물의 여왕 아쿠아 대사. 이름을 첫 줄에 붙여 아쿠아 대화창에 띄운다.
         public void ShowAqua(string line)
         {
-            Show(AquaTalkFrame, AquaNameTag + line, AquaTextLeft,
-                textBottom: AquaTextBottom, textRight: AquaTextRight, textTop: AquaTextTop);
+            Show(AquaTalkFrame, line, AquaTextLeft,
+                textBottom: AquaTextBottom, textRight: AquaTextRight, textTop: AquaTextTop, namePrefix: AquaNameTag);
         }
 
         // 루나벨 대사. 이름은 이름판 안에 쓴다.
@@ -268,6 +544,10 @@ namespace Aethoria.UI
         {
             box.SetActive(false);
             currentResourcePath = null;
+            currentKey = null;
+            typing = false;
+            pages.Clear();
+            pageIndex = 0;
         }
     }
 }

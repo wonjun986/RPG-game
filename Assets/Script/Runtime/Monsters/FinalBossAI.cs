@@ -209,6 +209,8 @@ namespace Aethoria.Monsters
         // 피의 결정체 분출(4프레임): 바닥이 갈라지며 핏빛 결정 가시가 솟는다. 첫 조우 연출과 피의 가시 난사가 쓴다.
         public const string BloodThornPath = "Art/Effects/BloodThorn";
         public const float ThornFrameDuration = 0.05f;
+        // 가시 그림(664x690)에서 바닥 균열 가운데가 맨 아래로부터 이만큼 위에 있다.
+        private const float ThornGroundLinePx = 85f;
         private const float ThornHold = 0.25f;
         private const float ThornFade = 0.2f;
         private readonly System.Collections.Generic.List<GameObject> patternEffects = new System.Collections.Generic.List<GameObject>();
@@ -584,7 +586,9 @@ namespace Aethoria.Monsters
         {
             var go = new GameObject("LunabelBloodThorn");
             if (parent != null) go.transform.SetParent(parent, true);
-            go.transform.position = bottomCenter;
+            // 그림 맨 아래가 아니라 바닥 균열(비스듬히 본 타원)의 가운데가 바닥 줄에 오도록 그만큼 내려서 그린다.
+            float sink = ThornGroundLinePx / frames[0].pixelsPerUnit * scale;
+            go.transform.position = bottomCenter + Vector2.down * sink;
             go.transform.localScale = new Vector3(scale, scale, 1f);
             var renderer = go.AddComponent<SpriteRenderer>();
             renderer.sortingOrder = sortingOrder;

@@ -127,6 +127,7 @@ namespace Aethoria.Characters
 
         public float CooldownRemaining => cooldownRemaining;
         public float Cooldown => cooldown;
+        public float ManaCost => manaCost;
 
         public void ResetCooldown() => cooldownRemaining = 0f;
         public bool IsActive => isActive;
@@ -177,6 +178,7 @@ namespace Aethoria.Characters
         private void TryUseSkill()
         {
             if (character.IsCombatLocked) return;
+            if (!SkillBook.Allows(this, "R")) return; // 아직 익히지 않은 스킬(SkillBook)
             // 땅에서 문이 솟는 연출이라 땅을 딛고 있을 때만 쓸 수 있다.
             if (!movement.IsGrounded) return;
             if (isActive || cooldownRemaining > 0f) return;
@@ -199,7 +201,8 @@ namespace Aethoria.Characters
             // 낫을 꽂은 자세 그대로 앞에서 악마의 문이 솟고, 악룡이 나와 입을 크게 벌리고 포효한다.
             float facing = movement.FacingDirection.x < 0f ? -1f : 1f;
             Vector3 feet = visualRenderer != null ? visualRenderer.transform.position : transform.position;
-            Vector3 gatePosition = new Vector3(feet.x + facing * gateFrontDistance, feet.y, 0f);
+            float gateX = feet.x + facing * gateFrontDistance;
+            Vector3 gatePosition = new Vector3(gateX, LowestGroundY(gateX, feet.y), 0f);
             var summon = CreateSummonRenderer(gatePosition, facing);
             Transform view = new GameObject("UltView").transform;
             view.position = (transform.position + gatePosition) / 2f;
@@ -238,6 +241,20 @@ namespace Aethoria.Characters
             // 악룡이 문 안으로 물러나고 문이 닫히며 땅속으로 가라앉는다. 다 사라지면 화면 크기를 되돌린다.
             if (summon != null) yield return PlayRetreat(summon);
             if (cameraFollow != null) cameraFollow.ResetZoom(summonZoomDuration);
+        }
+
+        // 발판 위에서 써도 문과 악룡은 맨 아래 땅에서 솟는다. x 지점에서 아래로 쏜 선이 닿는 면 중 가장 낮은 곳
+        // (발판은 건너뛰고 바닥이나 경사 지형 윗면)을 고른다. 아무것도 안 닿으면 맵 바닥 높이를 쓴다.
+        private float LowestGroundY(float x, float fromY)
+        {
+            float lowest = float.PositiveInfinity;
+            foreach (var hit in Physics2D.RaycastAll(new Vector2(x, fromY + 0.1f), Vector2.down, 100f))
+            {
+                if (hit.collider.isTrigger || hit.transform.IsChildOf(transform)) continue;
+                if (hit.collider.GetComponentInParent<Monster>() != null) continue;
+                if (hit.point.y < lowest) lowest = hit.point.y;
+            }
+            return float.IsPositiveInfinity(lowest) ? GameBootstrap.CurrentMapBounds.yMin : lowest;
         }
 
         // 준비 모션: 걷기/점프 애니메이터를 꺼 두고 12프레임을 한 번 재생한다. 마지막 프레임(낫을 땅에 꽂은 자세)을
