@@ -653,6 +653,7 @@ namespace Aethoria.UI
 
         private void ConfirmEnter()
         {
+            UiSfx.Confirm();
             var node = infoNode;
             CloseInfo();
             node?.OnSelect?.Invoke();
@@ -876,6 +877,7 @@ namespace Aethoria.UI
 
         private void MoveCursorTo(MapNode node)
         {
+            UiSfx.Move();
             if (walkRoutine != null) { StopCoroutine(walkRoutine); walkRoutine = null; }
             SetCursorWalking(false);
             if (cursor == null) return;

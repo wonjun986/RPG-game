@@ -58,6 +58,7 @@ namespace Aethoria.Data
         }
 
         public static bool IsOpened(string id) => opened.Contains(id);
+        public static int OpenedTotal => opened.Count;
 
         public static void MarkOpened(string id)
         {

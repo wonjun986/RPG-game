@@ -7,15 +7,16 @@ using Aethoria.Characters;
 
 namespace Aethoria.UI
 {
-    // 필드 Esc 일시정지 메뉴: [계속하기 / 설정 / 타이틀로]. 판·버튼은 공통 팝업 그림(UI/Common/Popup)을 쓴다.
+    // 필드 Esc 일시정지 메뉴: 2x2 버튼 [계속하기 | 설정] / [조작법 | 타이틀로]. 판·버튼은 공통 팝업 그림(UI/Common/Popup)을 쓴다.
     //  계속하기 = 닫기, 설정 = 설정 창(SettingsUI)을 띄우고 닫으면 이 메뉴로 돌아온다,
     //  타이틀로 = "타이틀 화면으로 돌아가시겠습니까?"(ChoicePopup)에 예를 고르면 자동 저장 후 타이틀로.
-    // 조작: ↑↓(W/S) 고르기, Z/Enter 누르기, Esc/X 계속하기. 마우스는 올리면 고르고 누르면 실행.
+    //  조작법 = 설정 창을 조작 탭으로 바로 연다.
+    // 조작: ↑↓←→(W/S/A/D) 고르기, Z/Enter 누르기, Esc/X 계속하기. 마우스는 올리면 고르고 누르면 실행.
     // 인벤토리/상점/대화/리듬 전투 등 다른 창이 열려 있으면(조작이 잠겨 있으면) 열지 않는다 — 그 창들은 Esc로
     // 닫히는데, 닫으려고 누른 Esc가 같은 프레임에 이 메뉴까지 열지 않도록 직전 프레임에도 잠겨 있지 않았을 때만 연다.
     public class TitleReturnUI : MonoBehaviour
     {
-        private static readonly string[] ItemNames = { "계속하기", "설정", "타이틀로" };
+        private static readonly string[] ItemNames = { "계속하기", "설정", "조작법", "타이틀로" };
         private const float PanelWidth = 600f;
         private const float ButtonWidth = 214f;
         private const float OpenDuration = 0.22f;
@@ -32,9 +33,9 @@ namespace Aethoria.UI
         private CanvasGroup rootGroup;
         private Image dim;
         private RectTransform panel;
-        private readonly Image[] buttonImages = new Image[3];
-        private readonly Image[] glows = new Image[3];
-        private readonly Text[] labels = new Text[3];
+        private readonly Image[] buttonImages = new Image[4];
+        private readonly Image[] glows = new Image[4];
+        private readonly Text[] labels = new Text[4];
         private SettingsUI settings;
         private int selected;
         private int openedFrame = -1;
@@ -80,7 +81,7 @@ namespace Aethoria.UI
             for (int i = 0; i < ItemNames.Length; i++)
             {
                 int index = i;
-                var anchor = new Vector2(0.5f, 0.57f - i * 0.19f);
+                var anchor = new Vector2(i % 2 == 0 ? 0.31f : 0.69f, i < 2 ? 0.53f : 0.31f); // 2x2
                 var glowRect = NewRect(ItemNames[i] + "Glow", panel);
                 glowRect.anchorMin = glowRect.anchorMax = anchor;
                 glowRect.sizeDelta = new Vector2(ButtonWidth * 1.25f, buttonHeight * 1.9f);
@@ -117,6 +118,7 @@ namespace Aethoria.UI
             }
             TitleScreenUI.EnsureEventSystem();
             if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(null);
+            if (!root.activeSelf) UiSfx.Open();
             root.transform.SetAsLastSibling(); // 다른 HUD 위에 그린다
             root.SetActive(true);
             selected = 0;
@@ -137,6 +139,7 @@ namespace Aethoria.UI
 
         private void Activate(int index)
         {
+            if (index == 0) UiSfx.Cancel(); else UiSfx.Confirm();
             switch (index)
             {
                 case 0:
@@ -147,6 +150,10 @@ namespace Aethoria.UI
                     settings.Open(() => OpenMenu());
                     break;
                 case 2:
+                    root.SetActive(false);
+                    settings.Open(() => OpenMenu(), 3);
+                    break;
+                case 3:
                     ChoicePopup.Ask("타이틀 화면으로 돌아가시겠습니까?", ConfirmTitle, null, subMessage: "지금까지의 진행은 자동 저장됩니다");
                     break;
             }
@@ -173,10 +180,13 @@ namespace Aethoria.UI
                 Animate();
                 if (Time.frameCount == openedFrame || ChoicePopup.ConsumesInput || settings.ClosedThisFrame) return;
 
-                if (keyboard.upArrowKey.wasPressedThisFrame || keyboard.wKey.wasPressedThisFrame) Select((selected + 2) % 3);
-                else if (keyboard.downArrowKey.wasPressedThisFrame || keyboard.sKey.wasPressedThisFrame) Select((selected + 1) % 3);
+                // 2x2: 위아래는 줄을, 좌우는 칸을 바꾼다.
+                if (keyboard.upArrowKey.wasPressedThisFrame || keyboard.wKey.wasPressedThisFrame
+                    || keyboard.downArrowKey.wasPressedThisFrame || keyboard.sKey.wasPressedThisFrame) Select((selected + 2) % 4);
+                else if (keyboard.leftArrowKey.wasPressedThisFrame || keyboard.aKey.wasPressedThisFrame
+                    || keyboard.rightArrowKey.wasPressedThisFrame || keyboard.dKey.wasPressedThisFrame) Select(selected ^ 1);
                 else if (keyboard.zKey.wasPressedThisFrame || keyboard.enterKey.wasPressedThisFrame || keyboard.numpadEnterKey.wasPressedThisFrame) Activate(selected);
-                else if (keyboard.escapeKey.wasPressedThisFrame || keyboard.xKey.wasPressedThisFrame) Resume();
+                else if (keyboard.escapeKey.wasPressedThisFrame || keyboard.xKey.wasPressedThisFrame) { UiSfx.Close(); Resume(); }
                 return;
             }
 
@@ -203,12 +213,13 @@ namespace Aethoria.UI
         {
             if (selected == index) return;
             selected = index;
+            UiSfx.Move();
             Refresh();
         }
 
         private void Refresh()
         {
-            for (int i = 0; i < 3; i++)
+            for (int i = 0; i < ItemNames.Length; i++)
             {
                 bool on = i == selected;
                 glows[i].enabled = on;

@@ -139,6 +139,7 @@ namespace Aethoria.Stages
             questMarker.alignment = TextAlignment.Center;
             questMarker.anchor = TextAnchor.MiddleCenter;
             questMarker.color = new Color(1f, 0.85f, 0.2f);
+            QuestMarkerArt.Apply(questMarker); // 그림(! ?)이 있으면 글자 대신 그림으로
 
             go.GetComponent<MeshRenderer>().sortingOrder = 50;
             go.SetActive(false);
@@ -173,6 +174,7 @@ namespace Aethoria.Stages
             promptText.alignment = TextAlignment.Center;
             promptText.anchor = TextAnchor.MiddleCenter;
             promptText.color = Color.white;
+            InteractPromptStyle.Apply(promptText); // 공통 말풍선 · 금빛 키 · 톡 튀어나오기
 
             go.GetComponent<MeshRenderer>().sortingOrder = 50;
             go.SetActive(false);

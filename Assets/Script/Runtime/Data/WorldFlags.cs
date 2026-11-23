@@ -10,7 +10,13 @@ namespace Aethoria.Data
 
         public static bool Has(string id) => flags.Contains(id);
 
-        public static void Set(string id) => flags.Add(id);
+        // 깃발이 새로 켜지거나 세이브를 불러올 때마다 올라간다(던전 지도가 다시 그릴 때를 알아챈다).
+        public static int Version { get; private set; }
+
+        public static void Set(string id)
+        {
+            if (flags.Add(id)) Version++;
+        }
 
         // 접두사로 시작하는 깃발 개수(예: "forest_key_"로 주운 열쇠 수 세기).
         public static int Count(string prefix)
@@ -20,9 +26,18 @@ namespace Aethoria.Data
             return n;
         }
 
+        // 접두사로 시작하는 깃발들(예: 던전 지도가 방마다 본 상자 기록을 읽을 때).
+        public static List<string> WithPrefix(string prefix)
+        {
+            var list = new List<string>();
+            foreach (var f in flags) if (f.StartsWith(prefix)) list.Add(f);
+            return list;
+        }
+
         public static void Restore(List<string> saved)
         {
             flags.Clear();
+            Version++;
             if (saved == null) return;
             foreach (var id in saved) flags.Add(id);
         }

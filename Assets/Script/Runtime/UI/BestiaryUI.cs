@@ -224,6 +224,7 @@ namespace Aethoria.UI
             flipImage.raycastTarget = false;
             flipGO.SetActive(false);
 
+            panel.AddComponent<PanelFadeIn>(); // 켜질 때 공통 연출 + 여는 소리
             panel.SetActive(false);
         }
 
@@ -242,6 +243,7 @@ namespace Aethoria.UI
 
         public void Hide()
         {
+            if (panel.activeSelf) UiSfx.Close();
             if (closing) return;
             closing = true;
             Time.timeScale = 1f;
@@ -366,7 +368,7 @@ namespace Aethoria.UI
         private void Select(int index)
         {
             int newIndex = Mathf.Clamp(index, 0, EntryCount - 1);
-            if (newIndex != selected) showSecretPage = false;
+            if (newIndex != selected) { showSecretPage = false; UiSfx.Move(); }
             selected = newIndex;
 
             // 고른 칸이 보이도록 목록을 민다.

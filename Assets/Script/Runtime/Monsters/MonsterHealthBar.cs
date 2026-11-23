@@ -13,6 +13,13 @@ namespace Aethoria.Monsters
         [SerializeField] private Color fillColor = new Color(0.85f, 0.15f, 0.15f);
 
         private static Sprite sharedPixelSprite;
+        private static Sprite frameSprite;
+        private static bool frameLoaded;
+
+        // 틀 그림(UI/HUD/MonsterHpFrame, 520x60, PPU 270, 좌우 9-slice). 안쪽 검은 홈이 높이 약 21px = 0.078칸이라
+        // 막대 두께(height)를 그 홈에 맞추고, 홈 바깥 양 끝 장식(각 약 45px)만큼 틀을 더 넓게 그린다.
+        private const float FrameEndsUnits = (44.9f + 44.4f) / 270f;
+        private const float FrameChannelHeight = 0.074f;
 
         private Monster monster;
         private Transform fillTransform;
@@ -45,6 +52,25 @@ namespace Aethoria.Monsters
             var sprite = GetSharedPixelSprite();
             float leftX = -width / 2f;
 
+            if (!frameLoaded)
+            {
+                frameSprite = Resources.Load<Sprite>("UI/HUD/MonsterHpFrame");
+                frameLoaded = true;
+            }
+            if (frameSprite != null)
+            {
+                // 틀 안쪽 홈이 검은색이라 따로 배경 막대를 깔지 않는다.
+                height = FrameChannelHeight;
+                var frameGO = new GameObject("HealthBar_Frame");
+                frameGO.transform.SetParent(transform, false);
+                frameGO.transform.localPosition = new Vector3(0f, -verticalOffset, 0f);
+                var frameRenderer = frameGO.AddComponent<SpriteRenderer>();
+                frameRenderer.sprite = frameSprite;
+                frameRenderer.drawMode = SpriteDrawMode.Sliced;
+                frameRenderer.size = new Vector2(width + FrameEndsUnits, frameSprite.rect.height / frameSprite.pixelsPerUnit);
+                frameRenderer.sortingOrder = 10;
+            }
+
             var bgGO = new GameObject("HealthBar_BG");
             bgGO.transform.SetParent(transform, false);
             bgGO.transform.localPosition = new Vector3(leftX, -verticalOffset, 0f);
@@ -53,6 +79,7 @@ namespace Aethoria.Monsters
             bgRenderer.color = backgroundColor;
             bgRenderer.sortingOrder = 10;
             bgGO.transform.localScale = new Vector3(width, height, 1f);
+            if (frameSprite != null) bgRenderer.enabled = false;
 
             var fillGO = new GameObject("HealthBar_Fill");
             fillGO.transform.SetParent(transform, false);

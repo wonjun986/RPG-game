@@ -69,6 +69,7 @@ namespace Aethoria.UI
             // "Lv." 옆 밑줄 위에 지금 레벨을 쓴다.
             levelText = BuildText(windowRect, "Level", LevelBox, 26, TextAnchor.MiddleLeft);
 
+            panel.AddComponent<PanelFadeIn>(); // 켜질 때 공통 연출 + 여는 소리
             panel.SetActive(false);
         }
 
@@ -117,6 +118,7 @@ namespace Aethoria.UI
 
         public void Hide()
         {
+            if (panel.activeSelf) UiSfx.Close();
             panel.SetActive(false);
             Time.timeScale = 1f;
             if (playerMovement != null) playerMovement.SetInputLocked(false);

@@ -16,8 +16,11 @@ namespace Aethoria.Monsters
     [RequireComponent(typeof(Monster))]
     [RequireComponent(typeof(Rigidbody2D))]
     [RequireComponent(typeof(SpriteRenderer))]
-    public class BossAI : MonoBehaviour
+    public class BossAI : MonoBehaviour, IBossPhaseMarks
     {
+        // 보스 체력바 눈금(IBossPhaseMarks).
+        public float[] PhaseMarks => new[] { enrageHealthFraction, finaleHealthFraction };
+
         [Header("이동/감지")]
         [SerializeField] private float moveSpeed = 2.5f;
         [SerializeField] private float attackRange = 1.4f;

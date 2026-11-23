@@ -17,8 +17,11 @@ namespace Aethoria.Monsters
     [RequireComponent(typeof(Monster))]
     [RequireComponent(typeof(Rigidbody2D))]
     [RequireComponent(typeof(SpriteRenderer))]
-    public class SandDragonAI : MonoBehaviour
+    public class SandDragonAI : MonoBehaviour, IBossPhaseMarks
     {
+        // 보스 체력바 눈금(IBossPhaseMarks).
+        public float[] PhaseMarks => new[] { stormHealthFraction };
+
         [SerializeField] private float moveSpeed = 1.5f;
         [SerializeField] private float detectRange = 11f; // 이 거리 밖이면 제자리에서 꿈틀거리기만 한다
         [SerializeField] private float keepDistance = 3.0f;

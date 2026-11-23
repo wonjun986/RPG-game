@@ -26,6 +26,8 @@ namespace Aethoria.Bootstrap
             scaler.referenceResolution = new Vector2(1280f, 720f);
 
             canvasGO.AddComponent<PlayerHUD>().Initialize(player);
+            // HUD 프레임 오른쪽 회복 포션 칸([F] · 개수 · 쿨타임).
+            canvasGO.AddComponent<PotionSlotUI>().Initialize(player);
             // 쓰러지면 게임오버 화면 대신 잠깐의 연출 후 마을로 돌아간다.
             canvasGO.AddComponent<DeathReturnUI>().Initialize(player);
 
@@ -36,8 +38,9 @@ namespace Aethoria.Bootstrap
             bossHealthUI.Initialize();
 
             // 던전(방 구조 지역) 지도: 오른쪽 아래 작은 지도, M으로 크게.
-            minimapUI = canvasGO.AddComponent<MinimapUI>();
-            minimapUI.Initialize();
+            var minimap = canvasGO.AddComponent<MinimapUI>();
+            minimap.Initialize();
+            InitMinimap(minimap);
 
             npcDialogueUI = canvasGO.AddComponent<NpcDialogueUI>();
             npcDialogueUI.Initialize();

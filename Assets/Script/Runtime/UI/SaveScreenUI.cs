@@ -133,6 +133,7 @@ namespace Aethoria.UI
             var hintRect = CreateText(rootRect, "Hint", 22, TextAnchor.MiddleRight, out hintText);
             SetPixelRect(hintRect, 700f, 30f, 1590f, 92f);
 
+            root.AddComponent<PanelFadeIn>(); // 켜질 때 공통 연출 + 여는 소리
             root.SetActive(false);
         }
 
@@ -159,6 +160,7 @@ namespace Aethoria.UI
 
         private void Close()
         {
+            if (root.activeSelf) UiSfx.Close();
             if (hintRoutine != null)
             {
                 StopCoroutine(hintRoutine);
@@ -213,6 +215,7 @@ namespace Aethoria.UI
         private void Select(int index)
         {
             if (state != ScreenState.Browsing) return; // 덮어쓰기/삭제 확인 중에는 선택을 바꾸지 않는다
+            if (index != selected) UiSfx.Move();
             selected = index;
             float top = SlotTopPx[index] + HighlightTopOffsetPx;
             SetPixelRect(highlight, HighlightXMinPx, top, HighlightXMaxPx, top + HighlightHeightPx);

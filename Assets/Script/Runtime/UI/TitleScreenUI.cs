@@ -230,29 +230,36 @@ namespace Aethoria.UI
             image.color = c;
         }
 
-        // 십자가가 위에서 빛 꼬리를 끌며 떨어져 글자 가운데에 꽂힌다 → 섬광·화면 흔들림·파편·충격파 →
-        // 반동으로 살짝 튀어 올랐다가 제자리에 박힌다.
+        // 십자가가 위에서 빛 꼬리를 끌며 떨어져 글자 가운데에 꽂힌다 →
+        // 히트스톱(찌그러진 채 잠깐 멈춤 + 흰 섬광 + 타격음 파일이 있으면 소리) → 충격파 여러 겹·빛기둥·수평 섬광·파편 →
+        // 강한 흔들림·펀치 줌 → 반동으로 살짝 튀어 올랐다가 제자리에 박힌다.
         // shake: 꽂힐 때 흔들 묶음(시작 연출에서는 한가운데의 로고 묶음). 그 자리를 기준으로 흔들고 제자리에 돌려놓는다.
+        private const float StrikeHitStop = 0.09f;
+
         private IEnumerator CrossStrike(RectTransform shake)
         {
             Vector2 shakeBase = shake.anchoredPosition;
+            Vector3 shakeScale = shake.localScale;
             var cross = crossLayer.rectTransform;
             SetLayerAlpha(crossLayer, 1f);
-            yield return Tween(0.3f, k =>
+            yield return Tween(0.26f, k =>
             {
                 float e = k * k * k;                       // 점점 빨라진다
                 float y = CrossDropHeight * (1f - e);
                 cross.anchoredPosition = new Vector2(0f, y);
+                // 떨어질수록 세로로 늘어나 속도감을 준다.
+                cross.localScale = new Vector3(1f - 0.05f * e, 1f + 0.12f * e, 1f);
                 for (int g = 0; g < crossGhosts.Length; g++)
                 {
-                    crossGhosts[g].rectTransform.anchoredPosition = new Vector2(0f, y + (g + 1) * 70f * (0.3f + e));
-                    SetLayerAlpha(crossGhosts[g], 0.38f / (g + 1));
+                    crossGhosts[g].rectTransform.anchoredPosition = new Vector2(0f, y + (g + 1) * 80f * (0.3f + e));
+                    SetLayerAlpha(crossGhosts[g], 0.45f / (g + 1));
                 }
             });
 
-            // 꽂힌 순간
+            // ---- 꽂힌 순간: 히트스톱
             foreach (var ghost in crossGhosts) SetLayerAlpha(ghost, 0f);
-            cross.anchoredPosition = Vector2.zero;
+            cross.anchoredPosition = new Vector2(0f, -6f);
+            cross.localScale = new Vector3(1.14f, 0.84f, 1f);   // 박히며 납작하게 찌그러진다
             if (ambience != null) ambience.FlashLogo();
             if (impactFlash == null)
             {
@@ -262,62 +269,126 @@ namespace Aethoria.UI
                 impactFlash.raycastTarget = false;
             }
             impactFlash.gameObject.SetActive(true);
+            impactFlash.color = new Color(1f, 0.97f, 1f, 0.85f);
+            shake.localScale = shakeScale * 1.07f;
+            PlayStrikeSound();
+            SpawnImpactCore();          // 히트스톱 동안 이미 보이는 눈부신 중심광
+            yield return Wait(StrikeHitStop);
+
             SpawnImpactFx();
 
+            // 꽂힌 충격으로 로고 글자 전체가 덜덜 흔들린다(십자가는 박힌 자리에 그대로 — 글자만 떤다).
+            // 처음엔 크게 위아래·좌우로 요동치며 살짝 기울었다가, 점점 잔떨림으로 잦아든다.
             var logoRect = logoLayer.rectTransform;
-            yield return Tween(0.6f, k =>
+            Vector2 logoBase = logoRect.anchoredPosition;
+            Vector2 letterOffset = Vector2.zero;
+            float letterTilt = 0f;
+            yield return Tween(0.95f, k =>
             {
                 float decay = (1f - k) * (1f - k);
-                shake.anchoredPosition = shakeBase + Random.insideUnitCircle * 12f * decay;
-                impactFlash.color = new Color(0.95f, 0.88f, 1f, 0.38f * decay * decay);
-                logoRect.localScale = Vector3.one * (1f + 0.03f * decay);
-                // 반동: 앞 60% 동안 살짝 튀어 올랐다가 다시 박힌다.
-                float r = Mathf.Clamp01(k / 0.6f);
-                cross.anchoredPosition = new Vector2(0f, 18f * Mathf.Sin(Mathf.PI * r) * (1f - r * 0.4f));
+                Vector2 jitter = Random.insideUnitCircle;
+                jitter.y *= 1.4f;
+                letterOffset = Vector2.Lerp(letterOffset, jitter * 30f * decay, 0.7f);
+                letterTilt = Mathf.Lerp(letterTilt, Random.Range(-1f, 1f) * 3f * decay, 0.6f);
+                logoRect.anchoredPosition = logoBase + letterOffset;
+                logoRect.localRotation = Quaternion.Euler(0f, 0f, letterTilt);
+                // 펀치 줌: 확 커졌다가 탄성 있게 돌아온다.
+                float punch = Mathf.Exp(-7f * k) * Mathf.Cos(k * 18f);
+                shake.localScale = shakeScale * (1f + 0.07f * punch);
+                impactFlash.color = new Color(0.97f, 0.9f, 1f, 0.6f * Mathf.Pow(1f - k, 4f));
+                logoRect.localScale = Vector3.one * (1f + 0.04f * decay);
+                // 찌그러짐 → 늘어남 → 제자리(감쇠 진동).
+                float squash = Mathf.Exp(-9f * k) * Mathf.Cos(k * 26f);
+                cross.localScale = new Vector3(1f + 0.14f * squash, 1f - 0.16f * squash, 1f);
+                // 반동: 앞 55% 동안 살짝 튀어 올랐다가 다시 박힌다.
+                float r = Mathf.Clamp01(k / 0.55f);
+                cross.anchoredPosition = new Vector2(0f, 20f * Mathf.Sin(Mathf.PI * r) * (1f - r * 0.4f));
             });
             shake.anchoredPosition = shakeBase;
+            shake.localScale = shakeScale;
             cross.anchoredPosition = Vector2.zero;
+            cross.localScale = Vector3.one;
             logoRect.localScale = Vector3.one;
+            logoRect.anchoredPosition = logoBase;
+            logoRect.localRotation = Quaternion.identity;
             impactFlash.gameObject.SetActive(false);
         }
 
-        // 꽂힌 자리에서 보랏빛·흰 파편이 튀고, 충격파 고리가 퍼진다.
+        private RectTransform SpawnFxImage(string name, Sprite sprite, Color color, Vector2 size, Vector2 offset = default)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(Image));
+            var rect = (RectTransform)go.transform;
+            rect.SetParent(impactFxRoot, false);
+            rect.anchorMin = rect.anchorMax = CrossImpactPoint;
+            rect.anchoredPosition = offset;
+            rect.sizeDelta = size;
+            var image = go.GetComponent<Image>();
+            image.sprite = sprite;
+            image.color = color;
+            image.raycastTarget = false;
+            return rect;
+        }
+
+        // 히트스톱 동안 꽂힌 자리에서 번쩍이는 눈부신 중심광.
+        private void SpawnImpactCore()
+        {
+            var core = SpawnFxImage("ImpactCore", Aethoria.Fx.FxUtil.SoftCircleSprite, new Color(1f, 0.96f, 1f, 1f), new Vector2(220f, 150f));
+            core.gameObject.AddComponent<TitleImpactRing>().Setup(0.45f, 1f, 2.2f, 1f);
+            var flare = SpawnFxImage("ImpactFlareCore", Aethoria.Fx.FxUtil.SoftCircleSprite, new Color(1f, 1f, 1f, 1f), new Vector2(900f, 26f));
+            flare.gameObject.AddComponent<TitleImpactRing>().Setup(0.35f, 1f, 1.4f, 1f, squashY: 0.2f);
+        }
+
+        // 꽂힌 자리에서 충격파 고리가 여러 겹 퍼지고, 빛기둥이 치솟고, 보랏빛·흰 파편과 빛줄기가 튄다.
         private void SpawnImpactFx()
         {
-            var ring = new GameObject("ImpactRing", typeof(RectTransform), typeof(Image), typeof(TitleImpactRing));
-            var ringRect = (RectTransform)ring.transform;
-            ringRect.SetParent(impactFxRoot, false);
-            ringRect.anchorMin = ringRect.anchorMax = CrossImpactPoint;
-            ringRect.sizeDelta = new Vector2(120f, 60f);   // 납작한 고리(바닥에 퍼지는 느낌)
-            var ringImage = ring.GetComponent<Image>();
-            ringImage.sprite = Aethoria.Fx.FxUtil.RingSprite;
-            ringImage.color = SparkColorA;
-            ringImage.raycastTarget = false;
+            var ring = Aethoria.Fx.FxUtil.RingSprite;
+            var soft = Aethoria.Fx.FxUtil.SoftCircleSprite;
 
-            for (int i = 0; i < 22; i++)
+            // 충격파: 바닥에 퍼지는 넓고 납작한 고리 두 겹 + 둥근 공기 파동 + 뒤늦게 따라오는 큰 고리.
+            SpawnFxImage("ImpactRingFlat", ring, new Color(1f, 0.95f, 1f, 1f), new Vector2(160f, 54f))
+                .gameObject.AddComponent<TitleImpactRing>().Setup(0.55f, 0.3f, 6.5f, 1f);
+            SpawnFxImage("ImpactRingFlat2", ring, SparkColorA, new Vector2(160f, 54f))
+                .gameObject.AddComponent<TitleImpactRing>().Setup(0.7f, 0.2f, 4.5f, 0.9f, delay: 0.06f);
+            SpawnFxImage("ImpactRingAir", ring, new Color(0.9f, 0.75f, 1f, 1f), new Vector2(110f, 110f))
+                .gameObject.AddComponent<TitleImpactRing>().Setup(0.5f, 0.3f, 5f, 0.75f);
+            SpawnFxImage("ImpactRingLate", ring, new Color(0.7f, 0.5f, 1f, 1f), new Vector2(200f, 80f))
+                .gameObject.AddComponent<TitleImpactRing>().Setup(0.9f, 0.5f, 7.5f, 0.5f, delay: 0.14f);
+
+            // 번지는 빛 무리(보랏빛).
+            SpawnFxImage("ImpactGlow", soft, new Color(0.75f, 0.5f, 1f, 1f), new Vector2(360f, 240f))
+                .gameObject.AddComponent<TitleImpactRing>().Setup(0.8f, 0.7f, 1.8f, 0.7f);
+
+            // 빛기둥: 꽂힌 자리에서 위로 치솟았다가 가늘어지며 사라진다.
+            var pillar = SpawnFxImage("ImpactPillar", Aethoria.Fx.FxUtil.PillarSprite, new Color(0.95f, 0.85f, 1f, 1f), new Vector2(70f, 520f));
+            pillar.pivot = new Vector2(0.5f, 0f);
+            pillar.gameObject.AddComponent<TitleImpactPillar>();
+
+            // 수평 섬광: 좌우로 길게 뻗는 빛줄기.
+            SpawnFxImage("ImpactFlare", soft, new Color(0.9f, 0.8f, 1f, 1f), new Vector2(700f, 16f))
+                .gameObject.AddComponent<TitleImpactRing>().Setup(0.5f, 0.6f, 2f, 0.9f, squashY: 0.25f);
+
+            // 파편: 동그란 불씨 + 반짝이 + 속도 방향으로 길게 늘어난 빛줄기.
+            for (int i = 0; i < 40; i++)
             {
-                var go = new GameObject("Spark", typeof(RectTransform), typeof(Image), typeof(TitleSpark));
-                var rect = (RectTransform)go.transform;
-                rect.SetParent(impactFxRoot, false);
-                rect.anchorMin = rect.anchorMax = CrossImpactPoint;
-                float size = Random.Range(5f, 13f);
-                rect.sizeDelta = new Vector2(size, size);
-                var image = go.GetComponent<Image>();
-                image.sprite = i % 3 == 0 ? Aethoria.Fx.FxUtil.SparkleSprite : Aethoria.Fx.FxUtil.SoftCircleSprite;
-                image.color = Color.Lerp(SparkColorA, SparkColorB, Random.value);
-                image.raycastTarget = false;
-                float angle = Random.Range(15f, 165f) * Mathf.Deg2Rad;   // 위쪽 반원으로 튄다
-                float speed = Random.Range(160f, 420f);
-                go.GetComponent<TitleSpark>().Velocity = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * speed;
+                bool streak = i % 4 == 0;
+                float size = streak ? Random.Range(4f, 7f) : Random.Range(5f, 14f);
+                var rect = SpawnFxImage("Spark", i % 3 == 0 && !streak ? Aethoria.Fx.FxUtil.SparkleSprite : soft,
+                    Color.Lerp(SparkColorA, SparkColorB, Random.value), streak ? new Vector2(size * 7f, size) : new Vector2(size, size));
+                float angle = Random.Range(8f, 172f) * Mathf.Deg2Rad;   // 위쪽 반원으로 튄다
+                float speed = streak ? Random.Range(450f, 800f) : Random.Range(180f, 520f);
+                var spark = rect.gameObject.AddComponent<TitleSpark>();
+                spark.Velocity = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * speed;
+                spark.Streak = streak;
             }
         }
 
-        // 꽂힘 파편: 위로 튀었다가 중력으로 떨어지며 사라진다(실제 시간).
+        // 꽂힘 파편: 위로 튀었다가 중력으로 떨어지며 사라진다(실제 시간). 빛줄기는 날아가는 방향으로 눕는다.
         private class TitleSpark : MonoBehaviour
         {
             public Vector2 Velocity;
+            public bool Streak;
             private float age;
-            private const float Life = 0.75f;
+            private float life;
             private Image image;
             private RectTransform rect;
 
@@ -325,41 +396,107 @@ namespace Aethoria.UI
             {
                 image = GetComponent<Image>();
                 rect = (RectTransform)transform;
+                life = Random.Range(0.6f, 1f);
             }
 
             private void Update()
             {
                 float dt = Mathf.Min(Time.unscaledDeltaTime, 0.05f);
                 age += dt;
-                Velocity += new Vector2(0f, -620f) * dt;
-                Velocity *= 1f - 1.5f * dt;
+                Velocity += new Vector2(0f, Streak ? -300f : -620f) * dt;
+                Velocity *= 1f - (Streak ? 3.5f : 1.5f) * dt;
                 rect.anchoredPosition += Velocity * dt;
+                if (Streak) rect.localRotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(Velocity.y, Velocity.x) * Mathf.Rad2Deg);
                 var c = image.color;
-                c.a = Mathf.Clamp01(1f - age / Life);
+                c.a = Mathf.Clamp01(1f - age / life);
                 image.color = c;
-                if (age >= Life) Destroy(gameObject);
+                if (age >= life) Destroy(gameObject);
             }
         }
 
-        // 충격파 고리: 빠르게 커지며 옅어진다.
+        // 충격파 고리·빛 무리: (잠깐 기다렸다가) 빠르게 커지며 옅어진다.
         private class TitleImpactRing : MonoBehaviour
         {
             private float age;
-            private const float Life = 0.5f;
+            private float life = 0.5f, from = 0.3f, to = 4f, alpha = 0.8f, delay, squashY = 1f;
             private Image image;
 
             private void Awake() => image = GetComponent<Image>();
+
+            public void Setup(float life, float from, float to, float alpha, float delay = 0f, float squashY = 1f)
+            {
+                this.life = life;
+                this.from = from;
+                this.to = to;
+                this.alpha = alpha;
+                this.delay = delay;
+                this.squashY = squashY;
+                Apply(0f, delay > 0f);
+            }
+
+            private void Apply(float k, bool hidden)
+            {
+                float grow = Mathf.Lerp(from, to, 1f - (1f - k) * (1f - k) * (1f - k));
+                // squashY < 1이면 세로로는 덜 커지고 점점 가늘어진다(수평 섬광).
+                float y = squashY < 1f ? Mathf.Lerp(1f, squashY, k) : grow;
+                transform.localScale = new Vector3(grow, y, 1f);
+                var c = image.color;
+                c.a = hidden ? 0f : alpha * (1f - k) * (1f - k * 0.3f);
+                image.color = c;
+            }
+
+            private void Update()
+            {
+                age += Mathf.Min(Time.unscaledDeltaTime, 0.05f);
+                float t = age - delay;
+                if (t < 0f) return;
+                float k = Mathf.Clamp01(t / life);
+                Apply(k, false);
+                if (k >= 1f) Destroy(gameObject);
+            }
+        }
+
+        // 빛기둥: 순식간에 위로 뻗고, 가늘어지며 사라진다.
+        private class TitleImpactPillar : MonoBehaviour
+        {
+            private const float Life = 0.6f;
+            private float age;
+            private Image image;
+
+            private void Awake()
+            {
+                image = GetComponent<Image>();
+                transform.localScale = new Vector3(1f, 0.1f, 1f);
+            }
 
             private void Update()
             {
                 age += Mathf.Min(Time.unscaledDeltaTime, 0.05f);
                 float k = Mathf.Clamp01(age / Life);
-                transform.localScale = Vector3.one * Mathf.Lerp(0.3f, 4f, 1f - (1f - k) * (1f - k));
+                float up = 1f - Mathf.Pow(1f - Mathf.Clamp01(k / 0.25f), 3f);
+                transform.localScale = new Vector3(Mathf.Lerp(1.3f, 0.15f, k), Mathf.Lerp(0.1f, 1.1f, up), 1f);
                 var c = image.color;
-                c.a = 0.8f * (1f - k);
+                c.a = 0.9f * (1f - k * k);
                 image.color = c;
-                if (age >= Life) Destroy(gameObject);
+                if (k >= 1f) Destroy(gameObject);
             }
+        }
+
+        // ---- 십자가 타격음: Audio/Sfx/title_cross_strike 파일이 있으면 그 소리를 낸다(없으면 소리 없음).
+        public const string CrossStrikeSfxPath = "Audio/Sfx/title_cross_strike";
+        private AudioSource strikeSource;
+
+        private void PlayStrikeSound()
+        {
+            var clip = Resources.Load<AudioClip>(CrossStrikeSfxPath);
+            if (clip == null) return;
+            if (strikeSource == null)
+            {
+                strikeSource = gameObject.AddComponent<AudioSource>();
+                strikeSource.playOnAwake = false;
+                strikeSource.spatialBlend = 0f;
+            }
+            strikeSource.PlayOneShot(clip, GameSettings.SfxVolume);
         }
 
         private static RectTransform NewStretchedRect(string name, Transform parent)
@@ -605,8 +742,10 @@ namespace Aethoria.UI
                 SetLayerAlpha(logoLayer, 1f);
                 logoLayer.rectTransform.localScale = Vector3.one;
                 logoLayer.rectTransform.anchoredPosition = Vector2.zero;
+                logoLayer.rectTransform.localRotation = Quaternion.identity;
                 SetLayerAlpha(crossLayer, 1f);
                 crossLayer.rectTransform.anchoredPosition = Vector2.zero;
+                crossLayer.rectTransform.localScale = Vector3.one;
                 foreach (var ghost in crossGhosts) SetLayerAlpha(ghost, 0f);
                 if (impactFlash != null) impactFlash.gameObject.SetActive(false);
                 for (int i = impactFxRoot.childCount - 1; i >= 0; i--) Destroy(impactFxRoot.GetChild(i).gameObject);
@@ -636,7 +775,11 @@ namespace Aethoria.UI
             settingsUI.Open(() =>
             {
                 int index = System.Array.FindIndex(menuButtons, b => b.name == "SettingsButton");
-                if (index >= 0) selectedIndex = index;
+                if (index >= 0)
+                {
+                    if (index != selectedIndex) UiSfx.Move(); // 마우스를 다른 항목에 올렸다
+                    selectedIndex = index;
+                }
             });
         }
 
@@ -884,6 +1027,7 @@ namespace Aethoria.UI
 
             go.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0f); // 보이지 않지만 클릭/레이캐스트는 받는다
             var button = go.GetComponent<Button>();
+            button.onClick.AddListener(UiSfx.Confirm);
             button.onClick.AddListener(onClick);
             return button;
         }
@@ -1065,6 +1209,7 @@ namespace Aethoria.UI
         // 메뉴 커서를 위(-1)/아래(+1)로 한 칸 옮긴다. 끝에서는 반대쪽 끝으로 넘어간다.
         private void MoveMenuSelection(int delta)
         {
+            UiSfx.Move();
             selectedIndex = (selectedIndex + delta + menuButtons.Length) % menuButtons.Length;
             if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(menuButtons[selectedIndex].gameObject);
         }

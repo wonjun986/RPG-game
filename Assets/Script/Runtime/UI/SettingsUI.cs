@@ -89,14 +89,15 @@ namespace Aethoria.UI
             return ui;
         }
 
-        public void Open(System.Action closed)
+        // startTab: 처음 보여 줄 탭(0 화면, 1 사운드, 2 게임, 3 조작). 일시정지 메뉴의 "조작법"은 3으로 연다.
+        public void Open(System.Action closed, int startTab = 0)
         {
             onClosed = closed;
             openedFrame = Time.frameCount;
             root.transform.SetAsLastSibling();
             // 창이 떠 있는 동안 Enter가 뒤쪽 메뉴 버튼까지 누르지 않도록 선택을 비운다.
             if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(null);
-            SelectTab(0, force: true);
+            SelectTab(Mathf.Clamp(startTab, 0, TabNames.Length - 1), force: true);
             transition.PlayOpen();
             pageAnimStart += 0.12f; // 창이 올라오는 동안은 줄 연출을 조금 늦춘다
         }
@@ -191,7 +192,7 @@ namespace Aethoria.UI
         {
             ("← →", "이동"), ("↑", "점프 (공중에서 한 번 더)"), ("↓", "발판 아래로 내려가기"), ("Z", "공격 · 대화 · 확인"),
             ("Shift", "대시"), ("Q W E A S D R", "스킬"), ("F", "포션 마시기"), ("I", "장비창"),
-            ("C", "스탯창"), ("Esc", "메뉴 · 닫기"), ("X", "취소 · 닫기"),
+            ("C", "스탯창"), ("M", "던전 지도 크게 보기"), ("Esc", "메뉴 · 닫기"), ("X", "취소 · 닫기"),
         };
 
         private void BuildControlsPage()
@@ -380,6 +381,7 @@ namespace Aethoria.UI
         private void SelectTab(int tab, bool force = false)
         {
             if (!force && tab == currentTab) return;
+            if (!force) UiSfx.Move();
             currentTab = tab;
             for (int i = 0; i < tabPages.Length; i++) tabPages[i].SetActive(i == tab);
             var box = Rect.MinMaxRect(TabX[tab].x + 4f, TabY.x + 4f, TabX[tab].y - 4f, TabY.y - 4f);
@@ -399,6 +401,7 @@ namespace Aethoria.UI
         {
             int index = active.IndexOf(row);
             if (index < 0 || index == selected) return;
+            UiSfx.Move();
             selected = index;
             Refresh();
         }
@@ -406,6 +409,7 @@ namespace Aethoria.UI
         private void MoveSelection(int delta)
         {
             if (active.Count == 0) return;
+            UiSfx.Move();
             selected = (selected + delta + active.Count) % active.Count;
             Refresh();
         }

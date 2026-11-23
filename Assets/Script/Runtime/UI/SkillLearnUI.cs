@@ -137,6 +137,7 @@ namespace Aethoria.UI
             CreateButton(window, "LearnButton", Px(1095, 765, 1425, 840), TryLearn);
             CreateButton(window, "CloseButton", Px(1430, 22, 1510, 98), Hide);
 
+            panel.AddComponent<PanelFadeIn>(); // 켜질 때 공통 연출 + 여는 소리
             panel.SetActive(false);
         }
 
@@ -218,6 +219,7 @@ namespace Aethoria.UI
 
         public void Hide()
         {
+            if (panel.activeSelf) UiSfx.Close();
             panel.SetActive(false);
             Time.timeScale = 1f;
             if (playerMovement != null) playerMovement.SetInputLocked(false);
@@ -234,6 +236,7 @@ namespace Aethoria.UI
 
         private void Select(int index)
         {
+            if (Mathf.Clamp(index, 0, SkillBook.Skills.Length - 1) != selected) UiSfx.Move();
             selected = Mathf.Clamp(index, 0, SkillBook.Skills.Length - 1);
             flashUntil = 0f;
             Refresh();

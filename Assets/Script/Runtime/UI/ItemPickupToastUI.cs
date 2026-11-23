@@ -16,6 +16,7 @@ namespace Aethoria.UI
 
         private Inventory inventory;
         private Image icon;
+        private Image plate;
         private Text label;
         private Coroutine routine;
 
@@ -31,6 +32,22 @@ namespace Aethoria.UI
             rootRect.pivot = new Vector2(0.5f, 1f);
             rootRect.anchoredPosition = new Vector2(0f, -120f);
             rootRect.sizeDelta = new Vector2(340f, 50f);
+
+            // 알림 판 그림(UI/HUD/ToastPlate — 양 끝이 흐려지는 보라 띠, 위 가운데 보석). 없으면 판 없이 글자만.
+            var plateSprite = Resources.Load<Sprite>("UI/HUD/ToastPlate");
+            if (plateSprite != null)
+            {
+                var plateGO = new GameObject("Plate", typeof(RectTransform), typeof(Image));
+                var plateRect = (RectTransform)plateGO.transform;
+                plateRect.SetParent(rootRect, false);
+                plateRect.anchorMin = Vector2.zero;
+                plateRect.anchorMax = Vector2.one;
+                plateRect.offsetMin = new Vector2(-40f, -8f);
+                plateRect.offsetMax = new Vector2(30f, 10f);
+                plate = plateGO.GetComponent<Image>();
+                plate.sprite = plateSprite;
+                plate.raycastTarget = false;
+            }
 
             var iconGO = new GameObject("Icon", typeof(RectTransform), typeof(Image));
             var iconRect = (RectTransform)iconGO.transform;
@@ -107,6 +124,7 @@ namespace Aethoria.UI
 
         private void SetAlpha(float alpha)
         {
+            if (plate != null) plate.color = new Color(1f, 1f, 1f, alpha);
             var labelColor = label.color;
             labelColor.a = alpha;
             label.color = labelColor;

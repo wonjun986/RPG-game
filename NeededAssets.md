@@ -68,6 +68,35 @@
 
 Q 스킬은 기존 기본 공격 소리(`necrosia_z_attack`)를 그대로 씁니다.
 
+### 메뉴 효과음 (선택) — `Audio/Sfx/`
+
+없으면 코드로 합성한 소리가 나옵니다. 파일을 넣으면 그 파일로 바뀝니다.
+
+| 파일 이름 | 나오는 때 |
+|---|---|
+| `ui_move` | 메뉴 커서 이동 |
+| `ui_confirm` | 확인 · 선택 |
+| `ui_cancel` | 취소 · 계속하기 |
+| `ui_open` | 창 열기 · 큰 지도 열기 |
+| `ui_close` | 창 닫기 |
+| `ui_error` | 할 수 없는 동작 |
+| `enhance_hammer` | 강화창 망치질 (3번) |
+| `enhance_success` | 강화 성공 |
+| `enhance_fail` | 강화 실패 |
+| `title_cross_strike` | 오프닝에서 십자가가 꽂힐 때 (없으면 소리 없음 — 합성음 없음) |
+
+## UI 그림 (선택) — 프롬프트: [Sprite/UI/UI 스프라이트 프롬프트.md](Sprite/UI/UI%20스프라이트%20프롬프트.md)
+
+없으면 코드로 그린 둥근 판과 픽셀 아이콘이 나옵니다.
+
+| 파일 | 쓰임 |
+|---|---|
+| `UI/Map/icon_key` · `icon_chest` · `icon_elite` · `icon_puzzle` · `icon_arena` | 던전 지도 방 아이콘 |
+| `UI/Map/MinimapFrame` | 미니맵 판 |
+| `UI/Map/AreaTitleOrnament` | 지역 이름 아래 장식줄 |
+| `UI/HUD/PotionSlot` | HUD 포션 칸 |
+| `UI/Common/PromptBubble` | NPC 머리 위 상호작용 말풍선 |
+
 ## 아직 코드가 없는 것
 
 - **엔스룸 마을 NPC 추가**: NPC 그림이 정해지면 대사와 역할을 함께 만듭니다.

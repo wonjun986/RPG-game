@@ -23,6 +23,10 @@ namespace Aethoria.Characters
         private Inventory inventory;
         private float cooldownRemaining;
 
+        // HUD 포션 칸(PotionSlotUI)이 쿨타임을 그린다.
+        public float Cooldown => cooldown;
+        public float CooldownRemaining => cooldownRemaining;
+
         private void Awake()
         {
             character = GetComponent<Character>();

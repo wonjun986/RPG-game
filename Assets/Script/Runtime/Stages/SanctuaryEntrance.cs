@@ -39,6 +39,7 @@ namespace Aethoria.Stages
             promptText.alignment = TextAlignment.Center;
             promptText.anchor = TextAnchor.MiddleCenter;
             promptText.color = Color.white;
+            InteractPromptStyle.Apply(promptText); // 공통 말풍선 · 금빛 키 · 톡 튀어나오기
 
             go.GetComponent<MeshRenderer>().sortingOrder = 50;
             go.SetActive(false);

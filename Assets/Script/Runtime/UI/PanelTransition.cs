@@ -24,6 +24,9 @@ namespace Aethoria.UI
         // 닫히는 중(아직 화면엔 보이지만 입력은 받지 않아야 할 때).
         public bool IsClosing { get; private set; }
 
+        // 여닫을 때 메뉴 효과음(UiSfx.Open/Close)을 낼지.
+        public bool PlaySounds = true;
+
         private void Awake() => Init();
 
         private void Init()
@@ -39,6 +42,7 @@ namespace Aethoria.UI
         {
             Init();
             IsClosing = false;
+            if (!gameObject.activeSelf && PlaySounds) UiSfx.Open();
             gameObject.SetActive(true);
             if (routine != null) StopCoroutine(routine);
             routine = StartCoroutine(Open());
@@ -53,6 +57,7 @@ namespace Aethoria.UI
                 onClosed?.Invoke();
                 return;
             }
+            if (!IsClosing && PlaySounds) UiSfx.Close();
             IsClosing = true;
             if (routine != null) StopCoroutine(routine);
             routine = StartCoroutine(Close(onClosed));

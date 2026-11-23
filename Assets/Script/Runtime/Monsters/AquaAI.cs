@@ -25,8 +25,11 @@ namespace Aethoria.Monsters
     // 몸에 닿아도 피해를 입는다. 쓰러지면 대사를 나눈 뒤 마을(노아 앞)로 돌아간다.
     [RequireComponent(typeof(Monster))]
     [RequireComponent(typeof(SpriteRenderer))]
-    public class AquaAI : MonoBehaviour
+    public class AquaAI : MonoBehaviour, IBossPhaseMarks
     {
+        // 보스 체력바 눈금(IBossPhaseMarks).
+        public float[] PhaseMarks => new[] { phaseTwoFraction };
+
         private const string IdlePath = "Art/Monsters/Aqua/Idle";
         private const string ThrustPath = "Art/Monsters/Aqua/Thrust";
         private const string DrillTransformPath = "Art/Monsters/Aqua/DrillTransform";

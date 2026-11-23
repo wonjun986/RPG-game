@@ -388,6 +388,7 @@ namespace Aethoria.UI
         private void SelectSlot(int index)
         {
             if (index < 0 || index >= currentItems.Count || index == selectedIndex) return;
+            UiSfx.Move();
             selectedIndex = index;
             RefreshSelection();
         }
@@ -395,12 +396,14 @@ namespace Aethoria.UI
         private void SelectTab(int tab)
         {
             if (tab == currentTab) return;
+            UiSfx.Move();
             currentTab = tab;
             RefreshTab();
         }
 
         private void ChangeTab(int delta)
         {
+            UiSfx.Move();
             currentTab = (currentTab + delta + TabFilters.Length) % TabFilters.Length;
             RefreshTab();
         }

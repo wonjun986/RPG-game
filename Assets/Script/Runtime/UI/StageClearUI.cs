@@ -312,6 +312,7 @@ namespace Aethoria.UI
         {
             if (!IsOpen) return;
 
+            UiSfx.Confirm();
             Close();
             if (index == 0 && retryAction != null) retryAction();
             else GameBootstrap.ReturnToVillage(spawnAtNoa: true);

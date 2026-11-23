@@ -295,6 +295,7 @@ namespace Aethoria.UI
             bool wasOpen = request != null && !closing;
             if (!wasOpen)
             {
+                UiSfx.Open();
                 // 이미 멈춰 있던 화면(상점·장비창) 위에서 열렸다면 닫을 때 그 상태 그대로 돌려준다.
                 savedTimeScale = Time.timeScale;
                 savedInputLocked = newRequest.LockMovement != null && newRequest.LockMovement.IsInputLocked;
@@ -388,6 +389,7 @@ namespace Aethoria.UI
         private void SetSelected(int index)
         {
             if (request == null || closing || selected == index) return;
+            UiSfx.Move();
             selected = index;
             RefreshButtons();
         }
@@ -395,6 +397,7 @@ namespace Aethoria.UI
         private void Activate(int index)
         {
             if (request == null || closing) return;
+            if (index == 0) UiSfx.Confirm(); else UiSfx.Cancel();
             Close(index == 0);
         }
 

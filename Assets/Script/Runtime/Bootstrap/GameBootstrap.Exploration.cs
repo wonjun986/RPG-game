@@ -24,6 +24,7 @@ namespace Aethoria.Bootstrap
         private static void SpawnTreasureChest(Transform parent, string id, float x, float surfaceY)
         {
             TreasureChest.Spawn(parent, id, new Vector3(x, surfaceY, 0f), player);
+            NoteMinimapChest(id); // 던전 지도에 이 방의 상자로 표시
         }
 
         // 숨겨진 포탈. 일반 포탈 그림을 작게 줄이고 보랏빛으로 물들여, 가까이 가야만 드러나게 한다.

@@ -125,6 +125,7 @@ namespace Aethoria.UI
             var help = CreateText(rect, "Help", 560f, 682f, 1220f, 708f, 14, DimText, TextAnchor.MiddleRight);
             help.text = "방향키 고르기 · Z 찍기 · R 초기화(골드) · X 닫기";
 
+            panel.AddComponent<PanelFadeIn>(); // 켜질 때 공통 연출 + 여는 소리
             panel.SetActive(false);
         }
 
@@ -248,6 +249,7 @@ namespace Aethoria.UI
 
         public void Hide()
         {
+            if (panel.activeSelf) UiSfx.Close();
             panel.SetActive(false);
             Time.timeScale = 1f;
             if (playerMovement != null) playerMovement.SetInputLocked(false);
@@ -257,6 +259,7 @@ namespace Aethoria.UI
 
         private void Select(int index)
         {
+            if (Mathf.Clamp(index, 0, BlessingRules.TalentCount - 1) != selected) UiSfx.Move();
             selected = Mathf.Clamp(index, 0, BlessingRules.TalentCount - 1);
             resetConfirmUntil = -1f;
             Refresh();

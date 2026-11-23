@@ -642,6 +642,7 @@ namespace Aethoria.UI
 
             if (newIndex >= 0 && newIndex < currentItems.Count)
             {
+                if (newIndex != selectedIndex) UiSfx.Move();
                 selectedIndex = newIndex;
                 RefreshSelectionHighlight();
                 ShowSelectedDetail();
