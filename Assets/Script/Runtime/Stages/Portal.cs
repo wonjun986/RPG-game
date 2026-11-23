@@ -260,6 +260,7 @@ namespace Aethoria.Stages
 
             triggered = true;
 
+            SfxPlayer.Play(SfxPlayer.PortalEnter);
             if (customTrigger != null) customTrigger();
             else if (backward) GameBootstrap.EnterPreviousStage();
             else GameBootstrap.EnterNextStage();

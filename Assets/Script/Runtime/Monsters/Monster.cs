@@ -2,6 +2,7 @@ using System;
 using UnityEngine;
 using Aethoria.Combat;
 using Aethoria.Data;
+using Aethoria.Bootstrap;
 
 namespace Aethoria.Monsters
 {
@@ -59,6 +60,9 @@ namespace Aethoria.Monsters
             currentHp = MaxHp;
         }
 
+        // 발밑 그림자(리듬 배틀 상대로 쓰일 때는 GroundShadow가 스스로 숨는다).
+        private void Start() => Aethoria.Fx.GroundShadow.Attach(gameObject, 0.9f);
+
         public void AssignData(MonsterData newData)
         {
             data = newData;
@@ -82,11 +86,22 @@ namespace Aethoria.Monsters
             if (isCritical) DamagePopup.Create(transform.position, finalDamage, CriticalPopupColor, 1.4f);
             else DamagePopup.Create(transform.position, finalDamage, Color.white);
 
-            if (currentHp <= 0f)
+            bool killed = currentHp <= 0f;
+            // 히트스톱/흔들기/번쩍임/불꽃. 처치 처리(경험치→레벨업 슬로우)보다 먼저 부르면 레벨업 슬로우가 히트스톱에 막혀서,
+            // 처치일 때는 아래 사망 처리 뒤에 부른다(본체 Destroy는 프레임 끝에 일어나므로 그때도 쓸 수 있다).
+            if (!killed) Aethoria.Fx.HitFeedback.OnMonsterHit(this, isCritical, isSkill, false);
+
+            if (killed)
             {
                 OnDied?.Invoke(this);
                 if (!IsMinigameOpponent && CountsAsKill) AnyDied?.Invoke(this);
-                if (DestroyOnDeath) Destroy(gameObject);
+                if (DestroyOnDeath)
+                {
+                    // 그냥 사라지지 않고 튕겨 날아가며 깜빡이다 조각나 흩어진다(본체는 바로 지운다).
+                    if (!IsMinigameOpponent) Aethoria.Fx.MonsterDeathFx.Play(this, Aethoria.Fx.LootFx.Target);
+                    Destroy(gameObject);
+                }
+                Aethoria.Fx.HitFeedback.OnMonsterHit(this, isCritical, isSkill, true);
             }
         }
 

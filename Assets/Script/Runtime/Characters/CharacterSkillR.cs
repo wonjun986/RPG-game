@@ -185,6 +185,7 @@ namespace Aethoria.Characters
             if (!character.TrySpendMana(manaCost)) return;
 
             cooldownRemaining = cooldown;
+            SfxPlayer.Play(SfxPlayer.SkillR);
             StartCoroutine(UltimateRoutine());
         }
 

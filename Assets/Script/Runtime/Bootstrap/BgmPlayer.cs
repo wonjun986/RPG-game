@@ -15,9 +15,17 @@ namespace Aethoria.Bootstrap
 
         // restartIfPlaying=false면 같은 곡이 이미 나오고 있을 때 처음으로 되감지 않고 그대로 둔다.
         // startSeconds: 파일 맨 앞에 무음이 들어 있는 곡은 그만큼 건너뛰고 튼다.
-        public static void Play(string resourcePath, float loopStartSeconds, bool restartIfPlaying = true, float startSeconds = 0f)
+        // fallbackPath: resourcePath에 곡 파일이 아직 없으면 대신 틀 곡(예: 전용 곡이 나오기 전까지 비슷한 곡을 임시로).
+        public static void Play(string resourcePath, float loopStartSeconds, bool restartIfPlaying = true, float startSeconds = 0f,
+            string fallbackPath = null)
         {
             var clip = Resources.Load<AudioClip>(resourcePath);
+            if (clip == null && !string.IsNullOrEmpty(fallbackPath))
+            {
+                Debug.Log($"Aethoria: 배경 음악 파일이 아직 없어 임시 곡을 틉니다 ({resourcePath} → {fallbackPath})");
+                clip = Resources.Load<AudioClip>(fallbackPath);
+                resourcePath = fallbackPath;
+            }
             if (!restartIfPlaying && instance != null && instance.source.clip == clip && clip != null) return;
             if (clip == null)
             {
@@ -57,6 +65,7 @@ namespace Aethoria.Bootstrap
 
         private void Update()
         {
+            source.volume = Aethoria.Save.GameSettings.BgmVolume; // 설정의 배경음 볼륨(전체 볼륨은 AudioListener가 곱한다)
             var clip = source.clip;
             if (clip == null) return;
             if (source.isPlaying)

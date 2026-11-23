@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Aethoria.Monsters;
+using Aethoria.Bootstrap;
 
 namespace Aethoria.Characters
 {
@@ -61,6 +62,7 @@ namespace Aethoria.Characters
             if (!character.TrySpendMana(manaCost)) return;
 
             cooldownRemaining = cooldown;
+            SfxPlayer.Play(SfxPlayer.SkillS);
             StartCoroutine(FistPunchRoutine());
         }
 

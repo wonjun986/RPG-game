@@ -20,8 +20,20 @@ namespace Aethoria.Stages
             player = playerCharacter;
         }
 
+        private bool started;
+
+        // 방이 지어진 뒤에 따로 나온 몬스터(전멸방 웨이브 등)도 경험치·골드를 주게 등록한다. Start 전이면 Start가 알아서 센다.
+        public void Track(Monster monster)
+        {
+            if (!started || monster == null) return;
+            remainingMonsters++;
+            cleared = false;
+            monster.OnDied += HandleMonsterDied;
+        }
+
         private void Start()
         {
+            started = true;
             var monsters = FindObjectsByType<Monster>(FindObjectsSortMode.None);
             remainingMonsters = monsters.Length;
 
@@ -45,6 +57,9 @@ namespace Aethoria.Stages
                     int exp = ExperienceMath.GetMonsterExp(player.Level, monster.Data.level, monster.Data.expReward);
                     player.AddExp(exp);
                     player.AddGold(monster.Data.goldReward);
+                    var monsterCollider = monster.GetComponent<Collider2D>();
+                    float floorY = monsterCollider != null ? monsterCollider.bounds.min.y : monster.transform.position.y;
+                    Aethoria.Fx.LootFx.SpawnGold(monster.transform.position + Vector3.up * 0.5f, floorY, monster.Data.goldReward);
                 }
             }
 

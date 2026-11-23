@@ -13,8 +13,9 @@ namespace Aethoria.Characters
         // A스킬 시트(보랏빛 사슬낫 공격, 12프레임)에서 서 있는 1번째 프레임의 머리 장식~부츠 키(원본 px).
         // 12장을 같은 캔버스에 발 위치를 맞춰 잘라 두었으므로 시트 전체에 같은 배율을 건다.
         [SerializeField] private float bodyPixelHeight = 239f;
-        // 그 키가 대기 모션의 서 있는 키(머리 장식~부츠 약 1.53유닛)와 같아 보이게 한다.
-        [SerializeField] private float bodyTargetHeight = 1.53f;
+        // 처음엔 대기 모션의 서 있는 키(약 1.53유닛)에 맞췄는데, 이 시트는 얼굴이 조금 크게 그려져 있어서
+        // 머리가 커 보였다. 대기 얼굴 크기에 맞춰 0.9배로 줄였다.
+        [SerializeField] private float bodyTargetHeight = 1.38f;
 
         private SpriteRenderer spriteRenderer;
         private WalkSpriteAnimator walkAnimator;

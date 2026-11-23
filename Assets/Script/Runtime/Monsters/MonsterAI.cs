@@ -22,6 +22,10 @@ namespace Aethoria.Monsters
         [SerializeField] private float hitRangeTolerance = 0.3f; // 휘두르는 사이 플레이어가 살짝 물러나도 맞는 여유 거리
         // 플레이어가 이만큼 위에 있으면(점프로 넘어가는 중) 공격이 닿지 않는다.
         [SerializeField] private float jumpOverHeight = 2f;
+        // 맞으면 플레이어 반대쪽으로 살짝 밀려나며 잠깐 멈춘다(피격 시트 없이 맞는 느낌을 주는 넉백·경직).
+        // 보스는 각자 AI를 써서 여기에 해당하지 않는다(슈퍼아머 유지). 이미 휘두르기 시작한 공격은 끊지 않는다.
+        [SerializeField] private float knockbackSpeed = 4.5f;
+        [SerializeField] private float staggerDuration = 0.18f;
 
         private Monster monster;
         private Rigidbody2D body;
@@ -31,6 +35,9 @@ namespace Aethoria.Monsters
         private MonsterAttackSpriteAnimator attackAnimator;
         private bool isAttacking;
         private float contactRange;
+        private float knockbackWeight = 1f;
+        private float staggerUntil;
+        private float knockbackVelocity;
 
         private void Awake()
         {
@@ -48,6 +55,24 @@ namespace Aethoria.Monsters
             var box = GetComponent<BoxCollider2D>();
             float extraHalfWidth = box != null ? Mathf.Max(0f, box.size.x * 0.5f - 0.3f) : 0f;
             contactRange = attackRange + extraHalfWidth;
+            // 몸이 넓은(무거운) 몬스터는 덜 밀린다(콜로서스).
+            knockbackWeight = 1f / (1f + extraHalfWidth * 3f);
+
+            monster.OnDamaged += HandleDamaged;
+        }
+
+        private void OnDestroy()
+        {
+            if (monster != null) monster.OnDamaged -= HandleDamaged;
+        }
+
+        private void HandleDamaged(Monster _, float __)
+        {
+            if (monster.IsDead || monster.IsMinigameOpponent || monster.IsImmobilized) return;
+            float dir = target != null ? Mathf.Sign(transform.position.x - target.transform.position.x) : (spriteRenderer.flipX ? 1f : -1f);
+            if (dir == 0f) dir = 1f;
+            knockbackVelocity = dir * knockbackSpeed * knockbackWeight;
+            staggerUntil = Time.time + staggerDuration;
         }
 
         private void Update()
@@ -60,6 +85,14 @@ namespace Aethoria.Monsters
             if (monster.IsDead || monster.IsImmobilized || target == null || target.IsDead)
             {
                 body.linearVelocity = new Vector2(0f, body.linearVelocity.y);
+                return;
+            }
+
+            // 경직 중: 걷기/새 공격을 멈추고, 밀려난 속도가 경직 끝까지 줄어들며 미끄러진다.
+            if (Time.time < staggerUntil)
+            {
+                float k = (staggerUntil - Time.time) / staggerDuration;
+                body.linearVelocity = new Vector2(knockbackVelocity * k, body.linearVelocity.y);
                 return;
             }
 

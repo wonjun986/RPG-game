@@ -82,15 +82,31 @@ namespace Aethoria.Monsters
         [SerializeField] private float finaleIdleCycle = 1.2f;     // 종막: 꽂은 뒤 무릎 꿇은 대기 한 바퀴(FinalePlantIdle 6프레임)
         [SerializeField] private float raiseDuration = 0.8f;      // 검을 하늘로 치켜들기(SpecialRaise 4프레임)
         [SerializeField] private float raiseHold = 0.6f;          // 치켜든 채로 검게 물드는 순간 잠깐 멈춤
-        [SerializeField] private Color enragedColor = new Color(0.2f, 0.17f, 0.24f); // 분노하면 온몸이 검게 물든다
+        // 분노하면 몸이 어둡게 가라앉는다. 예전엔 거의 검정(0.2, 0.17, 0.24)이라 갑옷·망토 디테일이 뭉개졌는데,
+        // 지금은 흑염 오라와 안광이 각성을 보여 주므로 그림이 살아 있을 만큼만 어둡게 둔다.
+        [SerializeField] private Color enragedColor = new Color(0.5f, 0.42f, 0.58f);
         [SerializeField] private float enragedSpeedScale = 1.3f;   // 분노 후 이동 속도
         [SerializeField] private float enragedCooldownScale = 0.65f; // 분노 후 패턴 사이 간격/쿨타임
         // 눈에서 흩날리는 붉은 실크(Effects/AliasEyeSilk). 피벗이 실크 왼쪽 끝(CharacterArtPostprocessor)이라 그 끝을 눈에 붙인다.
         // 걷기 그림(전투 중 가장 오래 보이는 모습) 속 투구 눈 자리: 피벗 기준 앞으로 약 0.13, 위로 2.13(192px = 1칸).
         // 실크가 투구에 묻혀 보여 눈 자리보다 조금 위(2.3)에 붙인다.
         // 왼쪽을 볼 때 화면 오른쪽 눈(뒤쪽 눈)에서 실크가 시작되도록 앞쪽 눈보다 조금 뒤로 잡았다.
-        [SerializeField] private Vector2 eyeOffset = new Vector2(0.13f, 2.3f);
-        [SerializeField] private float silkFrameDuration = 0.1f;
+        // 안광(AliasEyeGlow)을 투구 눈 자리에 겹쳐 그리고 실크도 그 빛 한가운데서 뻗어 나오게 해서, 실크만 쓸 때(2.3)보다 눈에 가깝게 둔다.
+        [SerializeField] private Vector2 eyeOffset = new Vector2(0.13f, 2.2f);
+        [SerializeField] private float silkFrameDuration = 0.08f;
+
+        [Header("분노 각성 이펙트")]
+        // 검을 치켜드는 순간 발밑에서 솟구치는 검보라 불꽃 기둥(8프레임 한 번).
+        [SerializeField] private float awakenBurstFrameDuration = 0.07f;
+        // 분노한 뒤로 몸 뒤에서 계속 일렁이는 흑염 오라(6프레임 반복). 그림 속 빈 실루엣이 알리아스 몸을 감싸도록 가로로 조금 넓힌다.
+        [SerializeField] private float auraFrameDuration = 0.1f;
+        [SerializeField] private Vector2 auraScale = new Vector2(1.35f, 1f);
+        [SerializeField] private Vector2 auraOffset = Vector2.zero;
+        [SerializeField, Range(0f, 1f)] private float auraAlpha = 1f; // 먹물처럼 진한 그림자 불꽃이라 그대로 다 보이게
+        [SerializeField] private float auraFadeIn = 0.45f;
+        // 투구 눈에서 타오르는 붉은 안광(4프레임 반복).
+        [SerializeField] private float eyeGlowFrameDuration = 0.08f;
+        [SerializeField] private float eyeGlowScale = 0.7f; // 원래 크기면 빛 무리가 투구 윗부분을 거의 덮는다
 
         [Header("종막: 검의 의식 (분노 후 체력 30% 이하에서 한 번)")]
         [SerializeField, Range(0f, 1f)] private float finaleHealthFraction = 0.3f;
@@ -161,6 +177,14 @@ namespace Aethoria.Monsters
         private Sprite[] silkFrames;
         private float silkTimer;
         private int silkIndex;
+        private SpriteRenderer eyeGlow;
+        private Sprite[] glowFrames;
+        private float glowTimer;
+        private int glowIndex;
+        private SpriteRenderer aura;
+        private Sprite[] auraFrames;
+        private float auraTimer, auraAge;
+        private int auraIndex;
         private const string PlantClip = "Plant";
         private const string PlantHoldClip = "PlantHold";
         private const string RaiseClip = "Raise";
@@ -172,6 +196,9 @@ namespace Aethoria.Monsters
         // 검을 꽂은 뒤 의식이 끝날 때까지 무릎 꿇은 채 보랏빛 불길이 일렁이는 대기(6프레임 반복).
         public const string FinalePlantIdlePath = "Art/Monsters/BossKnight/FinalePlantIdle";
         public const string EyeSilkPath = "Art/Effects/AliasEyeSilk";
+        public const string EyeGlowPath = "Art/Effects/AliasEyeGlow";
+        public const string AwakenBurstPath = "Art/Effects/AliasAwakenBurst";
+        public const string DarkAuraPath = "Art/Effects/AliasDarkAura";
         // 검을 꽂은 채 하는 대사. 보스 대화창을 가진 등장 연출(BossIntroCutscene)이 채워 넣는다(없으면 대사 없이 넘어간다).
         public System.Func<IEnumerator> EnrageTalk { get; set; }
         // 분노(2페이즈)했거나 분노 전환을 기다리는 중인가. 관리자 모드가 2페이즈로 바로 넘길 때 쓴다.
@@ -290,6 +317,8 @@ namespace Aethoria.Monsters
         private void Update()
         {
             UpdateEyeSilk();
+            UpdateEyeGlow();
+            UpdateAura();
             if (jumpCooldownTimer > 0f && !isAttacking) jumpCooldownTimer -= Time.deltaTime;
             if (waveCooldownTimer > 0f && !isAttacking) waveCooldownTimer -= Time.deltaTime;
         }
@@ -456,6 +485,8 @@ namespace Aethoria.Monsters
             nextIsDash = !nextIsDash;
 
             float patternDuration = useDash ? dashComboDuration : sweepComboDuration;
+            // 위험 예고: 콤보 시작 전에 몸이 붉게 번쩍인다.
+            Aethoria.Fx.DangerFx.FlashBody(spriteRenderer, 0.35f, 2);
             if (attackAnimator != null) attackAnimator.Play(patternDuration);
             SfxPlayer.Play(SfxPlayer.AliasAttack);
 
@@ -566,11 +597,15 @@ namespace Aethoria.Monsters
                 yield return new WaitForSeconds(raiseDuration * 0.75f);
             }
 
-            // 검을 치켜든 순간: 하얗게 번쩍였다가 검게 물들고, 눈에 붉은 실크가 피어난다.
+            // 검을 치켜든 순간: 발밑에서 검보라 불꽃 기둥이 솟구치고, 하얗게 번쩍였다가 어둡게 가라앉으며
+            // 몸 뒤로 흑염 오라가 피어오르고, 눈에 붉은 안광이 타오르며 실크가 흩날린다.
             enraged = true;
             enrageQueued = false;
             normalColor = enragedColor;
+            SpawnAwakenBurst();
+            ShowAura();
             ShowEyeSilk();
+            ShowEyeGlow();
             var cam = Camera.main;
             var cameraFollow = cam != null ? cam.GetComponent<CameraFollow>() : null;
             if (cameraFollow != null) cameraFollow.Shake(0.5f, 0.35f);
@@ -677,6 +712,85 @@ namespace Aethoria.Monsters
         {
             if (eyeSilk != null) Destroy(eyeSilk.gameObject);
             eyeSilk = null;
+            if (eyeGlow != null) Destroy(eyeGlow.gameObject);
+            eyeGlow = null;
+            if (aura != null) Destroy(aura.gameObject);
+            aura = null;
+        }
+
+        // ---- 각성 폭발 / 흑염 오라 / 안광 ----
+
+        // 발밑(보스 기준점)에서 한 번 솟구쳤다 흩어진다. 보스 뒤에 그려서 몸 둘레와 머리 위로 불길이 비친다.
+        // 보스를 따라가지 않고 각성한 자리에 남는다.
+        private void SpawnAwakenBurst()
+        {
+            FlipbookSpriteEffect.Create("AliasAwakenBurst", AwakenBurstPath, transform.position,
+                awakenBurstFrameDuration, false, spriteRenderer.sortingOrder - 1);
+        }
+
+        private void ShowAura()
+        {
+            auraFrames = LoadSorted(DarkAuraPath);
+            if (auraFrames.Length == 0) return;
+            var go = new GameObject("DarkAura");
+            go.transform.SetParent(transform, false);
+            aura = go.AddComponent<SpriteRenderer>();
+            aura.sprite = auraFrames[0];
+            aura.sortingOrder = spriteRenderer.sortingOrder - 1;
+            aura.color = new Color(1f, 1f, 1f, 0f);
+            auraAge = 0f;
+            UpdateAura();
+        }
+
+        // 몸 뒤에서 일렁인다. 처음엔 서서히 피어오르고, 그 뒤로는 숨 쉬듯 조금씩 밝기가 오르내린다.
+        private void UpdateAura()
+        {
+            if (aura == null) return;
+            aura.enabled = spriteRenderer.enabled && !monster.IsDead;
+            float front = spriteRenderer.flipX ? -1f : 1f;
+            aura.transform.localPosition = new Vector3(front * auraOffset.x, auraOffset.y, 0f);
+            aura.transform.localScale = new Vector3(front * auraScale.x, auraScale.y, 1f);
+
+            auraAge += Time.deltaTime;
+            float fade = auraFadeIn > 0f ? Mathf.Clamp01(auraAge / auraFadeIn) : 1f;
+            float breathe = 0.92f + 0.08f * Mathf.Sin(Time.time * 3.2f);
+            aura.color = new Color(1f, 1f, 1f, auraAlpha * fade * breathe);
+
+            auraTimer += Time.deltaTime;
+            if (auraTimer < auraFrameDuration) return;
+            auraTimer -= auraFrameDuration;
+            auraIndex = (auraIndex + 1) % auraFrames.Length;
+            aura.sprite = auraFrames[auraIndex];
+        }
+
+        private void ShowEyeGlow()
+        {
+            glowFrames = LoadSorted(EyeGlowPath);
+            if (glowFrames.Length == 0) return;
+            var go = new GameObject("EyeGlow");
+            go.transform.SetParent(transform, false);
+            eyeGlow = go.AddComponent<SpriteRenderer>();
+            eyeGlow.sprite = glowFrames[0];
+            eyeGlow.sortingOrder = spriteRenderer.sortingOrder + 2; // 실크(+1) 위
+            UpdateEyeGlow();
+        }
+
+        // 안광은 기준점이 빛 한가운데라 실크 시작점과 같은 자리에 붙인다. 불꽃 꼬리가 실크처럼 등 뒤로 기울게 뒤집는다.
+        private void UpdateEyeGlow()
+        {
+            if (eyeGlow == null) return;
+            eyeGlow.enabled = spriteRenderer.enabled && !monster.IsDead;
+            float front = spriteRenderer.flipX ? -1f : 1f;
+            float pulse = eyeGlowScale * (1f + Mathf.Sin(Time.time * 9f) * 0.06f);
+            eyeGlow.transform.localScale = new Vector3(-front * pulse, pulse, 1f);
+            float bob = Mathf.Sin(Time.time * 6f) * 0.03f; // 실크와 같은 일렁임
+            eyeGlow.transform.localPosition = new Vector3(front * eyeOffset.x, eyeOffset.y + bob, 0f);
+
+            glowTimer += Time.deltaTime;
+            if (glowTimer < eyeGlowFrameDuration) return;
+            glowTimer -= eyeGlowFrameDuration;
+            glowIndex = (glowIndex + 1) % glowFrames.Length;
+            eyeGlow.sprite = glowFrames[glowIndex];
         }
 
         private void ShowEyeSilk()
@@ -691,7 +805,7 @@ namespace Aethoria.Monsters
             UpdateEyeSilk();
         }
 
-        // 실크는 눈에서 등 뒤로 흩날린다: 오른쪽을 보면 눈 자리에서 왼쪽으로, 왼쪽을 보면 뒤집어서 오른쪽으로.
+        // 실크(기준점 = 왼쪽 끝 밝은 시작점, CharacterArtPostprocessor)는 눈에서 등 뒤로 흩날린다: 오른쪽을 보면 눈 자리에서 왼쪽으로, 왼쪽을 보면 뒤집어서 오른쪽으로.
         // 걷기/공격 모션마다 머리 높이가 조금씩 달라도 크게 어긋나지 않게 대기 모습 기준 눈 자리에 붙이고 살짝 일렁이게 한다.
         private void UpdateEyeSilk()
         {
@@ -773,6 +887,13 @@ namespace Aethoria.Monsters
             landingX = Mathf.Clamp(landingX, bounds.xMin + 1f, bounds.xMax - 1f);
 
             attackAnimator.PlayClip(JumpAttackClip, duration);
+            if (!introJump)
+            {
+                // 위험 예고: 내려찍을 바닥 범위를 착지 순간까지 붉게 표시한다.
+                var landCollider = GetComponent<Collider2D>();
+                float landY = landCollider != null ? landCollider.bounds.min.y : transform.position.y;
+                Aethoria.Fx.DangerFx.GroundZone(new Vector2(landingX, landY), jumpSlamRadius * 2f, duration * JumpImpactFraction);
+            }
 
             yield return new WaitForSeconds(duration * JumpTakeoffFraction);
 

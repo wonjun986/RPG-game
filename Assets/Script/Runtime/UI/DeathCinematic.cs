@@ -83,7 +83,7 @@ namespace Aethoria.UI
             figureRect.pivot = new Vector2(0.5f, 0f);
             figure = figureGO.GetComponent<RawImage>();
             figure.raycastTarget = false;
-            dieFrames = Resources.LoadAll<Texture2D>("UI/NecrosiaDieMotion");
+            dieFrames = Resources.LoadAll<Texture2D>("UI/Screens/NecrosiaDieMotion");
             System.Array.Sort(dieFrames, (a, b) => string.CompareOrdinal(a.name, b.name));
             float aspect = dieFrames.Length > 0 ? (float)dieFrames[0].width / dieFrames[0].height : 1f;
             figureRect.sizeDelta = new Vector2(FigureHeight * aspect, FigureHeight);
@@ -99,7 +99,7 @@ namespace Aethoria.UI
             logoRect.anchoredPosition = new Vector2(0f, 40f);
             logo = logoGO.GetComponent<RawImage>();
             logo.raycastTarget = false;
-            var logoTexture = Resources.Load<Texture2D>("UI/GameOverLogo");
+            var logoTexture = Resources.Load<Texture2D>("UI/Screens/GameOverLogo");
             logo.texture = logoTexture;
             float logoAspect = logoTexture != null ? (float)logoTexture.width / logoTexture.height : 3f;
             logoRect.sizeDelta = new Vector2(900f, 900f / logoAspect);

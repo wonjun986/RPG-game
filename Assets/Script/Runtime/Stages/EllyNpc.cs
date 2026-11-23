@@ -12,7 +12,7 @@ namespace Aethoria.Stages
     public class EllyNpc : MonoBehaviour
     {
         // 엘리 전용 대화 프레임 그림. 대사 칸 왼쪽 위 이름판에 "엘리"를 쓴다.
-        private const string TalkFrame = "UI/Elly_Talk";
+        private const string TalkFrame = "UI/Talk/Elly_Talk";
         private const string SpeakerName = "엘리";
         // 초상화 오른쪽, 이름판 왼쪽 끝(그림 x 약 650px)에서 대사를 시작한다.
         private const float TalkTextLeft = 0.3f;

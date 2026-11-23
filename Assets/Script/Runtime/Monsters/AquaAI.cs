@@ -430,6 +430,10 @@ namespace Aethoria.Monsters
             }
             SetCenter(to);
 
+            // 이름 자막(보스 체력바 연결 시 뜬다)을 먼저 보여 주고, 끝난 뒤에 대사를 시작한다.
+            onReveal?.Invoke();
+            onReveal = null;
+            yield return Aethoria.UI.BossTitleCard.WaitUntilDone();
             onIntroShown?.Invoke();
             yield return Talk(IntroLines, introSkippable);
             dialogueUI?.Hide();

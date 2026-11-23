@@ -18,14 +18,17 @@ namespace Aethoria.EditorTools
         // 걷기와 같은 240을 써도 눈에 띄게 커 보인다. 전용으로 더 높은 값을 써서 걷기 키와 맞춘다.
         private static readonly (string subfolder, float pixelsPerUnit)[] PixelsPerUnitOverrides =
         {
-            // Jump는 위 설명대로 원본 캔버스가 커서 걷기와 같은 240을 쓰면 실제보다 커 보였는데,
-            // 처음 올렸던 340은 지나치게 높아서 오히려 작아 보였고, 그다음 470px 실루엣 기준으로 맞춘
-            // 270은 이번엔 던전에서 너무 커 보인다는 피드백을 받았다. 두 값 사이로 다시 낮췄다.
-            ("Art/Necrosia/Jump/", 300f),
-            // 더블 점프(낫 플립) 프레임은 전용 보정값이 없어 기본값(240)을 그대로 썼는데, 캔버스 대비
-            // 캐릭터 실루엣이 작게 그려져 있어서(약 320px) 걷기보다 작아 보였다. 걷기 키에 맞춘 값.
-            ("Art/Necrosia/DoubleJump/", 185f),
+            // 네크로시아 이동 모션(대기/걷기/대시/점프/2단 점프)은 예전엔 포즈별 전체 키로 맞췄는데, 포즈마다 키가
+            // 달라서(웅크림, 퍼진 머리카락) 모션이 바뀔 때 머리 크기가 들쭉날쭉했다. 지금은 대기(240)의 얼굴 크기를
+            // 기준으로 각 시트의 얼굴이 같은 크기가 되게 환산한 값이다. 점프 300 → 230, 2단 점프 185 → 218,
+            // 걷기/대시 240 → 258.
+            ("Art/Necrosia/Jump/", 230f),
+            ("Art/Necrosia/DoubleJump/", 218f),
+            ("Art/Necrosia/Walk/", 258f),
+            ("Art/Necrosia/Dash/", 258f),
             ("Art/Necrosia/Attack/", 150f), ("Art/Necrosia/ChainSkill/", 150f),
+            // 새 기본 공격 연속기(1타 내려치기, 2·3타 X자 베기). 크기는 AttackSpriteAnimator.PlayClip이 선 자세 키로 맞춘다.
+            ("Art/Necrosia/AttackDown/", 150f), ("Art/Necrosia/AttackX/", 150f),
             ("Art/Necrosia/WSkill/", 150f), ("Art/Necrosia/SSkill/", 150f),
             ("Art/Necrosia/ZSkill/", 150f),
             ("Art/Effects/ScytheSpin/", 150f), ("Art/Effects/ChainBurst/", 150f),
@@ -61,7 +64,10 @@ namespace Aethoria.EditorTools
             // 손 뻗기 공격 시트는 루나벨을 더 작게 그렸다(키 433px, 대기는 516px). 대기와 같은 키로 보이게 환산한 값.
             ("Art/Monsters/FinalBoss/Phase1/Attack/", 155f),
             // 2페이즈 변신(Lunabel`s_Phase2, 12프레임 중 9프레임) 시트는 키 500px로, 대기와 같은 키로 환산한 값.
-            ("Art/Monsters/FinalBoss/Phase2/Transform/", 179f),
+            // 새 변신 18장(웅크림·각성·펼침 세 시트를 발끝·크기 맞춰 이어 붙임): 서 있는 첫 장 머리~부츠 610px가 1페이즈 대기와 같은 약 2.43유닛.
+            ("Art/Monsters/FinalBoss/Phase2/Transform/", 251f),
+            // 변신 효과: 핏빛 고치(221x329 칸)는 웅크린 몸을 감쌀 만큼(약 2.4유닛), 각성 폭발(256x306)은 날개를 덮을 만큼.
+            ("Art/Effects/LunabelTransformCocoon/", 120f), ("Art/Effects/LunabelTransformBurst/", 70f),
             // 2페이즈 대기/필살기/차지 시트는 각성한 느낌이 나도록 변신 마지막 프레임보다 1.2배 큰 키(머리~부츠 약 2.74유닛)로
             // 환산한 값. 공중 대기(Lunabel Aerial Motion)는 크게 그려서 머리~부츠 565px, 차지 322px.
             // 필살기 시트는 차지 시트보다 루나벨을 약 1.13배 크게 그렸다(몸을 겹쳐 맞춰 잰 값). 차지와 같은 크기로 보이게 환산한 값.
@@ -84,7 +90,22 @@ namespace Aethoria.EditorTools
             ("Art/Effects/BloodHand/", 290f),
             // 평야 발판 조각(Yard_scattfolding에서 잘라낸 것)은 폭 210~325px인데, 캐릭터가 여유 있게 올라설 수 있도록
             // 2~3유닛 폭이 되게 한다.
-            ("Art/Props/Plains/", 100f),
+            // 평야 발판(이끼 낀 고대 유적 타일셋): 100이면 돌 결이 캐릭터에 비해 너무 커서 어색했다 — 3/4 크기로 줄인 값.
+            ("Art/Props/Plains/", 133f),
+            // 절망의 언덕 발판(용암 균열 타일셋, 1536x1024 시트에서 잘라 냄): 작은 돌섬 약 1.4칸, 사슬 다리 약 10칸.
+            ("Art/Props/Hill/", 130f),
+            // 천상의 신전 소품(천상풍 대리석 플랫폼 시트, 1774x887에서 잘라 냄): 폭포 흐르는 떠 있는 섬 약 3.1칸.
+            ("Art/Props/Heaven/", 130f),
+            // 이리아의 성소 내부 장식(촛대·꽃 화분·수정 구슬 받침·깃발·앞쪽 백합): 놓을 때 높이에 맞춰 늘리므로 밀도는 기준값만.
+            ("Art/Props/Sanctuary/", 135f),
+            // 어둠의 숲 방 테두리(흙벽 타일·숲길 입구·천장 뿌리·빛기둥·절벽 틈): 원하는 크기로 미리 줄여 두었다(1칸 = 135px, 시차 배경과 같은 밀도).
+            ("Art/Props/ForestEdge/", 135f),
+            // 평야·폐허·바다 방 테두리(돌벽 타일·천장 덩굴 띠·구멍 모서리·석문·절벽·구덩이): 숲과 같은 1칸 = 135px.
+            ("Art/Props/PlainsEdge/", 135f), ("Art/Props/RuinsEdge/", 135f), ("Art/Props/SeaEdge/", 135f),
+            // 방 장치(전멸방 철문·철창·부서지는 벽·스위치·벽화·봉인 문·부서진 조각)와 어둠의 숲 장치(썩은 가지·덮개·열쇠·봉인 문·수정).
+            ("Art/Props/RoomDevices/", 135f), ("Art/Props/ForestDevices/", 135f),
+            // 보물상자(닫힘/열림): 몸통 폭 약 1.4칸으로 미리 줄여 두었다. 두 장 모두 몸통 가운데가 그림 가운데라 피벗(아래 가운데)이 맞는다.
+            ("Art/Props/Chest/", 135f),
             // 보스 슬라임은 폭 약 3.5유닛(플레이어 키의 2배 이상)으로 크게 보이게 한다. 공격 시트는 잘라낼 때
             // 왕관 폭 기준으로 이동 시트와 같은 크기로 맞춰 두었으므로 같은 값을 쓴다. 물대포 투사체도 같은 시트에서 나왔다.
             ("Art/Monsters/BossSlime/", 100f), ("Art/Effects/SlimeWaterBall/", 100f),
@@ -121,6 +142,13 @@ namespace Aethoria.EditorTools
             ("Art/Props/RuinsPortal/", 380f),
             // 푸른 바다 청록 수정 석조 아치 포탈: 문틀이 같은 1086x1448이라 같은 크기로 맞춘다.
             ("Art/Props/SeaPortal/", 380f),
+            // 엔스룸 마을 하얀 대리석 꽃 아치 포탈: 문틀이 같은 1086x1448이라 같은 크기로 맞춘다.
+            ("Art/Props/EnsroomPortal/", 380f),
+            // 광활한 평야 이끼 낀 돌 아치 포탈: 문틀이 1159x1356이라, 다른 포탈(1448px → 약 3.8유닛)과 같은 키가 되게 356으로 맞춘다.
+            ("Art/Props/PlainsPortal/", 356f),
+            // 어둠의 숲 고목 아치 포탈(1159x1358)·이시스의 연습장 나무 문 포탈(1166x1349): 다른 포탈과 같은 키(약 3.8유닛)가 되게 맞춘다.
+            ("Art/Props/ForestPortal/", 356f),
+            ("Art/Props/PracticePortal/", 354f),
             // W스킬 악마의 손: 포탈에서 손끝까지 약 376px가 약 2.2유닛 사거리가 되게 한다.
             ("Art/Effects/DemonHand/", 170f),
             // 모래룡 포효 회오리(여섯 프레임 마법의 모래 회오리): 키 491px가 약 6유닛. SandWhirlwind가 원하는 키로 다시 맞춘다.
@@ -133,6 +161,8 @@ namespace Aethoria.EditorTools
             ("Art/Effects/LunabelPortalCollapsePhase2/", 280f),
             // 2페이즈 개막의 거대한 에너지 구체(진홍빛 마법 에너지 오브, 6프레임): 가운데 구슬 지름 약 220px가 2.2유닛(배율 1)이 되게.
             ("Art/Effects/LunabelGiantOrb/", 100f),
+            // 거대 구체 모으기·터짐·꼬리(새 구체 이펙트): 구체와 같은 크기 기준.
+            ("Art/Effects/LunabelOrbCharge/", 100f), ("Art/Effects/LunabelOrbBurst/", 100f), ("Art/Effects/LunabelOrbTrail/", 100f),
             // 알리아스 종막(검의 의식): 마검(키 904px → 약 2.4유닛), 마법진(지름 약 500px → 4유닛, 바닥에 눕혀 쓴다),
             // 사슬 구속(감긴 사슬 기둥 약 300px → 1.7유닛, 네크로시아 몸을 감쌀 만큼), 참격(칼날 길이 약 600px → 2.2유닛).
             ("Art/Effects/AliasRitualSword/", 375f), ("Art/Effects/AliasMagicCircle/", 125f),
@@ -150,8 +180,14 @@ namespace Aethoria.EditorTools
             ("Art/Monsters/BossKnight/FinalePlant/", 154f),
             // 종막 검을 꽂은 뒤 무릎 꿇은 대기(6프레임 반복): 갑옷이 FinalePlant 마지막 프레임과 겹치도록 0.76배 크기로 맞춘 값.
             ("Art/Monsters/BossKnight/FinalePlantIdle/", 203f),
-            // 알리아스 분노 눈 실크(어둠 속 붉은 마력의 실크 웨이브): 길이 580px가 약 1.5유닛.
-            ("Art/Effects/AliasEyeSilk/", 380f),
+            // 알리아스 분노 눈 실크(진홍빛 에너지 궤적, 973x216 칸 8장): 길이 973px가 약 1.9유닛.
+            ("Art/Effects/AliasEyeSilk/", 520f),
+            // 알리아스 분노 안광(붉은 불꽃 눈 에너지, 471x418 칸 4장): 가운데 가로 플레어 약 330px가 약 0.6유닛.
+            ("Art/Effects/AliasEyeGlow/", 550f),
+            // 알리아스 각성 폭발(암흑 보랏빛 화염 분출, 306x694 칸 8장): 가장 높이 솟은 불기둥 약 690px가 약 4.5유닛(알리아스 키의 1.7배).
+            ("Art/Effects/AliasAwakenBurst/", 155f),
+            // 알리아스 흑염 오라(보랏빛 불꽃에 싸인 기사 실루엣, 370x683 칸 6장): 칸 키 683px가 약 3.4유닛(알리아스 키 2.55유닛을 넉넉히 감싸게).
+            ("Art/Effects/AliasDarkAura/", 200f),
             // 궁극기 소환: 땅에서 솟는 악마의 문(문틀 키 342px)이 약 6.8유닛(네크로시아 키의 4배 남짓), 날개를 편 악룡은 폭 약 11유닛.
             // (CharacterSkillR이 그릴 때 같은 크기로 다시 맞추므로 이 값이 달라도 게임 속 크기는 같다.)
             ("Art/Effects/UltGate/", 50f), ("Art/Effects/UltDragon/", 50f),
@@ -168,8 +204,6 @@ namespace Aethoria.EditorTools
             "Art/Effects/ChainThrow/",
             // 악마의 손도 포탈(왼쪽 끝)이 고정된 채 손이 앞쪽으로 뻗어나간다. 세로 가운데가 포탈 중심.
             "Art/Effects/DemonHand/",
-            // 알리아스 눈 실크: 왼쪽 끝이 눈에 붙고 나머지가 흩날린다.
-            "Art/Effects/AliasEyeSilk/",
         };
 
         // 그 밖에 기준점을 따로 지정해야 하는 폴더.
@@ -181,6 +215,12 @@ namespace Aethoria.EditorTools
             ("Art/Effects/ScytheSpin/", new Vector2(0.5f, 0.1f)),
             // 기본 공격(보랏빛 낫의 연속 베기 자세, 598x364 칸): 1번째 프레임 두 발 한가운데(x 264)와 부츠 바닥(아래에서 13px).
             ("Art/Necrosia/Attack/", new Vector2(264f / 598f, 13f / 364f)),
+            // 새 기본 공격 연속기. 1타(494x568 칸)는 6장 모두 뒷발 굽(x 197)과 부츠 밑창을 같은 자리에 맞춰 잘랐고,
+            // 기준점은 1번째(선 자세) 두 발 가운데(뒷발 굽보다 43px 앞). X자(302x393 칸)는 8장 모두 앞발 굽(x 216)에 맞췄고,
+            // 기준점은 두 발 가운데(앞발 굽보다 55px 뒤). X자 잔상은 프레임마다 X 한가운데를 칸 가운데에 맞췄다.
+            ("Art/Necrosia/AttackDown/", new Vector2(240f / 494f, 22f / 568f)),
+            ("Art/Necrosia/AttackX/", new Vector2(161f / 302f, 3f / 393f)),
+            ("Art/Effects/XSlash/", new Vector2(0.5f, 0.5f)),
             // 달리기(고딕 사신의 질주, 470x326 칸)와 대시(보랏빛 낫을 휘두르는 고딕 질주, 658x340 칸)는 낫이 뒤로 길게 끌려서
             // 캔버스 가운데가 몸보다 한참 뒤쪽이다. 가운데를 기준점으로 쓰면 달리기/대시를 시작하는 순간 몸이 앞으로 튀어 보여서,
             // 엉덩이 아래(얼굴에서 뒤로 약 90px)를 기준점으로, 부츠 바닥을 높이 기준으로 삼는다.
@@ -207,8 +247,19 @@ namespace Aethoria.EditorTools
             ("Art/Effects/LunabelPortalCollapsePhase2/", new Vector2(0.5f, 0.5f)),
             // 거대한 에너지 구체: 프레임마다 하얗게 빛나는 구슬 한가운데를 캔버스 가운데에 맞춰 잘랐다.
             ("Art/Effects/LunabelGiantOrb/", new Vector2(0.5f, 0.5f)),
+            ("Art/Effects/LunabelTransformCocoon/", new Vector2(0.5f, 0.5f)),
+            ("Art/Effects/LunabelTransformBurst/", new Vector2(0.5f, 0.5f)),
+            ("Art/Effects/LunabelOrbCharge/", new Vector2(0.5f, 0.5f)),
+            ("Art/Effects/LunabelOrbBurst/", new Vector2(0.5f, 0.5f)),
+            // 꼬리: 오른쪽 끝(밝은 머리)이 구체에 붙는다.
+            ("Art/Effects/LunabelOrbTrail/", new Vector2(0.93f, 0.5f)),
             // 아쿠아가 플레이어를 가두는 둥근 소용돌이: 프레임마다 소용돌이 눈을 칸 가운데에 맞춰 잘랐다(가운데를 축으로 돌린다).
             ("Art/Effects/AquaVortex/", new Vector2(0.5f, 0.5f)),
+            // 공중 회전 베기(346px 정사각 캔버스, 회전 중심이 한가운데): 키 1.76으로 그리면 한가운데가 발 기준점 위 0.75유닛
+            // (점프 모션의 몸 한가운데 높이)에 오도록 0.5 - 0.75/1.76.
+            ("Art/Necrosia/JumpAttack/", new Vector2(0.5f, 0.5f - 0.75f / 1.76f)),
+            // 몬스터 처치 이펙트: 프레임마다 폭발 한가운데를 캔버스 가운데에 맞춰 잘랐다(크기는 MonsterDeathFx가 몸에 맞춘다).
+            ("Art/Effects/MonsterDeathBurst/", new Vector2(0.5f, 0.5f)),
             // 루나벨 거대 기둥(진홍빛 혈마법 기둥 소용돌이, 320x548 칸): 프레임마다 바닥 빛의 가운데를 x 160, 위에서 508px에 맞춰 잘랐다.
             // 그 아래 40px은 바닥에 비친 핏물이라 땅에 살짝 겹쳐 보인다.
             ("Art/Effects/LunabelGiantPillarRise/", new Vector2(0.5f, 40f / 548f)),
@@ -225,12 +276,20 @@ namespace Aethoria.EditorTools
             ("Art/Monsters/BossKnight/FinalePlantIdle/", new Vector2(226f / 378f, 18f / 476f)),
             // 차원 균열·보랏빛 참격: 시트에서 프레임마다 그림 한가운데를 칸 가운데에 맞춰 잘랐다.
             ("Art/Effects/VoidRift/", new Vector2(0.5f, 0.5f)), ("Art/Effects/VoidSlash/", new Vector2(0.5f, 0.5f)),
+            // 알리아스 눈 실크(973x216 칸): 8장 모두 왼쪽 끝의 밝은 시작점(x 55, 세로 가운데)을 같은 자리에 맞춰 잘랐다. 이 점이 눈에 붙는다.
+            ("Art/Effects/AliasEyeSilk/", new Vector2(55f / 973f, 0.5f)),
+            // 알리아스 안광(471x418 칸): 4장 모두 가장 밝은 플레어 중심(x 248, 위에서 300px)을 같은 자리에 맞춰 잘랐다.
+            ("Art/Effects/AliasEyeGlow/", new Vector2(248f / 471f, 1f - 300f / 418f)),
         };
 
         // 화면을 꽉 채울 만큼 크게 키워 쓰는 그림은 Point로 두면 픽셀이 네모나게 드러나서 부드럽게 늘린다.
         private static readonly string[] SmoothFilterFolders =
         {
             "Art/Effects/LunabelGiantPillarRise/", "Art/Effects/LunabelGiantPillarLoop/",
+            // 몸 크기에 맞춰 줄이거나 키워 쓰는 부드러운 빛·연기라 Point면 테두리가 계단처럼 깨진다.
+            "Art/Effects/MonsterDeathBurst/",
+            // 알리아스 각성 이펙트: 원본보다 크게 줄여 쓰는 빛·불꽃·연기라 Point면 반짝이며 깨진다.
+            "Art/Effects/AliasEyeSilk/", "Art/Effects/AliasEyeGlow/", "Art/Effects/AliasAwakenBurst/", "Art/Effects/AliasDarkAura/",
         };
 
         private void OnPreprocessTexture()

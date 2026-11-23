@@ -37,6 +37,22 @@ namespace Aethoria.Data
         {
             new BestiaryDrop("enhance_stone", "×3"), new BestiaryDrop("crystal_orb", "×3"), new BestiaryDrop("devil_necklace", "30%"),
         };
+        private static readonly BestiaryDrop[] BossSlimeDrops =
+        {
+            new BestiaryDrop("enhance_stone", "×3"), new BestiaryDrop("crystal_orb", "×3"), new BestiaryDrop("slime_king_ring", "30%"),
+        };
+        private static readonly BestiaryDrop[] SandDragonDrops =
+        {
+            new BestiaryDrop("enhance_stone", "×3"), new BestiaryDrop("crystal_orb", "×3"), new BestiaryDrop("golden_scale_boots", "30%"),
+        };
+        private static readonly BestiaryDrop[] AquaDrops =
+        {
+            new BestiaryDrop("enhance_stone", "×3"), new BestiaryDrop("crystal_orb", "×3"), new BestiaryDrop("abyss_queen_ring", "30%"),
+        };
+        private static readonly BestiaryDrop[] LunabelDrops =
+        {
+            new BestiaryDrop("enhance_stone", "×3"), new BestiaryDrop("crystal_orb", "×3"), new BestiaryDrop("crimson_moon_scythe", "첫 처치"),
+        };
 
         public static readonly BestiaryEntry[] Entries =
         {
@@ -61,7 +77,7 @@ namespace Aethoria.Data
             new BestiaryEntry
             {
                 key = "보스 슬라임", kind = "슬라임 · 우두머리", size = "거대", habitat = "광활한 평야 끝", danger = 3,
-                portraitPath = "Art/Monsters/BossSlime/Walk", drops = BossDrops,
+                portraitPath = "Art/Monsters/BossSlime/Walk", drops = BossSlimeDrops,
                 description = "슬라임들이 잔뜩 뭉쳐서 생긴 평야의 왕! 왕관 같은 건 없지만 덩치만큼은 진짜 왕이야. " +
                               "물방울을 뿅뿅 쏘아 대니까 옷 젖지 않게 조심해.",
                 secretKills = 3,
@@ -97,7 +113,7 @@ namespace Aethoria.Data
             new BestiaryEntry
             {
                 key = "황금 모래룡", kind = "용 · 우두머리", size = "거대", habitat = "잊혀진 폐허 가장 안쪽", danger = 4,
-                portraitPath = "Art/Monsters/SandDragon/Walk", drops = BossDrops,
+                portraitPath = "Art/Monsters/SandDragon/Walk", drops = SandDragonDrops,
                 description = "폐허 가장 안쪽 모래 속에 사는 황금빛 용이야! 비늘이 전부 금이라는 소문이 있어서 보물 사냥꾼들이 몰려갔다가... " +
                               "다들 모래투성이가 돼서 울면서 돌아왔대. 모래 물결을 타고 스르륵 다가오니까 발밑 조심!",
                 secretKills = 3,
@@ -116,7 +132,7 @@ namespace Aethoria.Data
             new BestiaryEntry
             {
                 key = "아쿠아", kind = "정령 · 여왕", size = "큼", habitat = "푸른 바다 가장 깊은 곳", danger = 4,
-                portraitPath = "Art/Monsters/Aqua/Idle", drops = BossDrops,
+                portraitPath = "Art/Monsters/Aqua/Idle", drops = AquaDrops,
                 description = "푸른 바다를 다스리는 물의 여왕이야! 창을 휘두르다가 회오리 드릴로 변신해서 쌩 날아오고, " +
                               "화가 나면 하늘에서 파란 번개까지 떨어뜨린대. 물속에서는 절대 화나게 하면 안 되는 사람 1위!",
                 secretKills = 3,
@@ -126,7 +142,7 @@ namespace Aethoria.Data
             new BestiaryEntry
             {
                 key = "루나벨", kind = "흡혈귀 · 여왕", size = "보통", habitat = "절망의 언덕", danger = 5,
-                portraitPath = "Art/Monsters/FinalBoss/Phase1/Idle", drops = BossDrops,
+                portraitPath = "Art/Monsters/FinalBoss/Phase1/Idle", drops = LunabelDrops,
                 description = "붉은 달의 주인, 피의 여왕 루나벨. ...이 페이지는 손이 떨려서 글씨가 삐뚤빼뚤해. " +
                               "상대의 피를 빨아들여서 자기 상처를 메운대. 네가 이 페이지를 펼쳤다는 건... 정말 해냈구나!",
                 secretKills = 1,

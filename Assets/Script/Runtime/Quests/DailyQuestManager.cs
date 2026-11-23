@@ -2,6 +2,7 @@ using System;
 using UnityEngine;
 using Aethoria.Characters;
 using Aethoria.Monsters;
+using Aethoria.Bootstrap;
 
 namespace Aethoria.Quests
 {
@@ -37,10 +38,14 @@ namespace Aethoria.Quests
         public int QuestIndex => questId;
         public string ResetDate => resetDate;
 
-        public void Initialize(Character playerCharacter, QuestData[] questPool)
+        // 메인 퀘스트를 몇 개 보고했는지 알려 준다. 아직 못 가는 지역의 의뢰가 뽑히지 않게 하는 데 쓴다.
+        private Func<int> mainQuestsCompleted;
+
+        public void Initialize(Character playerCharacter, QuestData[] questPool, Func<int> completedMainQuests = null)
         {
             player = playerCharacter;
             pool = questPool;
+            mainQuestsCompleted = completedMainQuests;
             PickNewQuest();
         }
 
@@ -88,11 +93,25 @@ namespace Aethoria.Quests
 
         private void PickNewQuest()
         {
-            questId = pool != null && pool.Length > 0 ? UnityEngine.Random.Range(0, pool.Length) : -1;
+            questId = PickUnlockedIndex();
             progress = 0;
             status = DailyQuestStatus.Available;
             resetDate = TodayString();
             OnChanged?.Invoke();
+        }
+
+        // 지금 진행도로 갈 수 있는 지역의 의뢰 중에서 하나를 뽑는다. 하나도 없으면 처음부터 열린 첫 의뢰를 준다.
+        private int PickUnlockedIndex()
+        {
+            if (pool == null || pool.Length == 0) return -1;
+
+            int completed = mainQuestsCompleted != null ? mainQuestsCompleted() : int.MaxValue;
+            var unlocked = new System.Collections.Generic.List<int>();
+            for (int i = 0; i < pool.Length; i++)
+            {
+                if (pool[i].requiredMainQuests <= completed) unlocked.Add(i);
+            }
+            return unlocked.Count > 0 ? unlocked[UnityEngine.Random.Range(0, unlocked.Count)] : 0;
         }
 
         private static string TodayString() => DateTime.Now.ToString("yyyy-MM-dd");
@@ -119,6 +138,7 @@ namespace Aethoria.Quests
             }
 
             status = DailyQuestStatus.Claimed;
+            SfxPlayer.Play(SfxPlayer.QuestComplete);
             OnChanged?.Invoke();
             return finished;
         }

@@ -353,7 +353,7 @@ namespace Aethoria.Stages
         {
             var line = storyLines[storyIndex];
             if (line.isNecrosia) dialogueUI?.ShowNecrosia(line.text + StoryPlayerNextHint);
-            else dialogueUI?.Show("UI/Noa_Talk", line.text + StoryNextHint);
+            else dialogueUI?.Show("UI/Talk/Noa_Talk", line.text + StoryNextHint);
         }
 
         private void EnterGreeting()
@@ -362,7 +362,7 @@ namespace Aethoria.Stages
             {
                 state = TalkState.Greeting;
                 stateTimer = 0f;
-                dialogueUI?.Show("UI/Noa_Talk", greetingLine);
+                dialogueUI?.Show("UI/Talk/Noa_Talk", greetingLine);
             });
         }
 
@@ -370,7 +370,7 @@ namespace Aethoria.Stages
         {
             state = TalkState.Choice;
             stateTimer = 0f;
-            dialogueUI?.Show("UI/Noa_Talk", choicePrompt);
+            dialogueUI?.Show("UI/Talk/Noa_Talk", choicePrompt);
         }
 
         private void HandleQuestChoice()
@@ -385,7 +385,7 @@ namespace Aethoria.Stages
                     {
                         state = TalkState.QuestOffer;
                         stateTimer = 0f;
-                        dialogueUI?.Show("UI/Noa_Talk",
+                        dialogueUI?.Show("UI/Talk/Noa_Talk",
                             $"{quest.offerLine}\n<color=#F2D94E>보상: 경험치 {quest.expReward}</color>\n[Z] 수락   [X] 거절");
                     });
                     break;
@@ -433,7 +433,7 @@ namespace Aethoria.Stages
                 case DailyQuestStatus.Available:
                     state = TalkState.DailyQuestOffer;
                     stateTimer = 0f;
-                    dialogueUI?.Show("UI/Noa_Talk",
+                    dialogueUI?.Show("UI/Talk/Noa_Talk",
                         $"[오늘의 의뢰] {quest.offerLine}\n<color=#F2D94E>보상: 경험치 {quest.expReward}, 골드 {quest.goldReward}</color>\n[Z] 수락   [X] 거절");
                     break;
 
@@ -456,7 +456,7 @@ namespace Aethoria.Stages
         {
             state = TalkState.Response;
             stateTimer = 0f;
-            dialogueUI?.Show("UI/Noa_Talk", line);
+            dialogueUI?.Show("UI/Talk/Noa_Talk", line);
         }
 
         private void EndTalk()

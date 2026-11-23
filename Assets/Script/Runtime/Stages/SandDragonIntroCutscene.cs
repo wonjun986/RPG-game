@@ -202,6 +202,9 @@ namespace Aethoria.Stages
             yield return Wait(ZoomDuration + 0.2f);
             if (skipped) { yield return SkipToBattle(); yield break; }
 
+            // 모래룡 이름 자막(BossTitleCard)이 다 끝난 뒤에 대사를 시작한다.
+            while (Aethoria.UI.BossTitleCard.IsShowing && !skipped) yield return null;
+            if (skipped) { yield return SkipToBattle(); yield break; }
             yield return Monologue(NecrosiaLines);
             if (skipped) { yield return SkipToBattle(); yield break; }
 

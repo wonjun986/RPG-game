@@ -15,7 +15,7 @@ namespace Aethoria.Stages
     // 이 연출을 이미 본 세이브(두 번째 만남부터)는 Esc를 누르면 남은 대사를 건너뛰고 바로 점프로 넘어간다.
     public class BossIntroCutscene : MonoBehaviour
     {
-        private const string TalkFrame = "UI/BossKnight_Talk";
+        private const string TalkFrame = "UI/Talk/BossKnight_Talk";
         private const string SpeakerName = "알리아스";
         // 대화창 그림(2172x724) 속 위치(픽셀로 잰 값). 이름판 안쪽은 x 640~920, y 414~468이고 대사 칸 왼쪽 위에 겹쳐 있다.
         // 어두운 대사 칸 안쪽은 x 585~1940, y 446~640인데, 글자는 이름판 아래(y 468~)부터 쓰고
@@ -139,6 +139,12 @@ namespace Aethoria.Stages
 
             bool skipped = false;
             for (float t = 0f; t < DelayBeforeTalk && !skipped; t += Time.deltaTime)
+            {
+                skipped = SkipPressed();
+                yield return null;
+            }
+            // 보스 이름 자막(BossTitleCard)이 다 끝난 뒤에 대사를 시작한다.
+            while (!skipped && Aethoria.UI.BossTitleCard.IsShowing)
             {
                 skipped = SkipPressed();
                 yield return null;

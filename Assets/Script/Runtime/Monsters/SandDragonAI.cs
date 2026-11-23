@@ -359,6 +359,9 @@ namespace Aethoria.Monsters
             float facing = spriteRenderer.flipX ? -1f : 1f;
             float duration = attackAnimator.DefaultDuration;
             attackAnimator.Play(duration);
+            // 위험 예고: 몸이 번쩍이고, 내려찍을 바닥에 범위를 표시한다.
+            Aethoria.Fx.DangerFx.FlashBody(spriteRenderer, duration * slamImpactTiming, 3);
+            Aethoria.Fx.DangerFx.GroundZone(new Vector2(transform.position.x + facing * slamForward, GroundY()), slamRadius * 2f, duration * slamImpactTiming);
 
             yield return new WaitForSeconds(duration * slamImpactTiming);
             if (!monster.IsDead)

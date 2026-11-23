@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using Aethoria.Bootstrap;
 
 namespace Aethoria.Characters
 {
@@ -45,8 +46,7 @@ namespace Aethoria.Characters
         private bool cutsceneLocked;
         private int cutsceneUnlockFrame = -1;
         public bool IsInputLocked => inputLocked || cutsceneLocked || Time.frameCount == cutsceneUnlockFrame;
-        public float VerticalVelocity => body.linearVelocity.y;
-        public float JumpForce => jumpForce;
+        public float VerticalVelocity => body.linearVelocity.y;        public float JumpForce => jumpForce;
         // 보스 패턴이 플레이어를 한쪽으로 끌어당길 때 걷기 속도에 더해지는 가로 속도(루나벨 2페이즈 개막의 흡입).
         // 대시/넉백처럼 물리 이동을 직접 쥐는 동안(inputLocked)에는 더해지지 않아서, 대시로는 끌림을 뿌리칠 수 있다.
         public float ExternalPullX { get; set; }
@@ -73,6 +73,30 @@ namespace Aethoria.Characters
             rootedUntil = Mathf.Max(rootedUntil, Time.time + seconds);
             horizontalInput = 0f;
             jumpRequested = false;
+        }
+
+        // 공중 공격처럼 체공감을 주는 동작: 떨어지던 중이면 세로 속도를 최소 minUpSpeed로 끌어올린다(이미 더 빨리 오르는 중이면 그대로).
+        public void LiftAtLeast(float minUpSpeed)
+        {
+            if (isGrounded || body == null) return;
+            if (body.linearVelocity.y < minUpSpeed) body.linearVelocity = new Vector2(body.linearVelocity.x, minUpSpeed);
+        }
+
+        // 대시처럼 공격을 끊고 나가는 동작이 제자리 묶임을 바로 푼다.
+        public void ClearRoot() => rootedUntil = -1f;
+
+        // 좌우 이동 입력이 들어와 있는지(공격 끝자락을 걸음으로 끊을 때 쓴다).
+        public bool HasMoveInput => Mathf.Abs(horizontalInput) > 0.01f;
+
+        // 지금 눌린 좌우 방향키(-1, 0, 1). 묶여 있어 입력을 읽지 않는 동안에도 키보드를 직접 본다.
+        public static float HeldHorizontal()
+        {
+            var keyboard = Keyboard.current;
+            if (keyboard == null) return 0f;
+            float input = 0f;
+            if (keyboard.leftArrowKey.isPressed) input -= 1f;
+            if (keyboard.rightArrowKey.isPressed) input += 1f;
+            return input;
         }
 
         private void Update()
@@ -131,11 +155,13 @@ namespace Aethoria.Characters
                 if (isGrounded)
                 {
                     body.linearVelocity = new Vector2(body.linearVelocity.x, jumpForce);
+                    SfxPlayer.Play(SfxPlayer.NecrosiaJump);
                     isGrounded = false; // 착지 전까지 재점프 금지
                 }
                 else if (airJumpsUsed < maxAirJumps)
                 {
                     body.linearVelocity = new Vector2(body.linearVelocity.x, jumpForce);
+                    SfxPlayer.Play(SfxPlayer.NecrosiaJump);
                     airJumpsUsed++;
                     OnDoubleJump?.Invoke();
                 }

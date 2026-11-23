@@ -9,7 +9,7 @@ using Aethoria.Quests;
 
 namespace Aethoria.UI
 {
-    // 테스트용 관리자 모드. F1로 화면 오른쪽에 명령 목록을 여닫고, 열려 있는 동안 F2~F12(와 Home)로 바로 실행한다.
+    // 테스트용 관리자 모드. F1로 화면 오른쪽에 명령 목록을 여닫고, 열려 있는 동안 F2~F12(와 Home·End)로 바로 실행한다.
     // 숫자/Z/X 키는 NPC 대화·리듬 전투와 겹치므로 기능 키만 쓴다. 순간이동(F8)은 목록을 펼친 뒤
     // PageUp/PageDown 으로 고르고 F8을 한 번 더 눌러 이동한다. 창이 떠 있어도 게임은 멈추지 않는다.
     public class AdminUI : MonoBehaviour
@@ -58,7 +58,7 @@ namespace Aethoria.UI
             rect.anchorMax = new Vector2(1f, 0.5f);
             rect.pivot = new Vector2(1f, 0.5f);
             rect.anchoredPosition = new Vector2(-12f, 0f);
-            rect.sizeDelta = new Vector2(360f, 690f);
+            rect.sizeDelta = new Vector2(360f, 720f);
             var image = panel.GetComponent<Image>();
             image.color = new Color(0.05f, 0.03f, 0.08f, 0.88f);
             image.raycastTarget = false;
@@ -184,6 +184,22 @@ namespace Aethoria.UI
             {
                 JumpBossToPhaseTwo();
             }
+            else if (keyboard.endKey.wasPressedThisFrame)
+            {
+                // 맵 시연용. Shift+End: 모든 장치를 다 푼 상태로. End: 열쇠·덮개·부순 벽·퍼즐·정예·전멸방·보물상자를 처음 상태로.
+                // 둘 다 지금 맵을 새로 짓는다.
+                if (keyboard.shiftKey.isPressed)
+                {
+                    if (GameBootstrap.AdminSolveMap())
+                        ShowMessage("맵 전부 풀기 — 열쇠·장치·퍼즐·전멸방 완료");
+                    else
+                        ShowMessage("전투·대화·메뉴 중에는 쓸 수 없어요", false);
+                }
+                else if (GameBootstrap.AdminResetMap())
+                    ShowMessage("맵 초기화 — 열쇠·장치·퍼즐·상자를 처음 상태로");
+                else
+                    ShowMessage("전투·대화·메뉴 중에는 초기화할 수 없어요", false);
+            }
             else if (warpListOpen && keyboard.pageDownKey.wasPressedThisFrame)
             {
                 warpIndex = (warpIndex + 1) % GameBootstrap.AdminWarpCount;
@@ -295,6 +311,7 @@ namespace Aethoria.UI
             sb.AppendLine("[F10] 메인 퀘스트 한 단계 진행 <size=13>(수락→달성→보고)</size>");
             sb.AppendLine($"[F11] 도감 전부 열기   {(Bestiary.AdminUnlockAll ? "<color=#73F27F>ON</color>" : "<color=#888888>OFF</color>")}");
             sb.AppendLine("[F12] 보스 2페이즈로 <size=13>(알리아스 분노 / 루나벨 변신)</size>");
+            sb.AppendLine("[End] 맵 초기화 <size=13>/ Shift+End 전부 풀기 (입구부터)</size>");
             sb.AppendLine(warpListOpen ? "[F8] 선택한 곳으로 이동   <size=13>PgUp/PgDn 고르기</size>" : "[F8] 순간이동 목록 열기");
 
             if (warpListOpen)

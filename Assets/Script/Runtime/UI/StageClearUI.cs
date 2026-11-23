@@ -130,7 +130,7 @@ namespace Aethoria.UI
             windowRect.pivot = new Vector2(0.5f, 0.5f);
             windowRect.sizeDelta = new Vector2(WindowHeight * ImageWidth / ImageHeight, WindowHeight);
             var windowImage = windowGO.GetComponent<RawImage>();
-            windowImage.texture = Resources.Load<Texture2D>("UI/StageClear");
+            windowImage.texture = Resources.Load<Texture2D>("UI/Screens/StageClear");
             windowImage.raycastTarget = false;
 
             for (int i = 0; i < ItemSlotCount; i++)
@@ -173,7 +173,7 @@ namespace Aethoria.UI
             var glowBox = Rect.MinMaxRect(box.xMin + 30f, box.yMax - 24f, box.xMax - 30f, box.yMax + 14f);
             PlaceInImage((RectTransform)glowGO.transform, parent, glowBox);
             var glow = glowGO.GetComponent<RawImage>();
-            glow.texture = Resources.Load<Texture2D>("UI/Select_Effect");
+            glow.texture = Resources.Load<Texture2D>("UI/Common/Select_Effect");
             glow.raycastTarget = false;
             buttonGlows[index] = glow;
 

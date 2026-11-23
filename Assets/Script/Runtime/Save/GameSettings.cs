@@ -23,6 +23,14 @@ namespace Aethoria.Save
         private const string KeyVolume = "settings.masterVolume";
         private const string KeyScreenShake = "settings.screenShake";
         private const string KeyDamageNumbers = "settings.damageNumbers";
+        private const string KeyPostProcessing = "settings.postProcessing";
+        private const string KeyBgmVolume = "settings.bgmVolume";
+        private const string KeySfxVolume = "settings.sfxVolume";
+        private const string KeyDialogueSpeed = "settings.dialogueSpeed";
+
+        // 대사 속도 단계(느림/보통/빠름/즉시)와 글자 타이핑 속도 배율. 즉시는 한 프레임에 다 찍힐 만큼 크게.
+        public static readonly string[] DialogueSpeedNames = { "느림", "보통", "빠름", "즉시" };
+        private static readonly float[] DialogueSpeedMultipliers = { 0.6f, 1f, 1.8f, 1000f };
 
         public static bool Fullscreen { get; private set; } = true;
         public static Vector2Int Resolution { get; private set; } = new Vector2Int(1920, 1080);
@@ -32,6 +40,16 @@ namespace Aethoria.Save
         public static bool ScreenShake { get; private set; } = true;
         // 끄면 DamagePopup이 숫자를 띄우지 않는다(피해·치명타·회복 숫자 모두).
         public static bool DamageNumbers { get; private set; } = true;
+        // 끄면 블룸/비네트/색 보정(SceneLighting의 포스트 프로세싱)을 끈다. 2D 조명은 그대로 둔다.
+        public static bool PostProcessing { get; private set; } = true;
+        // 배경음(BgmPlayer, 맵 앰비언스)과 효과음(SfxPlayer, 발소리·타격음) 볼륨. 전체 볼륨(AudioListener)에 한 번 더 곱해진다.
+        public static float BgmVolume { get; private set; } = 1f;
+        public static float SfxVolume { get; private set; } = 1f;
+        // 대사 속도 단계(DialogueSpeedNames의 번호). 대화창·스토리 글자가 찍히는 속도에 곱한다.
+        public static int DialogueSpeed { get; private set; } = 1;
+        public static float DialogueSpeedMultiplier => DialogueSpeedMultipliers[Mathf.Clamp(DialogueSpeed, 0, DialogueSpeedMultipliers.Length - 1)];
+        // 설정 값이 바뀔 때마다 알린다(바로 적용해야 하는 화면 효과 등).
+        public static event System.Action Changed;
 
         public static Vector2Int[] AvailableResolutions
         {
@@ -60,6 +78,10 @@ namespace Aethoria.Save
             MasterVolume = Mathf.Clamp01(PlayerPrefs.GetFloat(KeyVolume, 1f));
             ScreenShake = PlayerPrefs.GetInt(KeyScreenShake, 1) == 1;
             DamageNumbers = PlayerPrefs.GetInt(KeyDamageNumbers, 1) == 1;
+            PostProcessing = PlayerPrefs.GetInt(KeyPostProcessing, 1) == 1;
+            BgmVolume = Mathf.Clamp01(PlayerPrefs.GetFloat(KeyBgmVolume, 1f));
+            SfxVolume = Mathf.Clamp01(PlayerPrefs.GetFloat(KeySfxVolume, 1f));
+            DialogueSpeed = Mathf.Clamp(PlayerPrefs.GetInt(KeyDialogueSpeed, 1), 0, DialogueSpeedNames.Length - 1);
             ApplyDisplay();
             ApplyFrameLimit();
             AudioListener.volume = MasterVolume;
@@ -98,6 +120,29 @@ namespace Aethoria.Save
             PlayerPrefs.Save();
         }
 
+        public static void SetBgmVolume(float value)
+        {
+            BgmVolume = Mathf.Clamp01(value);
+            PlayerPrefs.SetFloat(KeyBgmVolume, BgmVolume);
+            PlayerPrefs.Save();
+            Changed?.Invoke();
+        }
+
+        public static void SetSfxVolume(float value)
+        {
+            SfxVolume = Mathf.Clamp01(value);
+            PlayerPrefs.SetFloat(KeySfxVolume, SfxVolume);
+            PlayerPrefs.Save();
+            Changed?.Invoke();
+        }
+
+        public static void SetDialogueSpeed(int value)
+        {
+            DialogueSpeed = Mathf.Clamp(value, 0, DialogueSpeedNames.Length - 1);
+            PlayerPrefs.SetInt(KeyDialogueSpeed, DialogueSpeed);
+            PlayerPrefs.Save();
+        }
+
         public static void SetScreenShake(bool value)
         {
             ScreenShake = value;
@@ -112,6 +157,14 @@ namespace Aethoria.Save
             PlayerPrefs.Save();
         }
 
+        public static void SetPostProcessing(bool value)
+        {
+            PostProcessing = value;
+            PlayerPrefs.SetInt(KeyPostProcessing, value ? 1 : 0);
+            PlayerPrefs.Save();
+            Changed?.Invoke();
+        }
+
         public static void ResetToDefaults()
         {
             var available = AvailableResolutions;
@@ -121,8 +174,12 @@ namespace Aethoria.Save
             SetResolution(resolution);
             SetFrameLimit(0);
             SetMasterVolume(1f);
+            SetBgmVolume(1f);
+            SetSfxVolume(1f);
+            SetDialogueSpeed(1);
             SetScreenShake(true);
             SetDamageNumbers(true);
+            SetPostProcessing(true);
         }
 
         // 전체 화면은 테두리 없는 전체 창(FullScreenWindow)으로 띄워 Alt+Tab이 빠르다. 에디터에서는 게임 뷰 크기를 바꾸지 않는다.

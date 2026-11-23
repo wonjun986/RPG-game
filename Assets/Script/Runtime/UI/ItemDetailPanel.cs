@@ -4,7 +4,8 @@ using Aethoria.Data;
 
 namespace Aethoria.UI
 {
-    // 아이템 상세 정보 창(UI/Item_Detail). 원본 그림(Sprite/Items/Item_UI.png)에서 이름/등급/소개/설명 글자와
+    // 아이템 상세 정보 창(UI/Menus/Inventory/Item_Detail). 재료·기타는 능력치 없이 설명만 있는 짧은 창(Item_Detail_Compact)으로 바뀐다.
+    // 원본 그림(Sprite/Items/Item_UI.png)에서 이름/등급/소개/설명 글자와
     // 능력치 자리의 "-"를 지운 배경 위에, 선택한 아이템의 정보를 글자로 덮어 보여준다.
     // 능력치 줄 이름(공격력/치명타 확률/...)과 아이콘, 별 5개는 배경에 그려져 있는 걸 그대로 쓴다.
     public class ItemDetailPanel : MonoBehaviour
@@ -12,6 +13,10 @@ namespace Aethoria.UI
         // 배경 그림 크기. 아래 좌표들은 모두 이 그림 위에서 픽셀로 잰 값이다(y는 위에서부터).
         private const float ImageWidth = 1218f;
         private const float ImageHeight = 1292f;
+        // 재료·기타처럼 능력치가 없는 아이템용 짧은 창(UI/Menus/Inventory/Item_Detail_Compact, 1218x520).
+        // 원래 그림의 윗부분(아이콘·별·이름)만 남기고, 능력치 상자 안을 비워 그 자리에 설명을 쓴다.
+        private const float CompactHeight = 520f;
+        private static readonly Rect CompactDescriptionBox = new Rect(395f, 248f, 750f, 205f); // x, y(위에서), 폭, 높이
 
         // 기본 능력치 / 추가 옵션 각 4줄의 세로 중심.
         private static readonly float[] BaseStatRowY = { 260f, 320f, 377f, 433f };
@@ -39,6 +44,12 @@ namespace Aethoria.UI
         private readonly RawImage[] starDimmers = new RawImage[5];
         private Text setEffectText;
         private Text descriptionText;
+        private RawImage background;
+        private Texture fullTexture, compactTexture;
+        private float width;
+        private bool compact;
+        // 요소마다 그림 픽셀 상자를 기억해 두었다가, 긴 창/짧은 창을 바꿀 때 높이에 맞춰 앵커를 다시 잡는다.
+        private readonly System.Collections.Generic.List<(RectTransform rect, Rect box)> layout = new();
 
         // parent 안에 width(캔버스 단위) 너비로 만든다. 높이는 그림 비율대로 정해진다.
         public static ItemDetailPanel Create(RectTransform parent, float width)
@@ -49,11 +60,15 @@ namespace Aethoria.UI
             rect.sizeDelta = new Vector2(width, width * ImageHeight / ImageWidth);
 
             var background = go.GetComponent<RawImage>();
-            background.texture = Resources.Load<Texture2D>("UI/Item_Detail");
+            background.texture = Resources.Load<Texture2D>("UI/Menus/Inventory/Item_Detail");
             background.raycastTarget = false;
 
             var panel = go.AddComponent<ItemDetailPanel>();
             panel.root = rect;
+            panel.background = background;
+            panel.fullTexture = background.texture;
+            panel.compactTexture = Resources.Load<Texture2D>("UI/Menus/Inventory/Item_Detail_Compact");
+            panel.width = width;
             panel.scale = width / ImageWidth;
             panel.Build();
             go.SetActive(false);
@@ -69,7 +84,7 @@ namespace Aethoria.UI
             iconFallbackLabel = CreateText("IconName", 75f, 75f, 322f, 300f, 34f, SubTextColor, TextAnchor.MiddleCenter);
 
             // 등급보다 많은 별은 꺼진 별 그림으로 덮어서 어둡게 보이게 한다.
-            var starOff = Resources.Load<Texture2D>("UI/Item_Detail_StarOff");
+            var starOff = Resources.Load<Texture2D>("UI/Menus/Inventory/Item_Detail_StarOff");
             for (int i = 0; i < starDimmers.Length; i++)
             {
                 float half = StarSize / 2f;
@@ -123,6 +138,8 @@ namespace Aethoria.UI
 
             for (int i = 0; i < starDimmers.Length; i++) starDimmers[i].enabled = i >= item.StarCount;
 
+            SetCompact(!item.IsEquipment && compactTexture != null);
+
             gradeText.text = item.GradeLabel;
             titleText.text = item.DisplayName(enhanceLevel);
             flavorText.text = item.flavorText;
@@ -130,7 +147,8 @@ namespace Aethoria.UI
             FillStats(baseValues, item.BaseStatsAt(enhanceLevel));
             FillStats(bonusValues, item.bonusStats);
 
-            setEffectText.text = string.IsNullOrEmpty(item.setEffect) ? "세트 효과 없음" : item.setEffect;
+            string setText = item.SetEffectText;
+            setEffectText.text = string.IsNullOrEmpty(setText) ? "세트 효과 없음" : setText;
             descriptionText.text = item.description;
 
             gameObject.SetActive(true);
@@ -139,6 +157,37 @@ namespace Aethoria.UI
         public void Hide()
         {
             gameObject.SetActive(false);
+        }
+
+        // 짧은 창: 능력치·추가 옵션·세트 효과를 숨기고, 설명을 능력치 상자 자리로 옮긴다.
+        private void SetCompact(bool value)
+        {
+            if (compact == value) return;
+            compact = value;
+            float height = value ? CompactHeight : ImageHeight;
+            background.texture = value ? compactTexture : fullTexture;
+            root.sizeDelta = new Vector2(width, width * height / ImageWidth);
+
+            foreach (var (rect, box) in layout)
+            {
+                Rect b = box;
+                if (rect == descriptionText.rectTransform && value) b = CompactDescriptionBox;
+                Anchor(rect, b, height);
+            }
+            for (int i = 0; i < 4; i++)
+            {
+                baseValues[i].gameObject.SetActive(!value);
+                bonusValues[i].gameObject.SetActive(!value);
+            }
+            setEffectText.gameObject.SetActive(!value);
+        }
+
+        private static void Anchor(RectTransform rect, Rect box, float height)
+        {
+            rect.anchorMin = new Vector2(box.xMin / ImageWidth, 1f - box.yMax / height);
+            rect.anchorMax = new Vector2(box.xMax / ImageWidth, 1f - box.yMin / height);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
         }
 
         private static void FillStats(Text[] labels, ItemStats stats)
@@ -168,10 +217,9 @@ namespace Aethoria.UI
             var go = new GameObject(name, components);
             var rect = (RectTransform)go.transform;
             rect.SetParent(root, false);
-            rect.anchorMin = new Vector2(x0 / ImageWidth, 1f - y1 / ImageHeight);
-            rect.anchorMax = new Vector2(x1 / ImageWidth, 1f - y0 / ImageHeight);
-            rect.offsetMin = Vector2.zero;
-            rect.offsetMax = Vector2.zero;
+            var box = new Rect(x0, y0, x1 - x0, y1 - y0);
+            Anchor(rect, box, ImageHeight);
+            layout.Add((rect, box));
             return rect;
         }
 

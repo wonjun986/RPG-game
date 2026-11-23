@@ -87,7 +87,7 @@ namespace Aethoria.UI
             rect.anchorMax = Vector2.one;
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
-            panel.GetComponent<RawImage>().texture = Resources.Load<Texture2D>("UI/Elly_Enhancement");
+            panel.GetComponent<RawImage>().texture = Resources.Load<Texture2D>("UI/Menus/Elly_Enhancement");
 
             // 장비 칸: 아이콘(없으면 이름 글자). 칸을 누르면 다음 장비로 넘어간다.
             itemIcon = CreateImage(rect, "ItemIcon", 1036f, 166f, 1172f, 292f);

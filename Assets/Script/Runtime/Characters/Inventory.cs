@@ -138,11 +138,16 @@ namespace Aethoria.Characters
         private void ApplyEquipmentStats()
         {
             var total = new ItemStats();
+            var equippedItems = new List<ItemData>();
             foreach (var itemId in equipped.Values)
             {
                 var item = ItemDatabase.Find(itemId);
-                if (item != null) total += item.TotalStatsAt(GetEnhanceLevel(item));
+                if (item == null) continue;
+                total += item.TotalStatsAt(GetEnhanceLevel(item));
+                equippedItems.Add(item);
             }
+            // 같은 세트 장비를 여러 부위에 끼고 있으면 세트 보너스를 더한다(ItemSets).
+            total += ItemSets.BonusFor(equippedItems);
             GetComponent<Character>().SetEquipmentStats(total);
         }
 

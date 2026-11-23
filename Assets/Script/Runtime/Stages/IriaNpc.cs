@@ -9,12 +9,12 @@ namespace Aethoria.Stages
     // 이리아의 성소(천상의 신전의 성소 건물 안) 제단 앞에 서 있는 이리아. 대기 애니메이션(6프레임)을 반복하다가 플레이어가 가까이 오면
     // 머리 위에 "[Z] 대화하기"를 띄운다. Z를 누르면 선택지가 뜬다: [1] 축복 받기(BlessingUI를 연다),
     // [2] 이야기하기(말을 걸 때마다 다음 대사로 넘어감), Z = 닫기(엘리와 같은 방식).
-    // 메인 퀘스트에서 이리아 차례(5장: 찾아와 말 걸기, 6장: 루나벨 토벌 의뢰)면 선택지 대신 그 이야기가 곧바로 나오고,
+    // 메인 퀘스트에서 이리아 차례(4장: 찾아와 말 걸기, 6장: 루나벨 토벌 의뢰)면 선택지 대신 그 이야기가 곧바로 나오고,
     // 머리 위에 노란 "!"(찾아오거나 의뢰받을 차례)를 띄운다. 5장을 보고하면 이어서 6장 의뢰까지 한 번에 이어진다.
     [RequireComponent(typeof(SpriteRenderer))]
     public class IriaNpc : MonoBehaviour
     {
-        private const string TalkFrame = "UI/Iria_Talk";
+        private const string TalkFrame = "UI/Talk/Iria_Talk";
         private const string SpeakerName = "이리아";
         // 초상화가 대화 칸 왼쪽을 차지하는 폭이 엘리보다 조금 좁아(그림 x 약 600px) 그 오른쪽부터 대사를 시작한다.
         private const float TalkTextLeft = 0.3f;

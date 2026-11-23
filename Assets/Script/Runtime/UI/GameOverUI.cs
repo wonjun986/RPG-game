@@ -35,7 +35,7 @@ namespace Aethoria.UI
             rect.anchorMax = Vector2.one;
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
-            panel.GetComponent<RawImage>().texture = Resources.Load<Texture2D>("UI/GameOver");
+            panel.GetComponent<RawImage>().texture = Resources.Load<Texture2D>("UI/Screens/GameOver");
 
             // 아래 앵커 좌표는 GameOver.png 안에 이미 그려진 "RETRY"/"TITLE" 버튼 위치에 맞춘 값이다.
             TitleScreenUI.BuildButton(panel.transform, "RetryButton", new Vector2(0.63f, 0.456f), new Vector2(0.94f, 0.506f), GameBootstrap.RestartGame);

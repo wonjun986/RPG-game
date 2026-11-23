@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Aethoria.Monsters;
+using Aethoria.Bootstrap;
 
 namespace Aethoria.Characters
 {
@@ -77,6 +78,7 @@ namespace Aethoria.Characters
 
             if (currentCharges == maxCharges) rechargeTimer = rechargeCooldown;
             currentCharges--;
+            SfxPlayer.Play(SfxPlayer.SkillA);
 
             PerformSlash();
         }

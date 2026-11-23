@@ -2,7 +2,7 @@ using System;
 
 namespace Aethoria.Data
 {
-    // 인벤토리 화면(UI/Item_Screen)의 장비 칸(무기/상의/하의/신발/목걸이/반지) + 탭(재료/기타)과 1:1로 맞춘다.
+    // 인벤토리 화면(InventoryUI)의 장비 칸·탭(무기/상의/하의/신발/목걸이/반지) + 재료·기타(한 탭에 함께)와 맞춘다.
     public enum ItemCategory { Weapon, Top, Bottom, Shoes, Necklace, Ring, Materials, Misc }
 
     // 아이템 등급. 상세 화면의 별 개수(1~5)와 "전설 무기" 같은 등급 표기에 쓴다.
@@ -24,8 +24,10 @@ namespace Aethoria.Data
         // 장착하면 적용되는 기본 능력치와 추가 옵션. 둘 다 합쳐서 캐릭터에 적용된다.
         public ItemStats baseStats;
         public ItemStats bonusStats;
-        // 세트 효과 설명. 비워 두면 "세트 효과 없음"으로 표시된다(세트 효과 자체는 아직 미구현).
+        // 세트 효과 설명. setId가 있으면 그 세트의 설명(ItemSets)이 우선하고, 둘 다 비면 "세트 효과 없음"으로 표시된다.
         public string setEffect;
+        // 속한 세트의 id(ItemSets). 같은 세트 장비를 여러 부위에 끼면 보너스 능력치가 붙는다.
+        public string setId;
         // true인 아이템만 노아의 상점에 뜬다. 보스 드랍 전용 등은 false로 둔다.
         public bool forSale;
         public int shopPrice; // 0이면 무료.
@@ -33,6 +35,13 @@ namespace Aethoria.Data
         public float healAmount;
 
         public bool IsConsumable => healAmount > 0f;
+
+        // 아이콘 그림. iconPath가 비었거나 아직 그 경로에 그림이 없으면 null(화면에서는 이름을 글자로 대신 보여 준다).
+        public UnityEngine.Sprite LoadIcon() =>
+            string.IsNullOrEmpty(iconPath) ? null : UnityEngine.Resources.Load<UnityEngine.Sprite>(iconPath);
+
+        // 상세 화면 세트 효과 칸에 들어갈 글. 비어 있으면 세트 효과가 없는 장비다.
+        public string SetEffectText => ItemSets.Find(setId)?.Describe() ?? setEffect;
 
         public ItemStats TotalStats => baseStats + bonusStats;
 

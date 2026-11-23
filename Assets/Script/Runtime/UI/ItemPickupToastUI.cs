@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using Aethoria.Characters;
 using Aethoria.Data;
+using Aethoria.Bootstrap;
 
 namespace Aethoria.UI
 {
@@ -74,6 +75,7 @@ namespace Aethoria.UI
             if (item == null) return;
 
             pending.Enqueue((item, count));
+            SfxPlayer.Play(SfxPlayer.ItemPickup);
             if (routine == null) routine = StartCoroutine(ShowRoutine());
         }
 
@@ -84,7 +86,8 @@ namespace Aethoria.UI
             while (pending.Count > 0)
             {
                 var (item, count) = pending.Dequeue();
-                icon.sprite = Resources.Load<Sprite>(item.iconPath);
+                icon.sprite = item.LoadIcon();
+                icon.enabled = icon.sprite != null; // 아이콘 그림이 아직 없으면 글자만 띄운다
                 label.text = count > 1 ? $"{item.itemName} +{count} 획득!" : $"{item.itemName} 획득!";
 
                 SetAlpha(1f);

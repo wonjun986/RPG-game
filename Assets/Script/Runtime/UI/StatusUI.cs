@@ -57,7 +57,7 @@ namespace Aethoria.UI
             windowRect.pivot = new Vector2(0.5f, 0.5f);
             windowRect.sizeDelta = new Vector2(WindowHeight * ImageWidth / ImageHeight, WindowHeight);
             var windowImage = windowGO.GetComponent<RawImage>();
-            windowImage.texture = Resources.Load<Texture2D>("UI/NecrosiaStatus");
+            windowImage.texture = Resources.Load<Texture2D>("UI/Menus/NecrosiaStatus");
             windowImage.raycastTarget = false;
 
             for (int i = 0; i < ValueRowCenterY.Length; i++)

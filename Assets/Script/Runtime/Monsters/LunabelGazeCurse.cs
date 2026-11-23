@@ -33,16 +33,20 @@ namespace Aethoria.Monsters
         private const float FirstLimit = 60f;
         private const float RepeatLimit = 45f;
         private const float WarningTime = 10f;      // 이 아래로 내려가면 시간 글자가 붉어진다
-        private const float PenaltyPerGaze = 0.15f;
-        private const float MaxPenalty = 0.75f;
+        // 첫 응시에서만 최대 체력이 줄고, 응시마다 '주시' 디버프로 한동안 아이템(포션)을 쓸 수 없다.
+        private const float FirstGazePenalty = 0.15f;
+        private const float ItemLockSeconds = 15f;
 
-        private const float BlackoutTime = 0.4f;
-        private const float EyesFadeTime = 0.3f;
-        private const float EyesOpenTime = 1.6f;
-        private const float StareTime = 1.1f;
+        // 응시 연출: 세상이 어두워짐 → 감긴 눈들이 스며 나옴 → 천천히 뜨다가 마지막에 번쩍 뜸(붉은 섬광·화면 울림)
+        // → 심장이 두 번 뛰듯 두근거림 → 눈을 감으며 사라짐. 눈 그림 10장 사이는 겹쳐 그려(크로스페이드) 끊기지 않게 한다.
+        private const float BlackoutTime = 0.55f;
+        private const float EyesFadeTime = 0.45f;
+        private const float EyesOpenTime = 1.9f;
+        private const float SnapTime = 0.35f;        // 번쩍 뜨는 순간의 섬광·울림
+        private const float StareTime = 1.3f;        // 두근거림(박동 두 번)
+        private const float CloseTime = 0.45f;       // 눈을 감으며 흐려짐
         private const float ReleaseTime = 0.5f;
-        private const float StareShake = 8f;        // 응시하는 동안 그림이 떨리는 폭(기준 해상도 픽셀)
-        private const float StareOverscan = 1.04f;  // 떨려도 가장자리가 드러나지 않게 살짝 키운다
+        private const float PushStart = 1.03f, PushEnd = 1.09f; // 응시하는 내내 아주 천천히 다가온다(가장자리도 가려 준다)
 
         private static readonly Color NormalTimeColor = Color.white;
         private static readonly Color WarningTimeColor = new Color(1f, 0.25f, 0.25f);
@@ -53,9 +57,48 @@ namespace Aethoria.Monsters
         private Texture2D[] frames;
         private GameObject timerRoot;
         private Text timerText;
+        private Text debuffText;
+        private readonly System.Collections.Generic.List<WatchingEye> watchingEyes = new();
+        private bool eyesClosed;
         private GameObject overlayRoot;
         private Image blackout;
         private RawImage eyes;
+        private RawImage eyesNext;      // 다음 프레임(겹쳐 그려 부드럽게 넘어간다)
+        private Image flash;            // 번쩍 뜨는 순간의 붉은 섬광
+        private RawImage vignette;      // 가장자리를 붉게 조여 오는 그늘
+        private RectTransform eyesGroup;
+        // 새 응시 그림: 붉은 안개 배경 + 곳곳에 흩뿌린 작은 눈(차례로 하나씩 뜬다) + 가운데 큰 눈(마지막에 번쩍) + 가장자리에서 조여 오는 가시.
+        private Texture2D[] smallFrames;
+        private RawImage gazeBg;
+        private RawImage thorns;
+        private readonly System.Collections.Generic.List<(RawImage a, RawImage b, float start, float length)> eyeSlots = new();
+
+        // 작은 눈 자리(화면 비율 x, y, 크기 배율, 기울기). 가운데 큰 눈 자리(가운데 약 40%)는 비운다.
+        private static readonly Vector4[] SmallEyeLayout =
+        {
+            new Vector4(0.11f, 0.80f, 0.95f, -8f), new Vector4(0.29f, 0.90f, 0.70f, 6f), new Vector4(0.84f, 0.84f, 1.00f, 9f),
+            new Vector4(0.66f, 0.91f, 0.65f, -5f), new Vector4(0.07f, 0.47f, 0.80f, 4f), new Vector4(0.19f, 0.20f, 1.05f, -6f),
+            new Vector4(0.39f, 0.11f, 0.75f, 3f), new Vector4(0.62f, 0.12f, 0.85f, -9f), new Vector4(0.86f, 0.24f, 0.95f, 7f),
+            new Vector4(0.94f, 0.56f, 0.72f, -4f), new Vector4(0.27f, 0.56f, 0.60f, 10f), new Vector4(0.74f, 0.60f, 0.62f, -10f),
+        };
+        // 작은 눈마다 뜨기 시작하는 때(전체 진행 0~1). 흩어진 순서로 하나둘 뜨게 섞어 둔다.
+        private static readonly float[] SmallEyeStart = { 0.05f, 0.30f, 0.12f, 0.42f, 0.22f, 0.00f, 0.36f, 0.18f, 0.08f, 0.48f, 0.27f, 0.40f };
+        private const float SmallEyeLength = 0.34f;
+        private const float BigEyeStart = 0.5f;
+        private const float SmallEyeWidth = 150f;   // 기준 해상도(1280x720) 위 폭
+        private const float BigEyeWidth = 560f;
+
+        private static Texture2D[] LoadFrames(string prefix)
+        {
+            var list = new System.Collections.Generic.List<Texture2D>();
+            for (int i = 1; i <= 12; i++)
+            {
+                var tex = Resources.Load<Texture2D>($"{FramesPath}/{prefix}_{i}");
+                if (tex == null) break;
+                list.Add(tex);
+            }
+            return list.ToArray();
+        }
         private Text message;
         private NpcDialogueUI dialogueUI;
         private bool skippable;
@@ -75,8 +118,9 @@ namespace Aethoria.Monsters
             skippable = talkSkippable;
             onTalkShown = talkShown;
 
-            frames = Resources.LoadAll<Texture2D>(FramesPath);
-            System.Array.Sort(frames, (a, b) => string.CompareOrdinal(a.name, b.name));
+            // 가운데 큰 눈 6단계(eye_big_1~6)가 있어야 응시 연출을 쓴다. 흩뿌린 작은 눈(eye_small), 배경, 가시 테두리는 없으면 빼고 그린다.
+            frames = LoadFrames("eye_big");
+            smallFrames = LoadFrames("eye_small");
 
             BuildTimer();
             BuildOverlay();
@@ -123,6 +167,15 @@ namespace Aethoria.Monsters
             rect.pivot = new Vector2(0.5f, 1f);
             rect.anchoredPosition = new Vector2(0f, -92f);
             rect.sizeDelta = new Vector2(200f, 32f);
+
+            // 주시 디버프 표시(남은 시간 아래).
+            debuffText = CreateText(timerRoot.transform, "Debuff", 17);
+            var drect = debuffText.rectTransform;
+            drect.anchorMin = drect.anchorMax = new Vector2(0.5f, 1f);
+            drect.pivot = new Vector2(0.5f, 1f);
+            drect.anchoredPosition = new Vector2(0f, -122f);
+            drect.sizeDelta = new Vector2(420f, 26f);
+            debuffText.color = new Color(1f, 0.45f, 0.5f);
             timerRoot.SetActive(false);
         }
 
@@ -138,18 +191,94 @@ namespace Aethoria.Monsters
             blackout.raycastTarget = false;
             blackout.color = new Color(0f, 0f, 0f, 0f);
 
-            var eyesGO = new GameObject("Eyes", typeof(RectTransform), typeof(RawImage));
-            eyesGO.transform.SetParent(overlayRoot.transform, false);
-            Stretch((RectTransform)eyesGO.transform);
-            eyes = eyesGO.GetComponent<RawImage>();
-            eyes.raycastTarget = false;
-            eyes.color = new Color(1f, 1f, 1f, 0f);
+            // 눈 두 장(지금 프레임 + 다음 프레임)을 한 틀에 넣어 함께 다가오고 함께 울리게 한다.
+            var groupGO = new GameObject("EyesGroup", typeof(RectTransform));
+            groupGO.transform.SetParent(overlayRoot.transform, false);
+            eyesGroup = (RectTransform)groupGO.transform;
+            Stretch(eyesGroup);
+            gazeBg = MakeRaw(eyesGroup, "GazeBackground");
+            gazeBg.texture = Resources.Load<Texture2D>(FramesPath + "/gaze_bg");
+            if (smallFrames.Length > 0)
+            {
+                for (int i = 0; i < SmallEyeLayout.Length; i++)
+                {
+                    var l = SmallEyeLayout[i];
+                    float w = SmallEyeWidth * l.z, h = w * smallFrames[0].height / smallFrames[0].width;
+                    var a = MakeEyeImage(eyesGroup, "SmallEye" + i, new Vector2(l.x, l.y), new Vector2(w, h), l.w);
+                    var b = MakeEyeImage(eyesGroup, "SmallEyeNext" + i, new Vector2(l.x, l.y), new Vector2(w, h), l.w);
+                    eyeSlots.Add((a, b, SmallEyeStart[i % SmallEyeStart.Length], SmallEyeLength));
+                }
+            }
+            if (frames.Length > 0)
+            {
+                float bh = BigEyeWidth * frames[0].height / frames[0].width;
+                eyes = MakeEyeImage(eyesGroup, "BigEye", new Vector2(0.5f, 0.52f), new Vector2(BigEyeWidth, bh), 0f);
+                eyesNext = MakeEyeImage(eyesGroup, "BigEyeNext", new Vector2(0.5f, 0.52f), new Vector2(BigEyeWidth, bh), 0f);
+                eyeSlots.Add((eyes, eyesNext, BigEyeStart, 1f - BigEyeStart));
+            }
+
+            thorns = MakeRaw(overlayRoot.transform, "Thorns");
+            thorns.texture = Resources.Load<Texture2D>(FramesPath + "/gaze_thorns");
+
+            var flashGO = new GameObject("Flash", typeof(RectTransform), typeof(Image));
+            flashGO.transform.SetParent(overlayRoot.transform, false);
+            Stretch((RectTransform)flashGO.transform);
+            flash = flashGO.GetComponent<Image>();
+            flash.raycastTarget = false;
+            flash.color = new Color(1f, 0.1f, 0.12f, 0f);
+
+            vignette = MakeRaw(overlayRoot.transform, "Vignette");
+            vignette.texture = MakeVignette();
 
             message = CreateText(overlayRoot.transform, "Message", 34);
             Stretch(message.rectTransform);
             message.color = new Color(1f, 0.85f, 0.85f);
 
             overlayRoot.SetActive(false);
+        }
+
+        private static RawImage MakeEyeImage(Transform parent, string name, Vector2 anchor, Vector2 size, float rotation)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(RawImage));
+            var rect = (RectTransform)go.transform;
+            rect.SetParent(parent, false);
+            rect.anchorMin = rect.anchorMax = anchor;
+            rect.sizeDelta = size;
+            rect.localRotation = Quaternion.Euler(0f, 0f, rotation);
+            var raw = go.GetComponent<RawImage>();
+            raw.raycastTarget = false;
+            raw.color = new Color(1f, 1f, 1f, 0f);
+            return raw;
+        }
+
+        private static RawImage MakeRaw(Transform parent, string name)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(RawImage));
+            go.transform.SetParent(parent, false);
+            Stretch((RectTransform)go.transform);
+            var raw = go.GetComponent<RawImage>();
+            raw.raycastTarget = false;
+            raw.color = new Color(1f, 1f, 1f, 0f);
+            return raw;
+        }
+
+        // 가운데는 투명하고 가장자리로 갈수록 검붉어지는 그늘(가로로 긴 타원).
+        private static Texture2D MakeVignette()
+        {
+            const int W = 128, H = 72;
+            var tex = new Texture2D(W, H, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+            var px = new Color[W * H];
+            for (int y = 0; y < H; y++)
+                for (int x = 0; x < W; x++)
+                {
+                    float u = (x + 0.5f) / W * 2f - 1f, v = (y + 0.5f) / H * 2f - 1f;
+                    float d = Mathf.Sqrt(u * u * 0.85f + v * v);
+                    float a = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.55f, 1.35f, d));
+                    px[y * W + x] = new Color(0.25f, 0f, 0.02f, a);
+                }
+            tex.SetPixels(px);
+            tex.Apply();
+            return tex;
         }
 
         private static void Stretch(RectTransform rect)
@@ -164,8 +293,11 @@ namespace Aethoria.Monsters
         {
             if (gazing || boss == null) return;
 
+            if (monster.IsDead && !eyesClosed) CloseWatchingEyes();
             bool fighting = boss.PhaseTwoStarted && !boss.IsTransforming && !monster.IsDead && player != null && !player.IsDead;
             timerRoot.SetActive(fighting && firstGazeDone);
+            if (debuffText != null && player != null)
+                debuffText.text = player.ItemsLocked ? $"주시 — 아이템 사용 불가  {Mathf.CeilToInt(player.ItemLockRemaining)}초" : string.Empty;
             if (!fighting) return;
 
             if (!firstGazeDone)
@@ -190,42 +322,148 @@ namespace Aethoria.Monsters
             Time.timeScale = 0f;
             overlayRoot.SetActive(true);
             message.text = string.Empty;
-            eyes.texture = frames[0];
+            message.color = new Color(1f, 0.85f, 0.85f, 0f);
+            ShowEyes(0f, 0f);
+            eyesGroup.localScale = Vector3.one * PushStart;
+            eyesGroup.anchoredPosition = Vector2.zero;
+            flash.color = new Color(1f, 0.1f, 0.12f, 0f);
+            float total = EyesFadeTime + EyesOpenTime + SnapTime + StareTime;
+            float elapsed = 0f;
 
-            yield return Fade(a => blackout.color = new Color(0f, 0f, 0f, a), 0f, 1f, BlackoutTime);
-            yield return Fade(a => eyes.color = new Color(1f, 1f, 1f, a), 0f, 1f, EyesFadeTime);
-
-            for (float t = 0f; t < EyesOpenTime; t += Time.unscaledDeltaTime)
+            // 1) 세상이 어두워지고 가장자리부터 붉은 그늘이 조여 온다.
+            for (float t = 0f; t < BlackoutTime; t += Time.unscaledDeltaTime)
             {
-                eyes.texture = frames[Mathf.Min(frames.Length - 1, Mathf.FloorToInt(t / EyesOpenTime * frames.Length))];
+                float k = Smooth(t / BlackoutTime);
+                blackout.color = new Color(0f, 0f, 0f, k);
+                vignette.color = new Color(1f, 1f, 1f, 0.6f * k);
                 yield return null;
             }
-            eyes.texture = frames[frames.Length - 1];
+            blackout.color = Color.black;
 
-            player.ReduceMaxHp(PenaltyPerGaze, MaxPenalty);
-            message.text = $"최대 체력이 {Mathf.RoundToInt(player.MaxHpPenalty * 100f)}% 감소했다";
-            var eyesRect = eyes.rectTransform;
-            eyesRect.localScale = Vector3.one * StareOverscan;
-            for (float t = 0f; t < StareTime; t += Time.unscaledDeltaTime)
+            // 2) 감긴 눈들이 어둠 속에서 스며 나온다.
+            for (float t = 0f; t < EyesFadeTime; t += Time.unscaledDeltaTime, elapsed += Time.unscaledDeltaTime)
             {
-                float strength = StareShake * (1f - t / StareTime);
-                eyesRect.anchoredPosition = Random.insideUnitCircle * strength;
+                ShowEyes(0f, Smooth(t / EyesFadeTime));
+                Push(elapsed / total);
                 yield return null;
             }
-            eyesRect.anchoredPosition = Vector2.zero;
-            eyesRect.localScale = Vector3.one;
 
+            // 3) 천천히 뜨다가 끝에서 빨라진다(ease-in). 프레임 사이는 겹쳐 그린다.
+            for (float t = 0f; t < EyesOpenTime; t += Time.unscaledDeltaTime, elapsed += Time.unscaledDeltaTime)
+            {
+                float k = t / EyesOpenTime;
+                ShowEyes(k * k * k, 1f);
+                vignette.color = new Color(1f, 1f, 1f, Mathf.Lerp(0.6f, 0.85f, k));
+                Push(elapsed / total);
+                yield return null;
+            }
+            ShowEyes(1f, 1f);
+
+            // 4) 번쩍 — 붉은 섬광, 살짝 튀어나왔다 돌아오며 화면이 울린다(무작위가 아니라 잦아드는 흔들림).
+            if (!firstGazeDone)
+            {
+                player.ReduceMaxHp(FirstGazePenalty, FirstGazePenalty);
+                message.text = $"최대 체력이 {Mathf.RoundToInt(player.MaxHpPenalty * 100f)}% 감소했다\n<size=24>주시당했다 — {ItemLockSeconds:0}초 동안 아이템을 쓸 수 없다</size>";
+            }
+            else
+            {
+                message.text = $"주시당했다\n<size=24>{ItemLockSeconds:0}초 동안 아이템을 쓸 수 없다</size>";
+            }
+            for (float t = 0f; t < SnapTime; t += Time.unscaledDeltaTime, elapsed += Time.unscaledDeltaTime)
+            {
+                float k = t / SnapTime;
+                flash.color = new Color(1f, 0.1f, 0.12f, 0.55f * (1f - k) * (1f - k));
+                float punch = 0.05f * Mathf.Sin(k * Mathf.PI) * (1f - k);
+                float shake = 10f * (1f - k) * (1f - k);
+                eyesGroup.localScale = Vector3.one * (Mathf.Lerp(PushStart, PushEnd, elapsed / total) + punch);
+                eyesGroup.anchoredPosition = new Vector2(Mathf.Sin(t * 70f) * shake, Mathf.Cos(t * 53f) * shake * 0.6f);
+                message.color = new Color(1f, 0.85f, 0.85f, Mathf.Clamp01(k * 2f));
+                yield return null;
+            }
+            flash.color = new Color(1f, 0.1f, 0.12f, 0f);
+            eyesGroup.anchoredPosition = Vector2.zero;
+            message.color = new Color(1f, 0.85f, 0.85f, 1f);
+
+            // 5) 두근, 두근 — 박동마다 화면이 살짝 부풀고 그늘이 짙어진다.
+            for (float t = 0f; t < StareTime; t += Time.unscaledDeltaTime, elapsed += Time.unscaledDeltaTime)
+            {
+                float beat = Heartbeat(t / StareTime);
+                eyesGroup.localScale = Vector3.one * (Mathf.Lerp(PushStart, PushEnd, elapsed / total) + 0.025f * beat);
+                vignette.color = new Color(1f, 1f, 1f, 0.85f + 0.15f * beat);
+                yield return null;
+            }
+
+            if (!firstGazeDone)
+            {
+                message.text = string.Empty;
+                yield return FirstGazeTalk();
+            }
+
+            // 6) 눈을 감으며(프레임을 거꾸로) 흐려지고, 세상이 다시 밝아진다.
+            for (float t = 0f; t < CloseTime; t += Time.unscaledDeltaTime)
+            {
+                float k = t / CloseTime;
+                ShowEyes(1f - Smooth(k), 1f - k * k);
+                message.color = new Color(1f, 0.85f, 0.85f, 1f - k);
+                yield return null;
+            }
+            ShowEyes(0f, 0f);
             message.text = string.Empty;
-            if (!firstGazeDone) yield return FirstGazeTalk();
-
-            eyes.color = new Color(1f, 1f, 1f, 0f);
-            yield return Fade(a => blackout.color = new Color(0f, 0f, 0f, a), 1f, 0f, ReleaseTime);
+            for (float t = 0f; t < ReleaseTime; t += Time.unscaledDeltaTime)
+            {
+                float k = Smooth(t / ReleaseTime);
+                blackout.color = new Color(0f, 0f, 0f, 1f - k);
+                vignette.color = new Color(1f, 1f, 1f, 0.85f * (1f - k));
+                yield return null;
+            }
+            blackout.color = new Color(0f, 0f, 0f, 0f);
+            vignette.color = new Color(1f, 1f, 1f, 0f);
+            eyesGroup.localScale = Vector3.one;
 
             overlayRoot.SetActive(false);
             Time.timeScale = 1f;
+            player.ItemLockedUntil = Time.time + ItemLockSeconds;
+            if (!firstGazeDone) SpawnWatchingEyes();
             timeLeft = firstGazeDone ? RepeatLimit : FirstLimit;
             firstGazeDone = true;
             gazing = false;
+        }
+
+        // open: 0(감김) ~ 1(다 뜸) — 전체 진행도. 작은 눈들은 저마다 정해진 때에 하나씩 뜨고, 가운데 큰 눈은 마지막에 뜬다.
+        // 각 눈은 이웃한 두 프레임을 겹쳐 그려 끊기지 않게 한다. alpha: 배경·눈·가시 전체 투명도.
+        private void ShowEyes(float open, float alpha)
+        {
+            if (gazeBg != null) gazeBg.color = new Color(1f, 1f, 1f, alpha);
+            if (thorns != null)
+            {
+                thorns.color = new Color(1f, 1f, 1f, alpha);
+                thorns.rectTransform.localScale = Vector3.one * Mathf.Lerp(1.18f, 1f, Smooth(alpha)); // 가장자리에서 조여 든다
+            }
+            foreach (var (a, b, start, length) in eyeSlots)
+            {
+                var set = a == eyes ? frames : smallFrames;
+                float local = Mathf.Clamp01((open - start) / length);
+                local = local * local * (3f - 2f * local);
+                float pos = local * (set.Length - 1);
+                int i0 = Mathf.FloorToInt(pos), i1 = Mathf.Min(set.Length - 1, i0 + 1);
+                a.texture = set[i0];
+                b.texture = set[i1];
+                // 아직 뜨기 전인 눈은 희미하게(감긴 채 어둠 속에) 보인다.
+                float presence = alpha * Mathf.Lerp(0.55f, 1f, Mathf.Clamp01(local * 3f));
+                a.color = new Color(1f, 1f, 1f, presence);
+                b.color = new Color(1f, 1f, 1f, presence * (pos - i0));
+            }
+        }
+
+        private void Push(float k) => eyesGroup.localScale = Vector3.one * Mathf.Lerp(PushStart, PushEnd, Mathf.Clamp01(k));
+
+        private static float Smooth(float x) { x = Mathf.Clamp01(x); return x * x * (3f - 2f * x); }
+
+        // 0~1 동안 심장이 두 번 뛰는 모양(두근-두근, 각 박동은 빠르게 올랐다 천천히 가라앉는다).
+        private static float Heartbeat(float x)
+        {
+            float Pulse(float c) { float d = x - c; return d < 0f ? Mathf.Exp(-d * d * 900f) : Mathf.Exp(-d * 14f) * (d < 0.35f ? 1f : 0f); }
+            return Mathf.Clamp01(Pulse(0.12f) + 0.75f * Pulse(0.32f));
         }
 
         // 세상이 멈춘 채로 대사를 넘긴다. 대화창은 HUD 캔버스에 있어서 눈 그림 위로 보인다.
@@ -275,8 +513,37 @@ namespace Aethoria.Monsters
             apply(to);
         }
 
+        // 첫 응시가 끝나면 결전장 곳곳에 눈이 떠올라 네크로시아를 따라본다(맵이 지워질 때 함께 사라진다).
+        private static readonly Vector2[] EyeSpots =
+        {
+            new Vector2(0.06f, 3.3f), new Vector2(0.18f, 5.7f), new Vector2(0.31f, 2.7f), new Vector2(0.44f, 4.9f),
+            new Vector2(0.57f, 6.3f), new Vector2(0.70f, 3.1f), new Vector2(0.83f, 5.4f), new Vector2(0.95f, 4.0f),
+        };
+        private static readonly float[] EyeWidths = { 1.6f, 1.2f, 1.9f, 1.4f, 1.1f, 1.7f, 1.3f, 1.5f };
+
+        private void SpawnWatchingEyes()
+        {
+            if (!WatchingEye.AssetsReady || player == null) return;
+            Rect arena = Aethoria.Bootstrap.GameBootstrap.CurrentMapBounds;
+            float x0 = arena.xMin + 1.5f, x1 = arena.xMax - 1.5f;
+            for (int i = 0; i < EyeSpots.Length; i++)
+            {
+                var pos = new Vector3(Mathf.Lerp(x0, x1, EyeSpots[i].x), arena.yMin + EyeSpots[i].y, 0f);
+                var eye = WatchingEye.Spawn(transform.parent, pos, EyeWidths[i], -11, player.transform, 0.15f + i * 0.22f);
+                if (eye != null) watchingEyes.Add(eye);
+            }
+        }
+
+        private void CloseWatchingEyes()
+        {
+            eyesClosed = true;
+            foreach (var eye in watchingEyes) if (eye != null) eye.Close();
+            watchingEyes.Clear();
+        }
+
         private void OnDestroy()
         {
+            if (player != null) player.ItemLockedUntil = 0f;
             // 응시 도중 맵이 사라지면 멈춘 세상을 풀어 준다.
             if (gazing) Time.timeScale = 1f;
             if (talking) dialogueUI?.Hide();

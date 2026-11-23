@@ -1,0 +1,1705 @@
+fileFormatVersion: 2
+guid: 59aabfa5c351fef48aa75a638e35a7f7
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 3534523265183953482
+    second: Title_LogoGlow_0
+  - first:
+      213: -6626858715931773271
+    second: Title_LogoGlow_1
+  - first:
+      213: 4586735032414240289
+    second: Title_LogoGlow_2
+  - first:
+      213: 5014992515861048224
+    second: Title_LogoGlow_3
+  - first:
+      213: 913257060139042088
+    second: Title_LogoGlow_4
+  - first:
+      213: -8736310672989286581
+    second: Title_LogoGlow_5
+  - first:
+      213: -8840365338583583235
+    second: Title_LogoGlow_6
+  - first:
+      213: 9144760336444875328
+    second: Title_LogoGlow_7
+  - first:
+      213: 6287064923196502621
+    second: Title_LogoGlow_8
+  - first:
+      213: 7177634218028323830
+    second: Title_LogoGlow_9
+  - first:
+      213: 8622192832889759775
+    second: Title_LogoGlow_10
+  - first:
+      213: 6458714374871115956
+    second: Title_LogoGlow_11
+  - first:
+      213: -2408093158795602349
+    second: Title_LogoGlow_12
+  - first:
+      213: -3810335011456100898
+    second: Title_LogoGlow_13
+  - first:
+      213: -763572126174869549
+    second: Title_LogoGlow_14
+  - first:
+      213: -3644907737875925205
+    second: Title_LogoGlow_15
+  - first:
+      213: 1712639310070053224
+    second: Title_LogoGlow_16
+  - first:
+      213: -2817907632739892130
+    second: Title_LogoGlow_17
+  - first:
+      213: -3710559415385851971
+    second: Title_LogoGlow_18
+  - first:
+      213: -3704198239877445676
+    second: Title_LogoGlow_19
+  - first:
+      213: -2513391376475733339
+    second: Title_LogoGlow_20
+  - first:
+      213: -722829314824570999
+    second: Title_LogoGlow_21
+  - first:
+      213: 3289630046965704364
+    second: Title_LogoGlow_22
+  - first:
+      213: 3121135154400086668
+    second: Title_LogoGlow_23
+  - first:
+      213: 908034207339441305
+    second: Title_LogoGlow_24
+  - first:
+      213: 6232679516758494611
+    second: Title_LogoGlow_25
+  - first:
+      213: -7941059539547061243
+    second: Title_LogoGlow_26
+  - first:
+      213: -5724578410173785351
+    second: Title_LogoGlow_27
+  - first:
+      213: 3911292131365908354
+    second: Title_LogoGlow_28
+  - first:
+      213: 2470584558552338437
+    second: Title_LogoGlow_29
+  - first:
+      213: 4750347901290581068
+    second: Title_LogoGlow_30
+  - first:
+      213: 1793453967610821319
+    second: Title_LogoGlow_31
+  - first:
+      213: 8868942781782617196
+    second: Title_LogoGlow_32
+  - first:
+      213: 7347343737187689823
+    second: Title_LogoGlow_33
+  - first:
+      213: 7095588692307024736
+    second: Title_LogoGlow_34
+  - first:
+      213: -5503830216965001650
+    second: Title_LogoGlow_35
+  - first:
+      213: -350526431037121024
+    second: Title_LogoGlow_36
+  - first:
+      213: 4189687341045729706
+    second: Title_LogoGlow_37
+  - first:
+      213: -4644425508025591590
+    second: Title_LogoGlow_38
+  - first:
+      213: -6711806802764953375
+    second: Title_LogoGlow_39
+  - first:
+      213: -6216002759477559712
+    second: Title_LogoGlow_40
+  - first:
+      213: -3581810055183178717
+    second: Title_LogoGlow_41
+  - first:
+      213: 1494132573905371631
+    second: Title_LogoGlow_42
+  - first:
+      213: 6235903268738728226
+    second: Title_LogoGlow_43
+  - first:
+      213: -6582292478868592951
+    second: Title_LogoGlow_44
+  - first:
+      213: 4056406747577669475
+    second: Title_LogoGlow_45
+  - first:
+      213: -7489290386006323227
+    second: Title_LogoGlow_46
+  - first:
+      213: -8289743678779210501
+    second: Title_LogoGlow_47
+  - first:
+      213: -4387714124447208133
+    second: Title_LogoGlow_48
+  - first:
+      213: -6599856454002483695
+    second: Title_LogoGlow_49
+  - first:
+      213: -3923029179919401535
+    second: Title_LogoGlow_50
+  - first:
+      213: -3344561415714781723
+    second: Title_LogoGlow_51
+  - first:
+      213: 7746707849514495408
+    second: Title_LogoGlow_52
+  - first:
+      213: -5550357517808931713
+    second: Title_LogoGlow_53
+  - first:
+      213: -3745478943822096397
+    second: Title_LogoGlow_54
+  - first:
+      213: -1243652364910045799
+    second: Title_LogoGlow_55
+  - first:
+      213: 266212728553485562
+    second: Title_LogoGlow_56
+  - first:
+      213: 6441828463142586494
+    second: Title_LogoGlow_57
+  - first:
+      213: -1075763746190583178
+    second: Title_LogoGlow_58
+  - first:
+      213: 718379792251746696
+    second: Title_LogoGlow_59
+  - first:
+      213: -4272600122229279147
+    second: Title_LogoGlow_60
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationMethod: 0
+  spriteTessellationDetail: -1
+  spriteGeometrySubdivision: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: Title_LogoGlow_0
+      rect:
+        serializedVersion: 2
+        x: 1038
+        y: 758
+        width: 21
+        height: 25
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a42b4a7de262d0130800000000000000
+      internalID: 3534523265183953482
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_1
+      rect:
+        serializedVersion: 2
+        x: 1069
+        y: 692
+        width: 27
+        height: 91
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9a67f24cb1ba804a0800000000000000
+      internalID: -6626858715931773271
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_2
+      rect:
+        serializedVersion: 2
+        x: 1093
+        y: 770
+        width: 7
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 12ef3edd53b57af30800000000000000
+      internalID: 4586735032414240289
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_3
+      rect:
+        serializedVersion: 2
+        x: 1107
+        y: 620
+        width: 191
+        height: 219
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0abe3236f15d89540800000000000000
+      internalID: 5014992515861048224
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_4
+      rect:
+        serializedVersion: 2
+        x: 1292
+        y: 750
+        width: 30
+        height: 25
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8258432257a8cac00800000000000000
+      internalID: 913257060139042088
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_5
+      rect:
+        serializedVersion: 2
+        x: 1045
+        y: 730
+        width: 15
+        height: 26
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b4f0509dab362c680800000000000000
+      internalID: -8736310672989286581
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_6
+      rect:
+        serializedVersion: 2
+        x: 1290
+        y: 556
+        width: 125
+        height: 190
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: df5bc051096b05580800000000000000
+      internalID: -8840365338583583235
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_7
+      rect:
+        serializedVersion: 2
+        x: 1326
+        y: 740
+        width: 51
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 042e0e13317b8ee70800000000000000
+      internalID: 9144760336444875328
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_8
+      rect:
+        serializedVersion: 2
+        x: 1363
+        y: 730
+        width: 45
+        height: 21
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d5232f2cc34204750800000000000000
+      internalID: 6287064923196502621
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_9
+      rect:
+        serializedVersion: 2
+        x: 863
+        y: 543
+        width: 193
+        height: 164
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6f35445ea441c9360800000000000000
+      internalID: 7177634218028323830
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_10
+      rect:
+        serializedVersion: 2
+        x: 1047
+        y: 601
+        width: 28
+        height: 129
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f18205df2be28a770800000000000000
+      internalID: 8622192832889759775
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_11
+      rect:
+        serializedVersion: 2
+        x: 1125
+        y: 705
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4b8e6e31186f1a950800000000000000
+      internalID: 6458714374871115956
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_12
+      rect:
+        serializedVersion: 2
+        x: 1134
+        y: 577
+        width: 120
+        height: 141
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 35690fbd70cb49ed0800000000000000
+      internalID: -2408093158795602349
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_13
+      rect:
+        serializedVersion: 2
+        x: 1491
+        y: 603
+        width: 21
+        height: 108
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ed5dceebe78fe1bc0800000000000000
+      internalID: -3810335011456100898
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_14
+      rect:
+        serializedVersion: 2
+        x: 1074
+        y: 608
+        width: 48
+        height: 68
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3d705f2623f3765f0800000000000000
+      internalID: -763572126174869549
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_15
+      rect:
+        serializedVersion: 2
+        x: 1081
+        y: 671
+        width: 15
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b2735d459bfaa6dc0800000000000000
+      internalID: -3644907737875925205
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_16
+      rect:
+        serializedVersion: 2
+        x: 1114
+        y: 622
+        width: 42
+        height: 55
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8697819e06484c710800000000000000
+      internalID: 1712639310070053224
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_17
+      rect:
+        serializedVersion: 2
+        x: 1400
+        y: 551
+        width: 60
+        height: 139
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e544dac10f7c4e8d0800000000000000
+      internalID: -2817907632739892130
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_18
+      rect:
+        serializedVersion: 2
+        x: 1444
+        y: 607
+        width: 50
+        height: 68
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: db7f1fffed1718cc0800000000000000
+      internalID: -3710559415385851971
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_19
+      rect:
+        serializedVersion: 2
+        x: 1510
+        y: 622
+        width: 40
+        height: 56
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4d74a76935b089cc0800000000000000
+      internalID: -3704198239877445676
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_20
+      rect:
+        serializedVersion: 2
+        x: 1544
+        y: 599
+        width: 69
+        height: 93
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5a242af0cd3ae1dd0800000000000000
+      internalID: -2513391376475733339
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_21
+      rect:
+        serializedVersion: 2
+        x: 860
+        y: 508
+        width: 24
+        height: 149
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 98774a0619ef7f5f0800000000000000
+      internalID: -722829314824570999
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_22
+      rect:
+        serializedVersion: 2
+        x: 1604
+        y: 641
+        width: 45
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ca6a7d7391d17ad20800000000000000
+      internalID: 3289630046965704364
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_23
+      rect:
+        serializedVersion: 2
+        x: 1625
+        y: 648
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c8a400ee2ef705b20800000000000000
+      internalID: 3121135154400086668
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_24
+      rect:
+        serializedVersion: 2
+        x: 1131
+        y: 620
+        width: 8
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 99cee54fc4cf99c00800000000000000
+      internalID: 908034207339441305
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_25
+      rect:
+        serializedVersion: 2
+        x: 1139
+        y: 618
+        width: 18
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 39d4e339ffcee7650800000000000000
+      internalID: 6232679516758494611
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_26
+      rect:
+        serializedVersion: 2
+        x: 1266
+        y: 571
+        width: 12
+        height: 63
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 504021d1c60bbc190800000000000000
+      internalID: -7941059539547061243
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_27
+      rect:
+        serializedVersion: 2
+        x: 1528
+        y: 604
+        width: 22
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9fa98bc14463e80b0800000000000000
+      internalID: -5724578410173785351
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_28
+      rect:
+        serializedVersion: 2
+        x: 1598
+        y: 563
+        width: 27
+        height: 65
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 28f68d67873b74630800000000000000
+      internalID: 3911292131365908354
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_29
+      rect:
+        serializedVersion: 2
+        x: 881
+        y: 606
+        width: 17
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 500d318f097494220800000000000000
+      internalID: 2470584558552338437
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_30
+      rect:
+        serializedVersion: 2
+        x: 882
+        y: 583
+        width: 10
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c4c82ff6f30ace140800000000000000
+      internalID: 4750347901290581068
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_31
+      rect:
+        serializedVersion: 2
+        x: 1017
+        y: 513
+        width: 112
+        height: 70
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7ca3574a1e0a3e810800000000000000
+      internalID: 1793453967610821319
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_32
+      rect:
+        serializedVersion: 2
+        x: 1108
+        y: 575
+        width: 28
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c6cea696870d41b70800000000000000
+      internalID: 8868942781782617196
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_33
+      rect:
+        serializedVersion: 2
+        x: 1101
+        y: 561
+        width: 11
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f5563c9733207f560800000000000000
+      internalID: 7347343737187689823
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_34
+      rect:
+        serializedVersion: 2
+        x: 1102
+        y: 553
+        width: 25
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 06b1d355258987260800000000000000
+      internalID: 7095588692307024736
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_35
+      rect:
+        serializedVersion: 2
+        x: 1134
+        y: 551
+        width: 54
+        height: 29
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e4e6db504977e93b0800000000000000
+      internalID: -5503830216965001650
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_36
+      rect:
+        serializedVersion: 2
+        x: 1193
+        y: 556
+        width: 16
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 00e95a1711ea22bf0800000000000000
+      internalID: -350526431037121024
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_37
+      rect:
+        serializedVersion: 2
+        x: 1213
+        y: 555
+        width: 11
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: aa94bf25072c42a30800000000000000
+      internalID: 4189687341045729706
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_38
+      rect:
+        serializedVersion: 2
+        x: 1462
+        y: 553
+        width: 14
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ad81f509b9fab8fb0800000000000000
+      internalID: -4644425508025591590
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_39
+      rect:
+        serializedVersion: 2
+        x: 1471
+        y: 541
+        width: 81
+        height: 41
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1e80528064fdad2a0800000000000000
+      internalID: -6711806802764953375
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_40
+      rect:
+        serializedVersion: 2
+        x: 1145
+        y: 530
+        width: 11
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 06efd7e8c625cb9a0800000000000000
+      internalID: -6216002759477559712
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_41
+      rect:
+        serializedVersion: 2
+        x: 1149
+        y: 520
+        width: 15
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 32462e76bbada4ec0800000000000000
+      internalID: -3581810055183178717
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_42
+      rect:
+        serializedVersion: 2
+        x: 1172
+        y: 520
+        width: 18
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fe148f2e8a93cb410800000000000000
+      internalID: 1494132573905371631
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_43
+      rect:
+        serializedVersion: 2
+        x: 1173
+        y: 525
+        width: 11
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2218ed2dbf06a8650800000000000000
+      internalID: 6235903268738728226
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_44
+      rect:
+        serializedVersion: 2
+        x: 1200
+        y: 528
+        width: 12
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9c6ef4d6ddff6a4a0800000000000000
+      internalID: -6582292478868592951
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_45
+      rect:
+        serializedVersion: 2
+        x: 1204
+        y: 520
+        width: 13
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3675dd5f1704b4830800000000000000
+      internalID: 4056406747577669475
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_46
+      rect:
+        serializedVersion: 2
+        x: 1235
+        y: 528
+        width: 19
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5ef485ae212b01890800000000000000
+      internalID: -7489290386006323227
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_47
+      rect:
+        serializedVersion: 2
+        x: 1242
+        y: 520
+        width: 11
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bf4435b8b0ae4fc80800000000000000
+      internalID: -8289743678779210501
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_48
+      rect:
+        serializedVersion: 2
+        x: 1261
+        y: 520
+        width: 22
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b3d2c5c3045bb13c0800000000000000
+      internalID: -4387714124447208133
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_49
+      rect:
+        serializedVersion: 2
+        x: 1288
+        y: 520
+        width: 22
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 11edc9ac5899864a0800000000000000
+      internalID: -6599856454002483695
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_50
+      rect:
+        serializedVersion: 2
+        x: 1292
+        y: 533
+        width: 14
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1cd7967feb99e89c0800000000000000
+      internalID: -3923029179919401535
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_51
+      rect:
+        serializedVersion: 2
+        x: 1316
+        y: 520
+        width: 19
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5e5c7d6dc1bb591d0800000000000000
+      internalID: -3344561415714781723
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_52
+      rect:
+        serializedVersion: 2
+        x: 1317
+        y: 530
+        width: 12
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0bdaa0dceb5d18b60800000000000000
+      internalID: 7746707849514495408
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_53
+      rect:
+        serializedVersion: 2
+        x: 1353
+        y: 527
+        width: 14
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f7c649e9e3b29f2b0800000000000000
+      internalID: -5550357517808931713
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_54
+      rect:
+        serializedVersion: 2
+        x: 1358
+        y: 520
+        width: 14
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3f757c7beb2650cc0800000000000000
+      internalID: -3745478943822096397
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_55
+      rect:
+        serializedVersion: 2
+        x: 1380
+        y: 526
+        width: 21
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 995567563c8adbee0800000000000000
+      internalID: -1243652364910045799
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_56
+      rect:
+        serializedVersion: 2
+        x: 1407
+        y: 520
+        width: 17
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: af43e10f017c1b300800000000000000
+      internalID: 266212728553485562
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_57
+      rect:
+        serializedVersion: 2
+        x: 1419
+        y: 529
+        width: 32
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e784d916bd8f56950800000000000000
+      internalID: 6441828463142586494
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_58
+      rect:
+        serializedVersion: 2
+        x: 1603
+        y: 510
+        width: 34
+        height: 33
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 67a111e829e1211f0800000000000000
+      internalID: -1075763746190583178
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_59
+      rect:
+        serializedVersion: 2
+        x: 1383
+        y: 520
+        width: 15
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 889fbfa6d9238f900800000000000000
+      internalID: 718379792251746696
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Title_LogoGlow_60
+      rect:
+        serializedVersion: 2
+        x: 1633
+        y: 508
+        width: 7
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 556bb3773dca4b4c0800000000000000
+      internalID: -4272600122229279147
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      Title_LogoGlow_0: 3534523265183953482
+      Title_LogoGlow_1: -6626858715931773271
+      Title_LogoGlow_10: 8622192832889759775
+      Title_LogoGlow_11: 6458714374871115956
+      Title_LogoGlow_12: -2408093158795602349
+      Title_LogoGlow_13: -3810335011456100898
+      Title_LogoGlow_14: -763572126174869549
+      Title_LogoGlow_15: -3644907737875925205
+      Title_LogoGlow_16: 1712639310070053224
+      Title_LogoGlow_17: -2817907632739892130
+      Title_LogoGlow_18: -3710559415385851971
+      Title_LogoGlow_19: -3704198239877445676
+      Title_LogoGlow_2: 4586735032414240289
+      Title_LogoGlow_20: -2513391376475733339
+      Title_LogoGlow_21: -722829314824570999
+      Title_LogoGlow_22: 3289630046965704364
+      Title_LogoGlow_23: 3121135154400086668
+      Title_LogoGlow_24: 908034207339441305
+      Title_LogoGlow_25: 6232679516758494611
+      Title_LogoGlow_26: -7941059539547061243
+      Title_LogoGlow_27: -5724578410173785351
+      Title_LogoGlow_28: 3911292131365908354
+      Title_LogoGlow_29: 2470584558552338437
+      Title_LogoGlow_3: 5014992515861048224
+      Title_LogoGlow_30: 4750347901290581068
+      Title_LogoGlow_31: 1793453967610821319
+      Title_LogoGlow_32: 8868942781782617196
+      Title_LogoGlow_33: 7347343737187689823
+      Title_LogoGlow_34: 7095588692307024736
+      Title_LogoGlow_35: -5503830216965001650
+      Title_LogoGlow_36: -350526431037121024
+      Title_LogoGlow_37: 4189687341045729706
+      Title_LogoGlow_38: -4644425508025591590
+      Title_LogoGlow_39: -6711806802764953375
+      Title_LogoGlow_4: 913257060139042088
+      Title_LogoGlow_40: -6216002759477559712
+      Title_LogoGlow_41: -3581810055183178717
+      Title_LogoGlow_42: 1494132573905371631
+      Title_LogoGlow_43: 6235903268738728226
+      Title_LogoGlow_44: -6582292478868592951
+      Title_LogoGlow_45: 4056406747577669475
+      Title_LogoGlow_46: -7489290386006323227
+      Title_LogoGlow_47: -8289743678779210501
+      Title_LogoGlow_48: -4387714124447208133
+      Title_LogoGlow_49: -6599856454002483695
+      Title_LogoGlow_5: -8736310672989286581
+      Title_LogoGlow_50: -3923029179919401535
+      Title_LogoGlow_51: -3344561415714781723
+      Title_LogoGlow_52: 7746707849514495408
+      Title_LogoGlow_53: -5550357517808931713
+      Title_LogoGlow_54: -3745478943822096397
+      Title_LogoGlow_55: -1243652364910045799
+      Title_LogoGlow_56: 266212728553485562
+      Title_LogoGlow_57: 6441828463142586494
+      Title_LogoGlow_58: -1075763746190583178
+      Title_LogoGlow_59: 718379792251746696
+      Title_LogoGlow_6: -8840365338583583235
+      Title_LogoGlow_60: -4272600122229279147
+      Title_LogoGlow_7: 9144760336444875328
+      Title_LogoGlow_8: 6287064923196502621
+      Title_LogoGlow_9: 7177634218028323830
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

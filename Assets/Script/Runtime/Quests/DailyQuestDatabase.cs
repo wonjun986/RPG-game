@@ -23,6 +23,7 @@ namespace Aethoria.Quests
                 {
                     title = "오늘의 기사 토벌",
                     targetMonsterName = "기사",
+                    requiredMainQuests = 2, // 어둠의 숲이 열린 뒤
                     requiredCount = 6,
                     expReward = 70,
                     goldReward = 50,
@@ -43,6 +44,7 @@ namespace Aethoria.Quests
                 {
                     title = "기사단 소탕 임무",
                     targetMonsterName = "기사",
+                    requiredMainQuests = 2, // 어둠의 숲이 열린 뒤
                     requiredCount = 10,
                     expReward = 110,
                     goldReward = 90,
@@ -53,11 +55,35 @@ namespace Aethoria.Quests
                 {
                     title = "오늘의 콜로서스 토벌",
                     targetMonsterName = "콜로서스",
+                    requiredMainQuests = 4, // 잊혀진 폐허가 열린 뒤
                     requiredCount = 6,
                     expReward = 130,
                     goldReward = 110,
                     offerLine = "폐허의 콜로서스들이 오늘따라 쿵쿵거리며 돌아다닌대요. 6마리만 쓰러뜨려 주실래요?",
                     completeLine = "돌거인을 여섯이나! 오늘 보상은 넉넉히 챙겨 드릴게요.",
+                },
+                // 아래부터는 나중에 추가한 의뢰. 저장 파일이 순서 번호로 오늘의 의뢰를 기억하므로 항상 맨 뒤에 붙인다.
+                new QuestData
+                {
+                    title = "오늘의 심해 정령 진정",
+                    targetMonsterName = "심해 정령",
+                    requiredMainQuests = 6, // 푸른 바다가 열린 뒤
+                    requiredCount = 6,
+                    expReward = 160,
+                    goldReward = 130,
+                    offerLine = "어부들이 오늘도 그물을 못 던졌대요. 푸른 바다의 심해 정령 6마리만 진정시켜 주실래요?",
+                    completeLine = "바다가 한결 잠잠해졌대요! 어부들이 고맙다고 전해 달래요.",
+                },
+                new QuestData
+                {
+                    title = "심해 정령 대규모 정화",
+                    targetMonsterName = "심해 정령",
+                    requiredMainQuests = 6,
+                    requiredCount = 12,
+                    expReward = 240,
+                    goldReward = 200,
+                    offerLine = "오늘은 정령들이 떼로 올라왔대요. 12마리를 진정시켜 주시면 넉넉히 사례할게요.",
+                    completeLine = "열두 마리나요?! 오늘 바다는 네크로시아 님 덕분에 살았어요.",
                 },
             };
         }

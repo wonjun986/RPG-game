@@ -12,7 +12,7 @@ namespace Aethoria.UI
     {
         // PlayerHUD.png(고딕 퍼플 빈 스킬 슬롯 HUD) 원본 캔버스는 2172x724(정확히 3:1)라서, 화면에 그릴 때도
         // 같은 비율로 맞춰야 안의 HP/MP 칸·스킬 슬롯 좌표(아래 앵커 값들)가 어긋나지 않는다.
-        // 기준 해상도(1280x720)에서 예전 스킬 프레임과 같은 폭. 더 넓히면 화면 가운데 위의 보스 체력바와 많이 겹친다.
+        // 기준 해상도(1280x720)에서 예전 스킬 프레임과 같은 폭(보스 체력바는 화면 아래 가운데로 옮겼다).
         private const float HudFrameWidth = 480f;
         private const float HudFrameHeight = HudFrameWidth / 3f;
         // HUD 프레임과 그 아래 EXP/골드 사이 간격.
@@ -46,6 +46,12 @@ namespace Aethoria.UI
         private Text expLabel;
         private Text levelLabel;
         private Text goldLabel;
+        // 레벨/경험치 틀은 마을(안전 지역)에서만 보인다. 숨기면 그 아래 골드 줄을 틀 자리로 끌어올린다.
+        private static PlayerHUD instance;
+        private GameObject expFrameObject;
+        private RectTransform statusPanel;
+        private readonly List<(RectTransform rect, Vector2 basePos)> goldRow = new();
+        private bool levelVisible = true;
 
         // 아이콘마다 "쿨타임 진행률(0=바로 사용 가능, 1=방금 씀)"을 구하는 함수만 따로 들고 있고,
         // 매 프레임 그 값을 오버레이 채우기/라벨 밝기에 그대로 반영한다.
@@ -53,11 +59,27 @@ namespace Aethoria.UI
         // 아직 익히지 않은 스킬(SkillBook)은 칸을 어둡게 덮고 필요한 레벨을 적는다.
         private SkillBook skillBook;
 
+        public static void SetLevelVisible(bool visible)
+        {
+            if (instance == null || instance.expFrameObject == null || instance.levelVisible == visible) return;
+            instance.levelVisible = visible;
+            instance.expFrameObject.SetActive(visible);
+            float lift = visible ? 0f : ExpFrameHeight + 4f;
+            foreach (var (rect, basePos) in instance.goldRow)
+                if (rect != null) rect.anchoredPosition = basePos + new Vector2(0f, lift);
+        }
+
+        private void OnDestroy()
+        {
+            if (instance == this) instance = null;
+        }
+
         public void Initialize(Character character)
         {
+            instance = this;
             target = character;
             skillBook = character.GetComponent<SkillBook>();
-            var frameRect = CreateArtFrame("PlayerHudFrame", "UI/PlayerHUD", new Vector2(16f, -16f), HudFrameWidth, HudFrameHeight);
+            var frameRect = CreateArtFrame("PlayerHudFrame", "UI/HUD/PlayerHUD", new Vector2(16f, -16f), HudFrameWidth, HudFrameHeight);
             BuildBars(frameRect);
             BuildSkillIcons(frameRect, character);
         }
@@ -65,6 +87,7 @@ namespace Aethoria.UI
         private void BuildBars(RectTransform frameRect)
         {
             hpFill = CreateArtBar(frameRect, HpBarMin, HpBarMax, new Color(0.85f, 0.15f, 0.2f), out hpLabel);
+            HealthBarTrail.Attach(hpFill);
             mpFill = CreateArtBar(frameRect, MpBarMin, MpBarMax, new Color(0.35f, 0.55f, 0.95f), out mpLabel);
 
             // HUD 프레임 바로 아래에 배치한다.
@@ -79,7 +102,14 @@ namespace Aethoria.UI
             rootRect.sizeDelta = new Vector2(ExpFrameWidth, ExpFrameHeight + 30f);
 
             BuildExpFrame(rootRect);
+            int before = rootRect.childCount;
             goldLabel = CreateGoldRow(rootRect, -ExpFrameHeight - 4f);
+            statusPanel = rootRect;
+            for (int i = before; i < rootRect.childCount; i++)
+            {
+                var child = (RectTransform)rootRect.GetChild(i);
+                goldRow.Add((child, child.anchoredPosition));
+            }
         }
 
         // 레벨/경험치 틀(UI/LevelExpBar — Sprite/UI/HUD/보라색 판타지 RPG 경험치 바 UI에서 투명 여백을 잘라낸 2081x533).
@@ -91,8 +121,9 @@ namespace Aethoria.UI
 
         private void BuildExpFrame(RectTransform parent)
         {
-            var frame = CreateArtFrame("LevelExpFrame", "UI/LevelExpBar", Vector2.zero, ExpFrameWidth, ExpFrameHeight);
+            var frame = CreateArtFrame("LevelExpFrame", "UI/HUD/LevelExpBar", Vector2.zero, ExpFrameWidth, ExpFrameHeight);
             frame.SetParent(parent, false);
+            expFrameObject = frame.gameObject;
 
             var fillRect = ExpArtRect(frame, "EXP_Fill", 750f, 277f, 1811f, 323f, typeof(Image));
             expFill = fillRect.GetComponent<Image>();
@@ -214,7 +245,7 @@ namespace Aethoria.UI
             iconRect.anchoredPosition = new Vector2(0f, yOffset);
             iconRect.sizeDelta = new Vector2(iconSize, iconSize);
             var iconImage = iconGO.GetComponent<Image>();
-            iconImage.sprite = Resources.Load<Sprite>("UI/Money");
+            iconImage.sprite = Resources.Load<Sprite>("UI/HUD/Money");
             iconImage.preserveAspect = true;
 
             var textGO = new GameObject("Gold_Text", typeof(RectTransform), typeof(Text));

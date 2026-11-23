@@ -204,7 +204,7 @@ namespace Aethoria.UI
                 {
                     break;
                 }
-                shown += Time.unscaledDeltaTime * CharsPerSecond;
+                shown += Time.unscaledDeltaTime * CharsPerSecond * Aethoria.Save.GameSettings.DialogueSpeedMultiplier;
                 storyText.text = text.Substring(0, Mathf.Min(text.Length, Mathf.FloorToInt(shown)));
             }
             storyText.text = text;

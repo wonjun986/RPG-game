@@ -107,7 +107,7 @@ namespace Aethoria.UI
             window.SetParent(holder, false);
             window.anchorMin = window.anchorMax = new Vector2(0.5f, 0.5f);
             window.pivot = new Vector2(0.5f, 0.5f);
-            windowGO.GetComponent<RawImage>().texture = Resources.Load<Texture2D>("UI/SkillLearn");
+            windowGO.GetComponent<RawImage>().texture = Resources.Load<Texture2D>("UI/Menus/SkillLearn");
             windowHolder = holder;
 
             // 캔버스 기준 해상도(세로 720)에서 그림 1px이 몇 단위인지. 글자 크기를 그림 픽셀로 정하는 데 쓴다.

@@ -40,7 +40,7 @@ namespace Aethoria.Stages
         private System.Action onFirstMeetingDone;
         private int storyIndex;
 
-        private const string TalkFrame = "UI/Isis_Talk";
+        private const string TalkFrame = "UI/Talk/Isis_Talk";
         // Isis_Talk은 이시스의 팔이 대사 칸 왼쪽(그림 x 약 815px)까지 걸쳐 있어서, 대사를 그보다 오른쪽에서 시작한다.
         private const float TalkTextLeft = 0.385f;
         // 대사 칸 위아래 테두리 안쪽(그림 y 약 340~545px)에만 글자를 쓴다. 기본값(0.22~0.53)은 아래 금색 테두리에 걸쳤다.

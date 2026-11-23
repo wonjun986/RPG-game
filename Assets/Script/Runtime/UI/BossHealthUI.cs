@@ -4,7 +4,7 @@ using Aethoria.Monsters;
 
 namespace Aethoria.UI
 {
-    // 보스 전용 대형 체력바. 화면 상단 중앙에 이름과 함께 크게 표시하고,
+    // 보스 전용 대형 체력바. 화면 하단 중앙에 이름과 함께 크게 표시하고,
     // 보스가 없거나 죽으면 숨긴다. 몬스터 발밑의 작은 MonsterHealthBar와는 별개로 같이 붙는다.
     public class BossHealthUI : MonoBehaviour
     {
@@ -13,6 +13,8 @@ namespace Aethoria.UI
         private Text nameLabel;
         private Text hpLabel;
         private Monster boss;
+        private HealthBarTrail trail;
+        private BossTitleCard titleCard;
 
         public void Initialize()
         {
@@ -30,6 +32,10 @@ namespace Aethoria.UI
             nameLabel.text = bossName;
             panel.SetActive(true);
             RefreshBar();
+            trail?.Snap();
+            // 보스 등장 컷: 레터박스 + 이름 자막.
+            if (titleCard == null) titleCard = BossTitleCard.Create(transform);
+            titleCard.Show(bossName);
         }
 
         private void HandleBossDied(Monster _)
@@ -64,10 +70,11 @@ namespace Aethoria.UI
             panel = new GameObject("BossHealthPanel", typeof(RectTransform));
             var rect = (RectTransform)panel.transform;
             rect.SetParent(transform, false);
-            rect.anchorMin = new Vector2(0.5f, 1f);
-            rect.anchorMax = new Vector2(0.5f, 1f);
-            rect.pivot = new Vector2(0.5f, 1f);
-            rect.anchoredPosition = new Vector2(0f, -16f);
+            // 화면 위쪽은 왼쪽 플레이어 HUD·오른쪽 퀘스트 표시가 차지해서, 보스 체력바는 아래 가운데(바닥 아래 흙 부분)에 둔다.
+            rect.anchorMin = new Vector2(0.5f, 0f);
+            rect.anchorMax = new Vector2(0.5f, 0f);
+            rect.pivot = new Vector2(0.5f, 0f);
+            rect.anchoredPosition = new Vector2(0f, 16f);
             rect.sizeDelta = new Vector2(640f, 70f);
 
             var bg = new GameObject("BG", typeof(RectTransform), typeof(Image));
@@ -118,6 +125,8 @@ namespace Aethoria.UI
             fill.fillMethod = Image.FillMethod.Horizontal;
             fill.fillOrigin = (int)Image.OriginHorizontal.Left;
             fill.fillAmount = 1f;
+            // 깎인 체력이 밝은 바로 잠깐 남았다가 따라 줄어든다.
+            trail = HealthBarTrail.Attach(fill);
 
             var hpTextGO = new GameObject("HP_Text", typeof(RectTransform), typeof(Text));
             var hpTextRect = (RectTransform)hpTextGO.transform;

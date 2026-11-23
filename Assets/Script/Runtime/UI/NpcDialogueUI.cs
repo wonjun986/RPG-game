@@ -19,12 +19,15 @@ namespace Aethoria.UI
         // 이름판이 없는 대화창은 이름을 대사 첫 줄에 붙인다. Show에서 이름을 따로 주지 않으면 그림에 맞는 이름을 쓴다.
         private static readonly Dictionary<string, string> FrameNameTags = new Dictionary<string, string>
         {
-            { "UI/Noa_Talk", "<b><color=#E8C47A>노아</color></b>\n" },
-            { "UI/Isis_Talk", "<b><color=#D8C6F5>이시스</color></b>\n" },
+            { "UI/Talk/Noa_Talk", "<b><color=#E8C47A>노아</color></b>\n" },
+            { "UI/Talk/Isis_Talk", "<b><color=#D8C6F5>이시스</color></b>\n" },
         };
 
         private static NpcDialogueUI instance;
         private static int consumedFrame = -1;
+        // 새 대사를 띄운 프레임. 그 대사를 띄우게 한 Z를 같은 프레임의 다른 NPC(엘리·이시스처럼 매 프레임 Z를 묻는 쪽)가
+        // 다시 물으면 타이핑이 곧바로 끝나 버려서(노아 대사가 한 번에 다 보였다), 그 프레임의 Z는 대사 넘기기에 쓰지 않는다.
+        private int shownFrame = -1;
         private const float ImageWidth = 2172f;
         private const float ImageHeight = 724f;
         private const float BoxWidth = 1000f;
@@ -41,7 +44,7 @@ namespace Aethoria.UI
         // 네크로시아 대화창(UI/Player_Talk). 원본(Sprite/UI/Player_Talk, 2171x724)은 캔버스를 꽉 채워서 루나벨 창보다 훨씬 커 보였다.
         // 루나벨 창처럼 2172x724 투명 캔버스 안에 0.8배로 줄여 (217, 170)에 넣어 두었다. 어두운 대사 칸 안쪽에서
         // 오른쪽 나침반 문양 앞까지(x 729~1537, y 462~602)에 글자를 쓴다. 이름판이 없는 그림이라 이름은 대사 첫 줄에 붙인다.
-        private const string PlayerTalkFrame = "UI/Player_Talk";
+        private const string PlayerTalkFrame = "UI/Talk/Player_Talk";
         private const float PlayerTextLeft = 729f / ImageWidth;
         private const float PlayerTextRight = 1537f / ImageWidth;
         private const float PlayerTextTop = 1f - 462f / ImageHeight;
@@ -51,7 +54,7 @@ namespace Aethoria.UI
         // 루나벨 대화창(UI/Lunabel_Talk, 원본 1848x851을 좌우 투명 여백으로 3:1에 맞춘 2172x724).
         // 이름판 안쪽은 x 810~1070, y 405~465이고, 어두운 대사 칸은 이름판 아래 y 465~640, x 800~1770이다.
         // 글자는 테두리에 붙지 않게 안쪽으로 조금 띄운다(x 820~1750, y 468~632).
-        private const string LunabelTalkFrame = "UI/Lunabel_Talk";
+        private const string LunabelTalkFrame = "UI/Talk/Lunabel_Talk";
         private const float LunabelTextLeft = 820f / ImageWidth;
         private const float LunabelTextRight = 1750f / ImageWidth;
         private const float LunabelTextBottom = 1f - 632f / ImageHeight;
@@ -59,7 +62,7 @@ namespace Aethoria.UI
 
         // 아쿠아 대화창(UI/Aqua_Talk, 2172x724). 어두운 대사 칸은 x 942~2020, y 342~585이고, 글자는 테두리에 붙지 않게
         // 안쪽(x 970~1980, y 370~560)에 쓴다. 이름판이 없는 그림이라 네크로시아 창처럼 이름은 대사 첫 줄에 붙인다.
-        private const string AquaTalkFrame = "UI/Aqua_Talk";
+        private const string AquaTalkFrame = "UI/Talk/Aqua_Talk";
         private const float AquaTextLeft = 970f / ImageWidth;
         private const float AquaTextRight = 1980f / ImageWidth;
         private const float AquaTextTop = 1f - 370f / ImageHeight;
@@ -80,16 +83,49 @@ namespace Aethoria.UI
         private static readonly System.Collections.Generic.Dictionary<string, FrameBox> FrameBoxes =
             new System.Collections.Generic.Dictionary<string, FrameBox>
             {
-                { "UI/Player_Talk", ReferenceBox },
-                { "UI/Lunabel_Talk", new FrameBox(636f, 1795f, 679f) },
-                { "UI/Noa_Talk", new FrameBox(570f, 1991f, 594f) },
-                { "UI/Elly_Talk", new FrameBox(670f, 2003f, 592f) },
-                { "UI/Isis_Talk", new FrameBox(754f, 2035f, 632f) },
-                { "UI/Iria_Talk", new FrameBox(498f, 2052f, 545f) },
-                { "UI/BossKnight_Talk", new FrameBox(557f, 1940f, 677f) },
-                { "UI/Lily_Talk", new FrameBox(815f, 2040f, 546f) },
-                { "UI/Aqua_Talk", new FrameBox(942f, 2020f, 585f) },
+                { "UI/Talk/Player_Talk", ReferenceBox },
+                { "UI/Talk/Lunabel_Talk", new FrameBox(636f, 1795f, 679f) },
+                { "UI/Talk/Noa_Talk", new FrameBox(570f, 1991f, 594f) },
+                { "UI/Talk/Elly_Talk", new FrameBox(670f, 2003f, 592f) },
+                { "UI/Talk/Isis_Talk", new FrameBox(754f, 2035f, 632f) },
+                { "UI/Talk/Iria_Talk", new FrameBox(498f, 2052f, 545f) },
+                { "UI/Talk/BossKnight_Talk", new FrameBox(557f, 1940f, 677f) },
+                { "UI/Talk/Lily_Talk", new FrameBox(815f, 2040f, 546f) },
+                { "UI/Talk/Aqua_Talk", new FrameBox(942f, 2020f, 585f) },
             };
+        // 그림마다 실제 어두운 대사 칸 안쪽(테두리·초상화·문양에 닿지 않는 자리)과 이름판 안쪽을 그림 픽셀(2172x724, 왼쪽 위 기준)로
+        // 재 둔 표. 예전엔 부르는 쪽(NPC·컷신)마다 좌표를 따로 넘겼는데, 칸보다 조금씩 크게 잡힌 곳이 많아서 세 줄짜리 긴 대사가
+        // 테두리 밖으로 나가거나(이리아·엘리·아쿠아) 이름이 이름판 위 테두리에 걸렸다(이리아). 표에 있는 그림은 넘겨받은 좌표 대신 이 값을 쓴다.
+        private readonly struct FrameLayout
+        {
+            public readonly Rect Text;      // xMin, yMin(위), xMax, yMax(아래) — 그림 픽셀
+            public readonly Rect? Plate;    // 이름판 안쪽. 없으면 넘겨받은 이름판 좌표를 쓴다
+            public readonly Color? NameColor;
+            public FrameLayout(float l, float t, float r, float b, Rect? plate = null, Color? nameColor = null)
+            {
+                Text = Rect.MinMaxRect(l, t, r, b);
+                Plate = plate;
+                NameColor = nameColor;
+            }
+        }
+
+        private static Rect Px(float l, float t, float r, float b) => Rect.MinMaxRect(l, t, r, b);
+        private static readonly Color DefaultNameColor = new Color(0.91f, 0.72f, 0.42f);
+
+        private static readonly Dictionary<string, FrameLayout> FrameLayouts = new Dictionary<string, FrameLayout>
+        {
+            { "UI/Talk/Player_Talk", new FrameLayout(729f, 462f, 1537f, 600f) },
+            { "UI/Talk/Noa_Talk", new FrameLayout(695f, 362f, 1700f, 560f) },
+            { "UI/Talk/Elly_Talk", new FrameLayout(692f, 380f, 1930f, 546f, Px(617f, 315f, 987f, 368f)) },
+            // 이리아 창은 이름판이 밝은 흰 판이라 금색 이름이 묻혔다. 대사 글자와 같은 짙은 갈색으로 쓴다.
+            { "UI/Talk/Iria_Talk", new FrameLayout(682f, 324f, 1985f, 506f, Px(605f, 258f, 882f, 310f), new Color(0.35f, 0.22f, 0.1f)) },
+            { "UI/Talk/Isis_Talk", new FrameLayout(848f, 362f, 1900f, 536f) },
+            { "UI/Talk/Lily_Talk", new FrameLayout(845f, 380f, 1950f, 533f, Px(685f, 297f, 831f, 351f)) },
+            { "UI/Talk/BossKnight_Talk", new FrameLayout(615f, 470f, 1740f, 628f, Px(625f, 411f, 932f, 467f)) },
+            { "UI/Talk/Lunabel_Talk", new FrameLayout(822f, 478f, 1750f, 636f, Px(816f, 406f, 1062f, 462f)) },
+            { "UI/Talk/Aqua_Talk", new FrameLayout(1002f, 372f, 1972f, 538f) },
+        };
+
         private const float BoxBottomMargin = 30f;
         private const float NoaTextRight = 1700f / ImageWidth;
 
@@ -123,6 +159,7 @@ namespace Aethoria.UI
                 || (allowEnter && (keyboard.enterKey.wasPressedThisFrame || keyboard.numpadEnterKey.wasPressedThisFrame));
             if (!pressed) return false;
             if (consumedFrame == Time.frameCount) return false;
+            if (instance != null && instance.box != null && instance.box.activeSelf && instance.shownFrame == Time.frameCount) return false;
             if (instance == null || instance.box == null || !instance.box.activeSelf) return true;
 
             if (instance.typing)
@@ -214,6 +251,10 @@ namespace Aethoria.UI
             nameText.fontStyle = FontStyle.Bold;
             nameText.color = new Color(0.91f, 0.72f, 0.42f);
             nameText.alignment = TextAnchor.MiddleCenter;
+            // 프레임 그림이 화면에서 작게 줄어들면(FitBoxToFrame) 이름판 칸 높이가 글자 한 줄보다 낮아지는데, 기본값(Truncate)이면
+            // Unity가 넘치는 줄을 통째로 숨겨 이름이 아예 안 보였다. 칸을 넘쳐도 가운데 정렬로 그대로 그리게 한다.
+            nameText.verticalOverflow = VerticalWrapMode.Overflow;
+            nameText.horizontalOverflow = HorizontalWrapMode.Overflow;
             nameGO.SetActive(false);
 
             box.SetActive(false);
@@ -247,6 +288,26 @@ namespace Aethoria.UI
             plainBox.gameObject.SetActive(!hasFrame);
             textRect.anchorMin = new Vector2(hasFrame ? textLeft : PlainTextLeft, hasFrame ? textBottom : DefaultTextBottom);
 
+            // 칸을 재 둔 그림이면 넘겨받은 좌표 대신 표의 값을 쓴다.
+            Color nameColor = DefaultNameColor;
+            if (hasFrame && FrameLayouts.TryGetValue(resourcePath, out var layout))
+            {
+                textLeft = layout.Text.xMin / ImageWidth;
+                textRight = layout.Text.xMax / ImageWidth;
+                textTop = 1f - layout.Text.yMin / ImageHeight;
+                textBottom = 1f - layout.Text.yMax / ImageHeight;
+                namedTextTop = textTop;
+                if (layout.Plate.HasValue)
+                {
+                    var plate = layout.Plate.Value;
+                    namePlateX0 = plate.xMin; namePlateY0 = plate.yMin;
+                    namePlateX1 = plate.xMax; namePlateY1 = plate.yMax;
+                }
+                if (layout.NameColor.HasValue) nameColor = layout.NameColor.Value;
+                textRect.anchorMin = new Vector2(textLeft, textBottom);
+            }
+            nameText.color = nameColor;
+
             bool hasName = hasFrame && !string.IsNullOrEmpty(speakerName);
             nameText.text = hasName ? speakerName : "";
             nameText.gameObject.SetActive(hasName);
@@ -254,7 +315,7 @@ namespace Aethoria.UI
             nameRect.anchorMin = new Vector2(namePlateX0 / ImageWidth, plateTopAnchor);
             nameRect.anchorMax = new Vector2(namePlateX1 / ImageWidth, 1f - namePlateY0 / ImageHeight);
             // 노아 창은 대사 칸 오른쪽에 나침반 문양(그림 x 약 1640~)이 있어 기본 오른쪽 끝(0.92)이면 글자가 문양에 겹쳤다.
-            if (resourcePath == "UI/Noa_Talk" && Mathf.Approximately(textRight, DefaultTextRight)) textRight = NoaTextRight;
+            if (resourcePath == "UI/Talk/Noa_Talk" && Mathf.Approximately(textRight, DefaultTextRight)) textRight = NoaTextRight; // 표가 없을 때의 예전 처리
             textRect.anchorMax = new Vector2(hasFrame ? textRight : DefaultTextRight, hasName ? namedTextTop ?? plateTopAnchor : hasFrame ? textTop : DefaultTextTop);
             dialogueText.color = textColor ?? Color.white;
 
@@ -271,12 +332,13 @@ namespace Aethoria.UI
             Canvas.ForceUpdateCanvases();
             Paginate(namePrefix, line ?? "");
             StartPage(0);
+            shownFrame = Time.frameCount;
         }
 
         private void Update()
         {
             if (!typing || box == null || !box.activeSelf) return;
-            typedChars += Time.unscaledDeltaTime * CharsPerSecond;
+            typedChars += Time.unscaledDeltaTime * CharsPerSecond * Aethoria.Save.GameSettings.DialogueSpeedMultiplier;
             if (typedChars >= pageVisibleChars)
             {
                 FinishTyping();
@@ -304,26 +366,77 @@ namespace Aethoria.UI
 
         // 대사 칸(고정 글자 크기)에 들어가는 만큼씩 끊어 장을 만든다. 끊는 자리는 띄어쓰기/줄바꿈 뒤를 고르고(태그 안은 피한다),
         // 장 사이에 걸친 서식 태그(<b>, <color> 등)는 앞 장에서 닫고 다음 장에서 다시 연다. 마지막이 아닌 장 끝에는 ▼를 붙인다.
+        // 대사 끝에 붙는 조작 안내("   [Esc] 스킵   [Z]" — 공백 + 색 태그 + [키]). 장을 나눌 때 이 안내만 따로 떨어져
+        // 대사 없는 빈 장이 생기지 않게, 떼어 두었다가 마지막 장 끝에 다시 붙인다.
+        private static readonly System.Text.RegularExpressions.Regex TrailingHints =
+            new System.Text.RegularExpressions.Regex(@"(?:\s+<color=#[0-9A-Fa-f]{6,8}>\[[^<]*</color>)+\s*$");
+
         private void Paginate(string prefix, string body)
         {
             pages.Clear();
+            string tail = "";
+            var match = TrailingHints.Match(body);
+            if (match.Success && match.Index > 0)
+            {
+                tail = match.Value;
+                body = body.Substring(0, match.Index);
+            }
+
+            PaginateBody(prefix, body, tail);
+
+            // 그래도 보이는 글자가 하나도 없는 장이 생기면(태그만 남은 장 등) 빼고, 안내는 마지막 장에 붙인다.
+            for (int i = pages.Count - 1; i > 0; i--)
+            {
+                if (string.IsNullOrWhiteSpace(StripTags(pages[i]).Replace(ContinueHint, "")))
+                    pages.RemoveAt(i);
+            }
+            if (pages.Count == 0) pages.Add(prefix + body);
+            int last = pages.Count - 1;
+            if (pages[last].EndsWith(ContinueHint)) pages[last] = pages[last].Substring(0, pages[last].Length - ContinueHint.Length);
+            pages[last] += tail;
+        }
+
+        // boundary 바로 앞(공백·태그를 건너뛴 마지막 글자)이 문장 끝 부호이거나, boundary가 줄바꿈 자리인지.
+        private static bool EndsSentence(string text, int boundary)
+        {
+            if (boundary < text.Length && text[boundary] == '\n') return true;
+            int i = boundary - 1;
+            while (i >= 0)
+            {
+                char c = text[i];
+                if (c == ' ' || c == '\n') { i--; continue; }
+                if (c == '>') { int open = text.LastIndexOf('<', i); if (open < 0) break; i = open - 1; continue; }
+                return c == '.' || c == '?' || c == '!' || c == '…' || c == '~' || c == '"' || c == '」';
+            }
+            return false;
+        }
+
+        private static string StripTags(string text) => System.Text.RegularExpressions.Regex.Replace(text, "<[^>]*>", "");
+
+        // tail(조작 안내)은 마지막 장에 붙을 자리까지 셈해서 나눈다. 장 목록에는 tail을 빼고 넣는다(Paginate가 붙인다).
+        private void PaginateBody(string prefix, string body, string tail)
+        {
             string remaining = body;
             int guard = 0;
             while (guard++ < 50)
             {
-                if (Fits(prefix + remaining) || remaining.Length == 0)
+                if (Fits(prefix + remaining + tail) || remaining.Length == 0)
                 {
                     pages.Add(prefix + remaining);
                     return;
                 }
 
-                int cut = -1;
+                // 들어가는 자리 중 문장이 끝나는 곳(. ? ! … 뒤, 줄바꿈)이 있으면 거기서 끊는다 — "내 검을 ▼ / 넘어 봐라"처럼
+                // 문장 한가운데서 장이 넘어가면 대사가 끊긴 것처럼 보였다. 문장 끝이 없을 때만 마지막 띄어쓰기에서 끊는다.
+                int cut = -1, sentenceCut = -1;
                 foreach (int boundary in Boundaries(remaining))
                 {
                     string part = remaining.Substring(0, boundary).TrimEnd();
                     if (!Fits(prefix + part + CloseTags(OpenTagsAt(remaining, boundary)) + ContinueHint)) break;
                     cut = boundary;
+                    if (EndsSentence(remaining, boundary)) sentenceCut = boundary;
                 }
+                if (sentenceCut > 0) cut = sentenceCut;
                 if (cut <= 0) cut = LongestFittingCut(prefix, remaining); // 띄어쓰기 없이 긴 덩어리면 글자 단위로
                 if (cut <= 0 || cut >= remaining.Length)
                 {

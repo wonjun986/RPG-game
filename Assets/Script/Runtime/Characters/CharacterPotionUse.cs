@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using Aethoria.Combat;
 using Aethoria.Data;
+using Aethoria.Bootstrap;
 
 namespace Aethoria.Characters
 {
@@ -48,6 +49,23 @@ namespace Aethoria.Characters
         private void TryDrink()
         {
             if (character.IsDead || cooldownRemaining > 0f) return;
+            if (character.ItemsLocked)
+            {
+                // 루나벨의 주시: 아이템을 쓸 수 없다고 머리 위에 알려 준다.
+                var go = new GameObject("ItemLockedText");
+                go.transform.position = transform.position + Vector3.up * 2.1f;
+                var text = go.AddComponent<TextMesh>();
+                text.text = "주시당하고 있다 — 아이템을 쓸 수 없다";
+                text.characterSize = 0.06f;
+                text.fontSize = 40;
+                text.anchor = TextAnchor.MiddleCenter;
+                text.alignment = TextAlignment.Center;
+                text.color = new Color(1f, 0.35f, 0.4f);
+                go.GetComponent<MeshRenderer>().sortingOrder = 60;
+                go.AddComponent<Aethoria.Stages.FloatingTextFade>();
+                cooldownRemaining = 0.6f; // 연타로 글자가 겹쳐 쌓이지 않게
+                return;
+            }
             if (character.CurrentHp >= character.MaxHp) return;
 
             var potion = ItemDatabase.Potion;
@@ -55,7 +73,8 @@ namespace Aethoria.Characters
 
             cooldownRemaining = cooldown;
             float before = character.CurrentHp;
-            character.Heal(potion.healAmount);
+            character.Heal(potion.healAmount * character.TalentPotionMultiplier); // 축복 특성 성수
+            SfxPlayer.Play(SfxPlayer.PotionDrink);
             DamagePopup.Create(transform.position + Vector3.up * 1.2f, character.CurrentHp - before, HealPopupColor);
         }
     }

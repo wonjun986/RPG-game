@@ -27,7 +27,8 @@ namespace Aethoria.Save
     public class SaveData
     {
         // 2: 메인 퀘스트에 황금 모래룡(5번)과 아쿠아(7번)가 끼워 들어갔다. 1이면 불러올 때 퀘스트 번호를 옮긴다.
-        public const int CurrentVersion = 2;
+        // 3: 이야기 순서가 바뀌어 천상(이리아 찾기)이 바다(심해 정령·아쿠아)보다 앞으로 왔다.
+        public const int CurrentVersion = 3;
         public int version = CurrentVersion;
         public int level = 1;
         public int exp;
@@ -36,8 +37,13 @@ namespace Aethoria.Save
         public List<EquipSaveEntry> equipped = new();
         // 장비 강화 단계(itemId + count 자리에 강화 단계). 예전 저장 파일에는 없어서 비어 있으면 전부 0강.
         public List<ItemSaveEntry> enhanceLevels = new();
-        // 이리아의 축복 단계. 예전 저장 파일에는 없어서 기본값 0(축복 없음).
+        // 예전(갈래 선택식 이전) 이리아의 축복 단계. 불러올 때 쓴 골드를 돌려주고 0으로 바꾼다 — 새로 저장할 때는 항상 0.
         public int blessingLevel;
+        // 예전(특성 트리 이전) 이리아의 축복 갈래별 단계(공격력/방어력/치명타 확률/치명타 피해/스킬 피해).
+        // 불러올 때 쓴 골드를 돌려주고 비운다 — 새로 저장할 때는 항상 비어 있다.
+        public List<int> blessingTracks = new();
+        // 이리아의 축복 특성 트리("특성이름:단계" 목록, 예: "SharpScythe:3"). 비어 있으면 아무것도 안 찍은 상태.
+        public List<string> blessingTalents = new();
         public int questIndex;
         public int questStatus;
         public int questProgress;
@@ -55,6 +61,8 @@ namespace Aethoria.Save
         public bool seaChaseIntroSeen;
         // 루나벨 첫 응시의 대사를 본 적 있는지. 본 뒤로는 Esc로 건너뛸 수 있다.
         public bool lunabelGazeTalkSeen;
+        // 첫 클리어 엔딩을 봤는지(EndingCreditsUI). 예전 저장 파일에는 없어서 false로 읽힌다.
+        public bool endingSeen;
         // 노아와의 첫 만남(스토리 대사)이 아직 남았는지. 새 게임에서만 true로 시작한다 — 이 값이 없던 예전 세이브는
         // false로 읽혀서, 이미 노아를 만난 캐릭터에게 첫 만남 대사가 다시 나오지 않는다.
         public bool noaFirstMeetingPending;
@@ -68,6 +76,10 @@ namespace Aethoria.Save
         // 익힌 스킬 키(A/S/D/Q/W/E/R, SkillBook). skillBookSaved가 false인 예전 세이브는 모든 스킬을 익힌 것으로 본다.
         public List<string> learnedSkills = new();
         public bool skillBookSaved;
+        // 연 보물상자 id(TreasureChests). 예전 세이브에는 없어서 비어 있으면 아무것도 안 연 것.
+        public List<string> openedChests = new();
+        // 맵 진행 상태 깃발(WorldFlags: 열쇠, 지름길, 부순 벽, 퍼즐 등). 예전 세이브에는 없어서 비어 있으면 아무것도 안 한 것.
+        public List<string> worldFlags = new();
         public string savedAt;
     }
 
@@ -201,7 +213,24 @@ namespace Aethoria.Save
                 data.questIndex = ShiftV1QuestIndex(data.questIndex);
                 if (data.mapUnlockSeen >= 0) data.mapUnlockSeen = ShiftV1QuestIndex(data.mapUnlockSeen);
             }
+            if (data.version < 3)
+            {
+                // 버전 2: 6 심해 정령, 7 아쿠아, 8 이리아 찾기 → 버전 3: 6 이리아 찾기, 7 심해 정령, 8 아쿠아.
+                // 이미 끝낸 싸움을 다시 시키지 않는 쪽으로 옮긴다(이리아 첫 만남 대사는 건너뛸 수 있다).
+                data.questIndex = ShiftV2QuestIndex(data.questIndex);
+                if (data.mapUnlockSeen >= 0) data.mapUnlockSeen = ShiftV2QuestIndex(data.mapUnlockSeen);
+            }
             data.version = SaveData.CurrentVersion;
+        }
+
+        //  6(심해 정령 차례, 이리아 아직) → 6(이리아부터 만나고 바다로)
+        //  7(아쿠아 차례, 정령은 끝남)   → 8(아쿠아)
+        //  8(이리아 차례, 바다는 끝남)   → 9(루나벨 — 이리아가 의뢰한다)
+        private static int ShiftV2QuestIndex(int index)
+        {
+            if (index == 7) return 8;
+            if (index == 8) return 9;
+            return index;
         }
 
         private static int ShiftV1QuestIndex(int index)

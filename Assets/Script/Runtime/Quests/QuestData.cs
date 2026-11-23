@@ -42,6 +42,8 @@ namespace Aethoria.Quests
         public string turnInNpc = Noa; // 완료 보고를 받는 NPC
         public int expReward;
         public int goldReward; // 일일 의뢰에서 사용. 메인 퀘스트는 0(경험치만 지급).
+        // 일일 의뢰 전용: 메인 퀘스트를 이만큼 보고해야 후보에 오른다(월드맵 지역 해금과 같은 기준, 0 = 처음부터).
+        public int requiredMainQuests;
 
         public QuestStoryLine[] offerStory;    // 의뢰 전에 나오는 스토리 대사
         public string offerLine;                // 의뢰 문구(보상과 [Z] 수락 / [X] 거절이 붙는다)

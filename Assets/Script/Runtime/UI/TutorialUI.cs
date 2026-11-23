@@ -191,14 +191,14 @@ namespace Aethoria.UI
             return rect;
         }
 
-        private const string PanelFramePath = "UI/TutorialPanel";
+        private const string PanelFramePath = "UI/Screens/TutorialPanel";
         private const float PanelImageWidth = 1983f, PanelImageHeight = 793f;
         private const float PanelWidth = 1120f; // 캔버스(1280x720) 기준 안내창 폭
 
         // 안내창 틀 그림 픽셀 좌표(왼쪽 위 원점) → 앵커.
         private static Vector2 PanelAnchor(float x, float y) => new Vector2(x / PanelImageWidth, 1f - y / PanelImageHeight);
 
-        private const string GuideFramePath = "UI/TutorialGuide";
+        private const string GuideFramePath = "UI/Screens/TutorialGuide";
         private const float GuideImageWidth = 1672f, GuideImageHeight = 630f;
         private const float GuideWidth = 700f; // 캔버스(1280x720) 기준 단계 안내 폭
 

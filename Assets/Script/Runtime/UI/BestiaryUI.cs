@@ -52,6 +52,15 @@ namespace Aethoria.UI
         private CharacterMovement2D playerMovement;
         private GameObject panel;
         private RectTransform book;
+        // 책이 열리는 연출: 책 전체(오른쪽 페이지가 먼저 보임) 위로, 왼쪽 페이지가 등(가운데)을 축으로 넘어가며 펼쳐진다.
+        private RectMask2D bookMask;        // 넘어가기 전에는 왼쪽 절반을 가린다
+        private CanvasGroup bookGroup;
+        private RectTransform bookWrap;     // 책과 넘어가는 페이지를 함께 띄우고 올리는 틀
+        private RectTransform flipPage;     // 넘어가는 왼쪽 페이지(책 그림의 왼쪽 절반)
+        private RawImage flipImage;
+        private Image dimImage;
+        private Coroutine bookRoutine;
+        private bool closing;
         private RectTransform selectedFrame;
         private RectTransform scrollTrack;
         private RectTransform scrollThumb;
@@ -77,7 +86,7 @@ namespace Aethoria.UI
         private float dragAccumulator;
         private int openedFrame = -1;
 
-        public bool IsOpen => panel != null && panel.activeSelf;
+        public bool IsOpen => panel != null && panel.activeSelf && !closing;
 
         private static int EntryCount => Bestiary.Entries.Length;
         private static int VisibleRows => RowTops.Length;
@@ -100,19 +109,41 @@ namespace Aethoria.UI
             dim.anchorMax = Vector2.one;
             dim.offsetMin = Vector2.zero;
             dim.offsetMax = Vector2.zero;
-            panel.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.75f);
+            dimImage = panel.GetComponent<Image>();
+            dimImage.color = new Color(0f, 0f, 0f, 0.75f);
+            var bookTexture = Resources.Load<Texture2D>("UI/Menus/Bestiary");
 
-            var bookGO = new GameObject("Book", typeof(RectTransform), typeof(RawImage), typeof(AspectRatioFitter));
+            // 책과 넘어가는 페이지를 같은 크기로 겹쳐 두는 틀(화면 비율에 맞춰 책 비율을 지킨다).
+            var wrapGO = new GameObject("BookWrap", typeof(RectTransform), typeof(AspectRatioFitter), typeof(CanvasGroup));
+            bookWrap = (RectTransform)wrapGO.transform;
+            bookWrap.SetParent(dim, false);
+            bookWrap.anchorMin = Vector2.zero;
+            bookWrap.anchorMax = Vector2.one;
+            bookWrap.offsetMin = Vector2.zero;
+            bookWrap.offsetMax = Vector2.zero;
+            var fitter = wrapGO.GetComponent<AspectRatioFitter>();
+            fitter.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+            fitter.aspectRatio = ImageWidth / ImageHeight;
+            bookGroup = wrapGO.GetComponent<CanvasGroup>();
+
+            var bookGO = new GameObject("Book", typeof(RectTransform), typeof(RectMask2D));
             book = (RectTransform)bookGO.transform;
-            book.SetParent(dim, false);
+            book.SetParent(bookWrap, false);
             book.anchorMin = Vector2.zero;
             book.anchorMax = Vector2.one;
             book.offsetMin = Vector2.zero;
             book.offsetMax = Vector2.zero;
-            bookGO.GetComponent<RawImage>().texture = Resources.Load<Texture2D>("UI/Bestiary");
-            var fitter = bookGO.GetComponent<AspectRatioFitter>();
-            fitter.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
-            fitter.aspectRatio = ImageWidth / ImageHeight;
+            bookMask = bookGO.GetComponent<RectMask2D>();
+            // 책 그림은 자식으로 깔아야 RectMask2D에 같이 잘린다(맨 뒤).
+            var pagesGO = new GameObject("Pages", typeof(RectTransform), typeof(RawImage));
+            var pages = (RectTransform)pagesGO.transform;
+            pages.SetParent(book, false);
+            pages.anchorMin = Vector2.zero;
+            pages.anchorMax = Vector2.one;
+            pages.offsetMin = Vector2.zero;
+            pages.offsetMax = Vector2.zero;
+            pagesGO.GetComponent<RawImage>().texture = bookTexture;
+            pagesGO.GetComponent<RawImage>().raycastTarget = false;
 
             // 왼쪽 목록
             for (int i = 0; i < VisibleRows; i++)
@@ -129,12 +160,12 @@ namespace Aethoria.UI
                 rowDangers[i] = CreateText(book, "RowDanger" + i, 205f, top + 48f, 445f, top + 74f, 19f, LightColor, TextAnchor.MiddleLeft);
             }
 
-            selectedFrame = CreateRawImage(book, "Selected", "UI/Bestiary_Selected", SelectedX, RowTops[0] + SelectedOffsetY,
+            selectedFrame = CreateRawImage(book, "Selected", "UI/Menus/Bestiary_Selected", SelectedX, RowTops[0] + SelectedOffsetY,
                 SelectedX + SelectedWidth, RowTops[0] + SelectedOffsetY + SelectedHeight);
 
             // 스크롤바: 트랙(가만히) + 손잡이(목록 위치를 따라 움직이고, 마우스로 끌 수 있다)
-            scrollTrack = CreateRawImage(book, "ScrollTrack", "UI/Bestiary_ScrollTrack", TrackX0, TrackY0, TrackX1, TrackY1);
-            scrollThumb = CreateRawImage(book, "ScrollThumb", "UI/Bestiary_ScrollThumb", ThumbX0, TravelY0, ThumbX1, TravelY1);
+            scrollTrack = CreateRawImage(book, "ScrollTrack", "UI/Menus/Bestiary_ScrollTrack", TrackX0, TrackY0, TrackX1, TrackY1);
+            scrollThumb = CreateRawImage(book, "ScrollThumb", "UI/Menus/Bestiary_ScrollThumb", ThumbX0, TravelY0, ThumbX1, TravelY1);
             var thumbRaw = scrollThumb.GetComponent<RawImage>();
             thumbRaw.raycastTarget = true;
             scrollThumb.gameObject.AddComponent<ScrollThumbDrag>().OnDragPixels = DragThumb;
@@ -178,25 +209,124 @@ namespace Aethoria.UI
             close.GetComponent<Image>().color = new Color(1f, 1f, 1f, 0f);
             close.GetComponent<Button>().onClick.AddListener(Hide);
 
+            // 넘어가는 왼쪽 페이지: 책 그림의 왼쪽 절반. 축(오른쪽 끝 = 책 등)을 중심으로 가로 배율 -1 → 1로 넘어온다.
+            var flipGO = new GameObject("FlipPage", typeof(RectTransform), typeof(RawImage));
+            flipPage = (RectTransform)flipGO.transform;
+            flipPage.SetParent(bookWrap, false);
+            flipPage.anchorMin = new Vector2(0f, 0f);
+            flipPage.anchorMax = new Vector2(0.5f, 1f);
+            flipPage.pivot = new Vector2(1f, 0.5f);
+            flipPage.offsetMin = Vector2.zero;
+            flipPage.offsetMax = Vector2.zero;
+            flipImage = flipGO.GetComponent<RawImage>();
+            flipImage.texture = bookTexture;
+            flipImage.uvRect = new Rect(0f, 0f, 0.5f, 1f);
+            flipImage.raycastTarget = false;
+            flipGO.SetActive(false);
+
             panel.SetActive(false);
         }
 
         public void Show()
         {
             openedFrame = Time.frameCount;
+            closing = false;
             panel.SetActive(true);
             panel.transform.SetAsLastSibling();
             if (playerMovement != null) playerMovement.SetInputLocked(true);
             Time.timeScale = 0f;
             Select(selected);
+            if (bookRoutine != null) StopCoroutine(bookRoutine);
+            bookRoutine = StartCoroutine(OpenBook());
         }
 
         public void Hide()
         {
-            panel.SetActive(false);
+            if (closing) return;
+            closing = true;
             Time.timeScale = 1f;
             if (playerMovement != null) playerMovement.SetInputLocked(false);
+            if (bookRoutine != null) StopCoroutine(bookRoutine);
+            bookRoutine = StartCoroutine(CloseBook());
         }
+
+        private const float BookRiseTime = 0.22f;
+        private const float BookFlipStart = 0.12f, BookFlipTime = 0.42f;
+        private const float BookCoverFadeTime = 0.1f;
+        private static readonly Color PageBackColor = new Color(0.32f, 0.24f, 0.36f);
+
+        // 1) 어두운 막이 깔리며 책이 살짝 아래에서 떠오른다(왼쪽 절반은 가려져 오른쪽 페이지만 보인다).
+        // 2) 왼쪽 페이지가 오른쪽 페이지 위에 덮인 채(뒷면, 어둡게) 등을 축으로 넘어와 왼쪽에 펼쳐진다.
+        // 3) 다 넘어오면 넘어온 페이지 그림이 사라지며 목록 글자가 드러난다.
+        private System.Collections.IEnumerator OpenBook()
+        {
+            Canvas.ForceUpdateCanvases();
+            float half = book.rect.width / 2f;
+            bookMask.padding = new Vector4(half, 0f, 0f, 0f);
+            flipPage.gameObject.SetActive(true);
+            flipPage.localScale = new Vector3(-1f, 1f, 1f);
+            flipImage.color = PageBackColor;
+
+            float total = BookFlipStart + BookFlipTime + BookCoverFadeTime;
+            for (float t = 0f; t < total; t += Time.unscaledDeltaTime)
+            {
+                float rise = EaseOut(Mathf.Clamp01(t / BookRiseTime));
+                dimImage.color = new Color(0f, 0f, 0f, 0.75f * rise);
+                bookGroup.alpha = rise;
+                bookWrap.anchoredPosition = new Vector2(0f, -40f * (1f - rise));
+                bookWrap.localScale = Vector3.one * Mathf.Lerp(0.92f, 1f, rise);
+
+                float k = EaseInOut(Mathf.Clamp01((t - BookFlipStart) / BookFlipTime));
+                float sx = Mathf.Lerp(-1f, 1f, k);
+                // 옆에서 보면 가운데(세로로 선 순간)에서 가장 얇아 보이게: 가로 배율은 cos 모양으로.
+                flipPage.localScale = new Vector3(Mathf.Sign(sx) * Mathf.Max(0.02f, Mathf.Abs(Mathf.Sin((k - 0.5f) * Mathf.PI))), 1f, 1f);
+                bool front = k >= 0.5f;
+                if (front) bookMask.padding = Vector4.zero;
+                // 뒷면(오른쪽 위)은 어둡고, 앞면이 되면 밝아진다. 서 있을수록 그늘이 진다.
+                float shade = Mathf.Lerp(0.6f, 1f, Mathf.Abs(sx));
+                Color baseColor = front ? Color.white : PageBackColor;
+                float fade = 1f - Mathf.Clamp01((t - BookFlipStart - BookFlipTime) / BookCoverFadeTime);
+                flipImage.color = new Color(baseColor.r * shade, baseColor.g * shade, baseColor.b * shade, front ? fade : 1f);
+                yield return null;
+            }
+            FinishOpen();
+        }
+
+        private void FinishOpen()
+        {
+            dimImage.color = new Color(0f, 0f, 0f, 0.75f);
+            bookGroup.alpha = 1f;
+            bookWrap.anchoredPosition = Vector2.zero;
+            bookWrap.localScale = Vector3.one;
+            bookMask.padding = Vector4.zero;
+            flipPage.gameObject.SetActive(false);
+            bookRoutine = null;
+        }
+
+        // 닫을 때는 짧게: 책이 살짝 가라앉으며 흐려진다.
+        private System.Collections.IEnumerator CloseBook()
+        {
+            flipPage.gameObject.SetActive(false);
+            bookMask.padding = Vector4.zero;
+            float fromDim = dimImage.color.a, fromAlpha = bookGroup.alpha;
+            const float duration = 0.16f;
+            for (float t = 0f; t < duration; t += Time.unscaledDeltaTime)
+            {
+                float k = t / duration;
+                k = k * k;
+                dimImage.color = new Color(0f, 0f, 0f, Mathf.Lerp(fromDim, 0f, k));
+                bookGroup.alpha = Mathf.Lerp(fromAlpha, 0f, k);
+                bookWrap.anchoredPosition = new Vector2(0f, -25f * k);
+                bookWrap.localScale = Vector3.one * Mathf.Lerp(1f, 0.95f, k);
+                yield return null;
+            }
+            panel.SetActive(false);
+            closing = false;
+            FinishOpen();
+        }
+
+        private static float EaseOut(float x) { x = 1f - x; return 1f - x * x * x; }
+        private static float EaseInOut(float x) => x < 0.5f ? 4f * x * x * x : 1f - Mathf.Pow(-2f * x + 2f, 3f) / 2f;
 
         private void Update()
         {

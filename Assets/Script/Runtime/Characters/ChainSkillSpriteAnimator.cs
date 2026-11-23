@@ -14,7 +14,10 @@ namespace Aethoria.Characters
         // ZSkill 프레임은 위로 휘두르는 낫까지 담느라 모두 724px 높이의 큰 캔버스인데, 그 안의 캐릭터는
         // SSkill보다 작게 그려져 있다(비슷한 런지 자세 기준 약 409px vs 502px). 프레임 높이를 기준 키(1.5)에
         // 맞추면 캐릭터가 절반 가까이 작아지므로, 캐릭터 크기가 SSkill과 같아지는 프레임 높이로 맞춘다.
-        [SerializeField] private float finisherFrameHeight = 2.6f;
+        // 처음엔 S를 기준 키(1.5), Z를 2.6으로 맞췄는데, 두 시트 모두 대기/걷기보다 얼굴이 크게 그려져 있어서
+        // 스킬을 쓰면 머리가 확 커 보였다. 대기 얼굴 크기에 맞춰 S는 0.75배, Z는 0.8배로 줄였다.
+        [SerializeField] private float throwFrameHeight = 1.125f;
+        [SerializeField] private float finisherFrameHeight = 2.08f;
 
         private SpriteRenderer spriteRenderer;
         private WalkSpriteAnimator walkAnimator;
@@ -57,7 +60,7 @@ namespace Aethoria.Characters
             if (jumpAnimator != null) jumpAnimator.enabled = false;
             spriteRenderer.flipX = facingDirection.x < 0f;
 
-            yield return PlaySequence(throwFrames, 0, throwFrames.Length - 1, duration);
+            yield return PlaySequence(throwFrames, 0, throwFrames.Length - 1, duration, throwFrameHeight);
         }
 
         // 뻗은 자세(마지막 프레임)를 그대로 유지한다.
@@ -67,7 +70,7 @@ namespace Aethoria.Characters
             spriteRenderer.flipX = facingDirection.x < 0f;
             Sprite lastFrame = throwFrames[throwFrames.Length - 1];
             spriteRenderer.sprite = lastFrame;
-            SkillFrameNormalizer.Apply(spriteRenderer.transform, lastFrame);
+            SkillFrameNormalizer.Apply(spriteRenderer.transform, lastFrame, throwFrameHeight);
         }
 
         // Z: 당겨온 대상을 베어내는 마무리 동작을 한 번 재생하고, 끝나면 마지막 프레임에서 멈춘다.
@@ -88,7 +91,7 @@ namespace Aethoria.Characters
                 yield break;
             }
 
-            yield return PlaySequence(throwFrames, throwFrames.Length - 1, 0, duration);
+            yield return PlaySequence(throwFrames, throwFrames.Length - 1, 0, duration, throwFrameHeight);
 
             SkillFrameNormalizer.Reset(spriteRenderer.transform);
             if (walkAnimator != null) walkAnimator.enabled = true;

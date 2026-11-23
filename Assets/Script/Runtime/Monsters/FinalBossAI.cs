@@ -23,7 +23,6 @@ namespace Aethoria.Monsters
         [SerializeField] private float contactRange = 1.0f; // 몸통(폭 1.3)에 실제로 닿을 만큼만(예전 1.6은 떨어져 있어도 맞았다)
         [SerializeField] private float contactInterval = 1f;
         [SerializeField] private float contactDamageMultiplier = 1f;
-        [SerializeField] private float transformDuration = 1.35f; // 변신 9프레임 전체 길이
         [SerializeField] private float transformHold = 0.4f;      // 변신을 마친 모습으로 잠깐 멈춰 있는 시간
 
         [Header("피의 손")]
@@ -134,15 +133,15 @@ namespace Aethoria.Monsters
         [SerializeField] private float teleportFarRange = 6.5f;   // 플레이어가 이보다 멀면 차원문을 타고 다가간다
         [SerializeField] private float teleportCooldown = 7f;
         [SerializeField] private float teleportFirstDelay = 4f;
-        [SerializeField] private float teleportEnterDuration = 0.5f;    // 차원문에 빨려 드는 6프레임(나올 때는 거꾸로)
-        [SerializeField] private float teleportCollapseDuration = 0.24f; // 차원문이 오그라들어 사라지는 4프레임(열릴 때는 거꾸로)
-        [SerializeField] private float teleportGap = 0.12f;              // 사라진 뒤 다시 열리기까지
+        [SerializeField] private float teleportEnterDuration = 0.32f;   // 차원문에 빨려 드는 6프레임(나올 때는 거꾸로). 0.5초는 뚝뚝 끊겨 보여서 약 19fps로 당겼다
+        [SerializeField] private float teleportCollapseDuration = 0.16f; // 차원문이 오그라들어 사라지는 4프레임(열릴 때는 거꾸로)
+        [SerializeField] private float teleportGap = 0.08f;              // 사라진 뒤 다시 열리기까지
         [SerializeField] private float teleportNearDistance = 3.2f;     // 플레이어 옆 이만큼 떨어진 곳에 나타난다
         // 빨려 든 마지막 장(차원문만 남은 그림)에서 차원문 한가운데는 발 기준점보다 이만큼 앞/위에 있다(182px = 1칸).
         [SerializeField] private Vector2 portalCenterOffset = new Vector2(11f / 182f, 247f / 182f);
         [SerializeField] private float portalEffectScale = 0.84f;       // 붕괴 그림의 차원문이 빨려 든 그림의 차원문 크기와 맞도록
         // 2페이즈 순간이동(PortalEnter 8프레임 → 붕괴하는 붉은 소용돌이 4프레임). 소용돌이 크기는 그림을 자를 때 맞춰 두어 배율은 1이다.
-        [SerializeField] private float teleportEnterDurationPhaseTwo = 0.6f;
+        [SerializeField] private float teleportEnterDurationPhaseTwo = 0.4f;
         // 빨려 든 마지막 장의 소용돌이 한가운데(바라보는 쪽 기준 앞/위). 그림을 뒤집어 틀기 때문에 원화 기준과 좌우가 반대다.
         [SerializeField] private Vector2 portalCenterOffsetPhaseTwo = new Vector2(0.13f, 1.98f);
         [SerializeField] private float portalEffectScalePhaseTwo = 1f;
@@ -280,6 +279,10 @@ namespace Aethoria.Monsters
         public const string SpecialPath = "Art/Monsters/FinalBoss/Phase2/Special";
         public const string SpecialChargePath = "Art/Monsters/FinalBoss/Phase2/Charge";
         public const string BloodOrbPath = "Art/Effects/BloodOrb";
+        // 새 구체 이펙트: 모으기 8단계(점점 커지는 구체) → 다 모으면 유지 고리(LunabelGiantOrb) → 날아가며 꼬리 → 떨어진 자리에서 터짐.
+        public const string OrbChargePath = "Art/Effects/LunabelOrbCharge";
+        public const string OrbTrailPath = "Art/Effects/LunabelOrbTrail";
+        public const string OrbBurstPath = "Art/Effects/LunabelOrbBurst";
         // 노드를 다 못 치면: 구체 던지기(Throw 5프레임) → 플레이어 발밑에서 피의 기둥이 솟구쳐(BloodPillarRise) 회오리친다(BloodPillarTornado).
         public const string ThrowPath = "Art/Monsters/FinalBoss/Phase2/Throw";
         public const string BloodPillarRisePath = "Art/Effects/BloodPillarRise";
@@ -836,12 +839,9 @@ namespace Aethoria.Monsters
             }
 
             Sprite[] transformFrames = LoadSorted(PhaseTwoPath);
-            if (attackAnimator != null && attackAnimator.HasClip(PhaseTwoClip))
+            if (attackAnimator != null && attackAnimator.HasClip(PhaseTwoClip) && transformFrames.Length >= 2)
             {
-                attackAnimator.PlayClip(PhaseTwoClip, transformDuration);
-                yield return new WaitForSeconds(transformDuration);
-                // 변신을 마친 순간 몸에서 핏빛 충격파가 연달아 퍼지며 화면이 크게 흔들리고 붉게 번쩍인다(모래룡 포효와 같은 연출).
-                if (airborne) AwakeningShockwave();
+                yield return PlayTransformSequence(transformFrames, airborne);
                 yield return new WaitForSeconds(transformHold);
             }
 
@@ -856,6 +856,97 @@ namespace Aethoria.Monsters
             if (airborne) yield return PhaseTwoOpeningRoutine(groundY, floorPosY, centerX);
             castTimer = castCooldown * phaseTwoCooldownScale * 0.5f;
             isTransforming = false;
+        }
+
+        // 변신 18장(웅크림 6 → 각성 6 → 펼침 6). 이웃한 두 장을 겹쳐 그려(크로스페이드) 끊기지 않게 넘기고,
+        // 장면마다 빠르기를 다르게 한다: 웅크림은 천천히, 뿔·날개가 돋는 각성은 조금 더 천천히, 펼침은 빠르게.
+        // 웅크려 들면 핏빛 고치가 몸을 감싸 돌고(1페이즈 후광이 사라지는 순간을 가린다), 날개가 활짝 펼쳐지는 순간
+        // 각성 폭발이 터지며 핏빛 충격파와 화면 흔들림이 온다.
+        private const float TransformCurlStep = 0.2f;      // 웅크림 한 장
+        private const float TransformSwapStep = 0.3f;      // 시트가 바뀌는 사이(고치가 감싼 채)
+        private const float TransformAwakenStep = 0.24f;   // 각성 한 장
+        private const float TransformRiseStep = 0.16f;     // 펼침 한 장
+        public const string TransformCocoonPath = "Art/Effects/LunabelTransformCocoon";
+        public const string TransformBurstPath = "Art/Effects/LunabelTransformBurst";
+
+        private IEnumerator PlayTransformSequence(Sprite[] frames, bool airborne)
+        {
+            // 플레이어가 어느 쪽에 있든 변신(각성)은 늘 그림 그대로의 방향으로 보인다.
+            spriteRenderer.flipX = false;
+            int last = frames.Length - 1;
+            // 장 사이 간격(17칸): 0~4 웅크림, 5 시트 교체, 6~10 각성, 11 시트 교체, 12~16 펼침. 장 수가 다르면 고르게 나눈다.
+            var steps = new float[last];
+            for (int i = 0; i < last; i++)
+            {
+                if (frames.Length != 18) { steps[i] = 3f / last; continue; }
+                steps[i] = i < 5 ? TransformCurlStep : i == 5 || i == 11 ? TransformSwapStep : i < 11 ? TransformAwakenStep : TransformRiseStep;
+            }
+            float total = 0f;
+            foreach (float s in steps) total += s;
+
+            // 걷기/대기 애니메이터가 끼어들지 않게 변신 클립을 틀어 두고, 그림은 매 프레임 직접 고른다(애니메이터보다 늦게 돌아 덮어쓴다).
+            attackAnimator.PlayClip(PhaseTwoClip, total + 0.5f);
+            var blendGO = new GameObject("TransformBlend");
+            blendGO.transform.SetParent(spriteRenderer.transform, false);
+            var blend = blendGO.AddComponent<SpriteRenderer>();
+            blend.sharedMaterial = spriteRenderer.sharedMaterial;
+            blend.sortingOrder = spriteRenderer.sortingOrder + 1;
+            blend.flipX = spriteRenderer.flipX;
+
+            FlipbookSpriteEffect cocoon = null;
+            SpriteRenderer cocoonRenderer = null;
+            float cocoonAlpha = 0f;
+            bool burst = false;
+            float elapsed = 0f;
+            while (elapsed < total && !monster.IsDead)
+            {
+                // 지난 시간 → 몇 번째 장 사이인지
+                float acc = 0f; int index = 0; float frac = 0f;
+                for (int i = 0; i < last; i++)
+                {
+                    if (elapsed < acc + steps[i]) { index = i; frac = (elapsed - acc) / steps[i]; break; }
+                    acc += steps[i];
+                    index = i; frac = 1f;
+                }
+                float position = index + frac;
+                spriteRenderer.sprite = frames[index];
+                blend.sprite = frames[Mathf.Min(last, index + 1)];
+                blend.color = new Color(1f, 1f, 1f, frac);
+
+                // 핏빛 고치: 웅크리기 시작하면 감싸 돌고, 일어서기 시작하면 걷힌다.
+                bool wantCocoon = position >= 3.2f && position < 12.6f;
+                if (wantCocoon && cocoon == null)
+                {
+                    cocoon = FlipbookSpriteEffect.Create("LunabelTransformCocoon", TransformCocoonPath,
+                        (Vector2)transform.position + Vector2.up * 1.1f, 0.07f, loop: true, sortingOrder: spriteRenderer.sortingOrder + 2);
+                    cocoonRenderer = cocoon != null ? cocoon.GetComponent<SpriteRenderer>() : null;
+                    patternEffects.Add(cocoon != null ? cocoon.gameObject : null);
+                }
+                cocoonAlpha = Mathf.MoveTowards(cocoonAlpha, wantCocoon ? 0.9f : 0f, Time.deltaTime * (wantCocoon ? 2.5f : 3f));
+                if (cocoonRenderer != null)
+                {
+                    cocoonRenderer.color = new Color(1f, 1f, 1f, cocoonAlpha);
+                    cocoon.transform.position = (Vector2)transform.position + Vector2.up * 1.1f;
+                }
+
+                // 날개가 활짝 펼쳐지는 순간: 각성 폭발 + 핏빛 충격파 + 화면 흔들림.
+                if (!burst && position >= 14.4f)
+                {
+                    burst = true;
+                    var fx = FlipbookSpriteEffect.Create("LunabelTransformBurst", TransformBurstPath,
+                        (Vector2)transform.position + Vector2.up * 1.5f, 0.06f, loop: false, sortingOrder: spriteRenderer.sortingOrder + 3);
+                    if (fx != null) patternEffects.Add(fx.gameObject);
+                    if (airborne) AwakeningShockwave();
+                }
+
+                elapsed += Time.deltaTime;
+                yield return null;
+            }
+
+            spriteRenderer.sprite = frames[last];
+            Destroy(blendGO);
+            if (cocoon != null) Destroy(cocoon.gameObject);
+            if (!burst && airborne) AwakeningShockwave();
         }
 
         // 2페이즈 전투 중 간간히 다시 쓰는 개막 패턴: 차원문을 타고 맵 가운데 위 공중으로 올라가 → 거대한 에너지 구체를 모으며
@@ -944,6 +1035,9 @@ namespace Aethoria.Monsters
         {
             if (monster.IsDead) { EndOpeningCamera(); yield break; }
 
+            // 공중에 도착할 때 플레이어 쪽으로 돌아서서, 플레이어 위치에 따라 구체를 모으고 던지는 방향이 매번 달랐다.
+            // 손 뻗기·모으기·던지기·응시 내내 그림 그대로의 방향(변신과 같은 방향)으로 고정한다.
+            spriteRenderer.flipX = false;
             pullActive = true;
             StartCoroutine(PullPlayerRoutine(centerX));
 
@@ -1289,6 +1383,8 @@ namespace Aethoria.Monsters
             float facing = spriteRenderer.flipX ? -1f : 1f;
 
             attackAnimator.PlayClip(SpecialClip, specialRaiseDuration);
+            // 위험 예고: 필살기를 모으기 시작하면 몸이 붉게 번쩍인다.
+            Aethoria.Fx.DangerFx.FlashBody(spriteRenderer, specialRaiseDuration, 3);
             yield return new WaitForSeconds(specialRaiseDuration);
 
             // 머리 위로 든 두 손 사이에서 진홍빛 에너지 구체(개막과 같은 6프레임 반복)가 점점 커진다.
@@ -1309,6 +1405,7 @@ namespace Aethoria.Monsters
                 orbRenderer.sprite = orbFrames[0];
                 orbRenderer.sortingOrder = spriteRenderer.sortingOrder + 1;
             }
+            var chargeFrames = LoadSorted(OrbChargePath);
             float orbAge = 0f;
             for (float t = 0f; t < specialChargeDuration; t += Time.deltaTime)
             {
@@ -1316,10 +1413,21 @@ namespace Aethoria.Monsters
                 orbAge += Time.deltaTime;
                 if (specialOrb != null)
                 {
-                    float grow = Mathf.SmoothStep(0.15f, 1f, t / specialChargeDuration);
+                    float progress = t / specialChargeDuration;
                     float pulse = 1f + 0.06f * Mathf.Sin(t * 18f);
-                    specialOrb.transform.localScale = Vector3.one * (orbScale * grow * pulse);
-                    orbRenderer.sprite = orbFrames[(int)(orbAge / openingOrbFrameTime) % orbFrames.Length];
+                    if (chargeFrames.Length > 0 && progress < 0.85f)
+                    {
+                        // 모으기 8단계: 그림 자체가 씨앗에서 큰 구체로 자라난다(마지막 15%는 유지 고리로 넘어가 맥동).
+                        int index = Mathf.Min(chargeFrames.Length - 1, Mathf.FloorToInt(progress / 0.85f * chargeFrames.Length));
+                        orbRenderer.sprite = chargeFrames[index];
+                        specialOrb.transform.localScale = Vector3.one * (orbScale * pulse);
+                    }
+                    else
+                    {
+                        float grow = chargeFrames.Length > 0 ? 1f : Mathf.SmoothStep(0.15f, 1f, progress);
+                        specialOrb.transform.localScale = Vector3.one * (orbScale * grow * pulse);
+                        orbRenderer.sprite = orbFrames[(int)(orbAge / openingOrbFrameTime) % orbFrames.Length];
+                    }
                     specialOrb.transform.position = OrbHoldPosition(orbFrames[0], animatedOrb, orbScale);
                 }
                 yield return null;
@@ -1335,15 +1443,28 @@ namespace Aethoria.Monsters
             if (specialOrb != null)
             {
                 Vector2 from = specialOrb.transform.position;
+                // 날아가는 방향 뒤로 늘어지는 꼬리(오른쪽 끝이 구체에 붙은 그림을 날아가는 방향으로 돌린다).
+                var trail = FlipbookSpriteEffect.Create("LunabelOrbTrail", OrbTrailPath, from, 0.05f, loop: true, sortingOrder: orbRenderer.sortingOrder - 1);
+                trail.transform.SetParent(specialOrb.transform, true);
+                trail.transform.localPosition = Vector3.zero;
+                trail.transform.localScale = Vector3.one * 1.6f;
+                Vector2 dir = landing - from;
+                trail.transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg);
                 for (float t = 0f; t < specialOrbFlightTime; t += Time.deltaTime)
                 {
                     orbAge += Time.deltaTime;
                     if (orbRenderer != null) orbRenderer.sprite = orbFrames[(int)(orbAge / openingOrbFrameTime) % orbFrames.Length];
-                    specialOrb.transform.position = Vector2.Lerp(from, landing, t / specialOrbFlightTime);
+                    float k = t / specialOrbFlightTime;
+                    specialOrb.transform.position = Vector2.Lerp(from, landing, k * k); // 처음엔 느리게, 내리꽂힐수록 빠르게
                     yield return null;
                 }
                 Destroy(specialOrb);
                 specialOrb = null;
+                // 떨어진 자리에서 핏빛 구체가 터진다(8단계 섬광 → 파편 → 흩어지는 붉은 안개).
+                var burstFx = FlipbookSpriteEffect.Create("LunabelOrbBurst", OrbBurstPath, landing + Vector2.up * 0.6f, 0.055f, loop: false, sortingOrder: 4);
+                burstFx.transform.localScale = Vector3.one * 0.9f;
+                var follow = Camera.main != null ? Camera.main.GetComponent<CameraFollow>() : null;
+                if (follow != null) follow.Shake(0.25f, 0.12f);
             }
 
             // 떨어진 자리부터 앞으로 피의 기둥이 번져 간다. 기둥마다 솟는 동안 그 안에 있으면 무적 없이 연타로 맞는다.

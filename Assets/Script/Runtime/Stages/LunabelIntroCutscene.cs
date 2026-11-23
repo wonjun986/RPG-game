@@ -96,6 +96,11 @@ namespace Aethoria.Stages
         private System.Action onShown;
         private bool finished;
 
+        // 언덕이 넓어져 결전장까지 걸어오게 됐다 — 네크로시아가 이 x를 넘어서면 등장 연출을 시작한다(그 전엔 앉아서 기다린다).
+        // OnTriggered는 그 순간 한 번 불린다(결전장 입구를 막아 전투 구역을 가둔다).
+        public float TriggerX = float.NegativeInfinity;
+        public System.Action OnTriggered;
+
         public void Initialize(FinalBossAI bossAI, Character targetPlayer, NpcDialogueUI dialogue, bool skippable = false, System.Action onShown = null)
         {
             boss = bossAI;
@@ -138,7 +143,14 @@ namespace Aethoria.Stages
         {
             var cam = Camera.main;
             cameraFollow = cam != null ? cam.GetComponent<CameraFollow>() : null;
-            StartCoroutine(Run());
+            StartCoroutine(WaitForPlayerThenRun());
+        }
+
+        private IEnumerator WaitForPlayerThenRun()
+        {
+            while (player != null && player.transform.position.x < TriggerX) yield return null;
+            OnTriggered?.Invoke();
+            yield return Run();
         }
 
         private IEnumerator Run()
@@ -155,6 +167,12 @@ namespace Aethoria.Stages
 
             bool skipped = false;
             for (float t = 0f; t < DelayBeforeTalk && !skipped; t += Time.deltaTime)
+            {
+                skipped = SkipPressed();
+                yield return null;
+            }
+            // 보스 이름 자막(BossTitleCard)이 다 끝난 뒤에 대사를 시작한다.
+            while (!skipped && Aethoria.UI.BossTitleCard.IsShowing)
             {
                 skipped = SkipPressed();
                 yield return null;

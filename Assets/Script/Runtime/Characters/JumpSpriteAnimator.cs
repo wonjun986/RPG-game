@@ -13,10 +13,11 @@ namespace Aethoria.Characters
         [SerializeField] private string doubleJumpResourcesPath = "Art/Necrosia/DoubleJump";
         [SerializeField] private float doubleJumpDuration = 0.4f;
         // 점프(고딕 사신의 수직 점프, 6프레임)는 6장을 얼굴 위치에 맞춰 같은 캔버스(430px)로 잘랐다.
-        // 대기/달리기와 머리·몸 크기가 같아 보이도록 캔버스 키를 1.3으로 맞춘다.
-        [SerializeField] private float jumpTargetHeight = 1.3f;
-        // 2단 점프(고딕 사신의 공중 회전 베기, 8프레임)는 8장을 같은 캔버스(342px)로 잘랐다. 점프와 몸 크기가 같아 보이는 키.
-        [SerializeField] private float doubleJumpTargetHeight = 1.2f;
+        // 대기와 머리·몸 크기가 같아 보이는 캔버스 키. 1.3일 땐 특징점 매칭으로 재 보니 대기보다 약 13% 작아서 1.5로 올렸다.
+        [SerializeField] private float jumpTargetHeight = 1.5f;
+        // 2단 점프(고딕 사신의 공중 회전 베기, 8프레임)는 8장을 같은 캔버스(342px)로 잘랐다. 대기와 몸 크기가 같아 보이는 키
+        // (1.2일 땐 대기보다 약 19% 작았다).
+        [SerializeField] private float doubleJumpTargetHeight = 1.48f;
 
         private CharacterMovement2D movement;
         private WalkSpriteAnimator walkAnimator;

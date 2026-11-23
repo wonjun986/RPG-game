@@ -93,14 +93,14 @@ namespace Aethoria.UI
             rootRect.SetParent(transform, false);
             Stretch(rootRect);
             var background = root.GetComponent<RawImage>();
-            background.texture = Resources.Load<Texture2D>("UI/Save_Screen");
+            background.texture = Resources.Load<Texture2D>("UI/Menus/Save_Screen");
             background.raycastTarget = true; // 뒤쪽 HUD 클릭을 막는다
 
             var highlightGO = new GameObject("SelectedSlot", typeof(RectTransform), typeof(RawImage));
             highlight = (RectTransform)highlightGO.transform;
             highlight.SetParent(rootRect, false);
             var highlightImage = highlightGO.GetComponent<RawImage>();
-            highlightImage.texture = Resources.Load<Texture2D>("UI/Save_SlotSelected");
+            highlightImage.texture = Resources.Load<Texture2D>("UI/Menus/Save_SlotSelected");
             highlightImage.raycastTarget = false;
 
             for (int i = 0; i < SaveSystem.SlotCount; i++)

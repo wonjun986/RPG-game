@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Aethoria.Monsters;
+using Aethoria.Bootstrap;
 
 namespace Aethoria.Characters
 {
@@ -105,6 +106,7 @@ namespace Aethoria.Characters
             if (isDashing || cooldownRemaining > 0f) return;
 
             cooldownRemaining = cooldown;
+            SfxPlayer.Play(SfxPlayer.NecrosiaDash);
             StartCoroutine(DashRoutine());
         }
 
@@ -121,6 +123,15 @@ namespace Aethoria.Characters
         private IEnumerator DashRoutine(float distance, float duration, bool keepInputLocked)
         {
             isDashing = true;
+            // 공격 도중이라도 지금 눌린 방향키 쪽으로 나간다(공격 중엔 바라보는 방향 입력을 받지 않아 공격 방향으로만 나갔다).
+            // 연출용 대시(keepInputLocked)는 정해 둔 방향 그대로.
+            if (!keepInputLocked)
+            {
+                float held = CharacterMovement2D.HeldHorizontal();
+                if (Mathf.Abs(held) > 0.01f) movement.Face(new Vector2(held, 0f));
+                GetComponent<CharacterAttack2D>()?.CancelAttack();
+                movement.ClearRoot();
+            }
             movement.SetInputLocked(true);
             character.SetInvincible(true);
 

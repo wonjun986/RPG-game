@@ -5,6 +5,12 @@ TextureImporter:
   - first:
       213: -6902134498512577734
     second: orb_5_0
+  - first:
+      213: 4338377321887829576
+    second: orb_5_1
+  - first:
+      213: -5721015413237132411
+    second: orb_5_2
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -98,19 +104,6 @@ TextureImporter:
     ignorePlatformSupport: 0
     androidETC2FallbackOverride: 0
     forceMaximumCompressionQuality_BC6H_BC7: 0
-  - serializedVersion: 4
-    buildTarget: WebGL
-    maxTextureSize: 2048
-    resizeAlgorithm: 0
-    textureFormat: -1
-    textureCompression: 1
-    compressionQuality: 50
-    crunchedCompression: 0
-    allowsAlphaSplitting: 0
-    overridden: 0
-    ignorePlatformSupport: 0
-    androidETC2FallbackOverride: 0
-    forceMaximumCompressionQuality_BC6H_BC7: 0
   spriteSheet:
     serializedVersion: 2
     sprites:
@@ -118,10 +111,10 @@ TextureImporter:
       name: orb_5_0
       rect:
         serializedVersion: 2
-        x: 19
-        y: 15
-        width: 703
-        height: 364
+        x: 0
+        y: 112
+        width: 10
+        height: 44
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -132,6 +125,50 @@ TextureImporter:
       bones: []
       spriteID: a3b50302e31b630a0800000000000000
       internalID: -6902134498512577734
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: orb_5_1
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 98
+        width: 7
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 84e0cb44033053c30800000000000000
+      internalID: 4338377321887829576
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: orb_5_2
+      rect:
+        serializedVersion: 2
+        x: 4
+        y: 2
+        width: 280
+        height: 282
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 583577bfaceda90b0800000000000000
+      internalID: -5721015413237132411
       vertices: []
       indices: 
       edges: []

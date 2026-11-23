@@ -2,6 +2,7 @@ using System;
 using UnityEngine;
 using Aethoria.Characters;
 using Aethoria.Monsters;
+using Aethoria.Bootstrap;
 
 namespace Aethoria.Quests
 {
@@ -83,6 +84,7 @@ namespace Aethoria.Quests
 
             var finished = Current;
             if (player != null) player.AddExp(ExperienceMath.GetQuestExp(player.Level, finished.expReward));
+            SfxPlayer.Play(SfxPlayer.QuestComplete);
 
             questIndex++;
             progress = 0;

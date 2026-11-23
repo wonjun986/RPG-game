@@ -5,18 +5,6 @@ TextureImporter:
   - first:
       213: 6834622548831753916
     second: orb_2_0
-  - first:
-      213: -1937375137159561849
-    second: orb_2_1
-  - first:
-      213: 909480991023205067
-    second: orb_2_2
-  - first:
-      213: -5638800004286832282
-    second: orb_2_3
-  - first:
-      213: 6590704128874041567
-    second: orb_2_4
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -110,19 +98,6 @@ TextureImporter:
     ignorePlatformSupport: 0
     androidETC2FallbackOverride: 0
     forceMaximumCompressionQuality_BC6H_BC7: 0
-  - serializedVersion: 4
-    buildTarget: WebGL
-    maxTextureSize: 2048
-    resizeAlgorithm: 0
-    textureFormat: -1
-    textureCompression: 1
-    compressionQuality: 50
-    crunchedCompression: 0
-    allowsAlphaSplitting: 0
-    overridden: 0
-    ignorePlatformSupport: 0
-    androidETC2FallbackOverride: 0
-    forceMaximumCompressionQuality_BC6H_BC7: 0
   spriteSheet:
     serializedVersion: 2
     sprites:
@@ -130,10 +105,10 @@ TextureImporter:
       name: orb_2_0
       rect:
         serializedVersion: 2
-        x: 40
-        y: 50
-        width: 738
-        height: 357
+        x: 0
+        y: 2
+        width: 284
+        height: 282
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -144,94 +119,6 @@ TextureImporter:
       bones: []
       spriteID: cb6ddfc2ff479de50800000000000000
       internalID: 6834622548831753916
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: orb_2_1
-      rect:
-        serializedVersion: 2
-        x: 374
-        y: 406
-        width: 8
-        height: 8
-      alignment: 0
-      pivot: {x: 0, y: 0}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
-      bones: []
-      spriteID: 78d3ee0d39f0d15e0800000000000000
-      internalID: -1937375137159561849
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: orb_2_2
-      rect:
-        serializedVersion: 2
-        x: 40
-        y: 281
-        width: 29
-        height: 102
-      alignment: 0
-      pivot: {x: 0, y: 0}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
-      bones: []
-      spriteID: bca88e784202f9c00800000000000000
-      internalID: 909480991023205067
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: orb_2_3
-      rect:
-        serializedVersion: 2
-        x: 285
-        y: 50
-        width: 7
-        height: 11
-      alignment: 0
-      pivot: {x: 0, y: 0}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
-      bones: []
-      spriteID: 66123019545feb1b0800000000000000
-      internalID: -5638800004286832282
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: orb_2_4
-      rect:
-        serializedVersion: 2
-        x: 324
-        y: 50
-        width: 21
-        height: 19
-      alignment: 0
-      pivot: {x: 0, y: 0}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
-      bones: []
-      spriteID: fd0dc357c72e67b50800000000000000
-      internalID: 6590704128874041567
       vertices: []
       indices: 
       edges: []

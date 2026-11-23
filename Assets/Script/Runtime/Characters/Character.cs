@@ -4,6 +4,7 @@ using UnityEngine;
 using Aethoria.Combat;
 using Aethoria.Data;
 using Aethoria.Monsters;
+using Aethoria.Bootstrap;
 
 namespace Aethoria.Characters
 {
@@ -31,8 +32,10 @@ namespace Aethoria.Characters
         private StatBlock currentStats;
         // 장착 중인 장비들의 능력치 합. Inventory가 장착이 바뀔 때마다 다시 계산해서 넣어준다.
         private ItemStats equipmentStats;
-        // 이리아의 축복 단계. 장비와 별개로 공격력/방어력/치명타/스킬 피해를 전부 조금씩 올려준다.
-        private int blessingLevel;
+        // 이리아의 축복 특성별 단계(TalentId 순서). 레벨업으로 얻은 축복 점수를 찍어 올린다.
+        private readonly int[] talentRanks = new int[BlessingRules.TalentCount];
+        // 불사의 가호(수호 핵심 특성)를 다시 쓸 수 있는 시각(Time.unscaledTime).
+        private float undyingReadyAt;
         private float currentHp;
         private float currentMana;
         private int currentExp;
@@ -43,25 +46,138 @@ namespace Aethoria.Characters
 
         public CharacterData Data => data;
         public int Level => level;
-        public int BlessingLevel => blessingLevel;
-        // 레벨 능력치 + 장비 공격력 + 축복 공격력/방어력. 스킬/공격 피해 계산은 모두 이 값을 쓴다.
+        // ---- 이리아의 축복(특성 트리) ----
+        public int TalentRank(TalentId id) => talentRanks[(int)id];
+        public bool HasTalent(TalentId id) => talentRanks[(int)id] > 0;
+        public int TalentPointsSpent
+        {
+            get
+            {
+                int sum = 0;
+                foreach (int r in talentRanks) sum += r;
+                return sum;
+            }
+        }
+        public int TalentPointsSpentIn(TalentBranch branch)
+        {
+            int sum = 0;
+            foreach (var node in BlessingRules.Nodes) if (node.Branch == branch) sum += talentRanks[(int)node.Id];
+            return sum;
+        }
+        public int TalentPointsTotal => BlessingRules.PointsForLevel(level);
+        public int TalentPointsAvailable => Mathf.Max(0, TalentPointsTotal - TalentPointsSpent);
+        // 스탯 특성의 지금 수치(찍은 단계 x 단계당 수치).
+        private float TalentValue(TalentId id) => BlessingRules.Node(id).PerRank * talentRanks[(int)id];
+        // 예전 축복(골드로 기도) 세이브를 불러와 돌려준 골드. 축복 화면이 한 번 안내한 뒤 0으로 지운다.
+        public int BlessingRefundNotice { get; set; }
+
+        // 이 특성을 지금 한 단계 더 찍을 수 있는지(점수/단계 상한/단계 해금/갈림길). 안 되면 reason에 이유.
+        public bool CanRaiseTalent(TalentId id, out string reason)
+        {
+            var node = BlessingRules.Node(id);
+            int rank = talentRanks[(int)id];
+            if (rank >= node.MaxRank) { reason = "이미 최대 단계예요"; return false; }
+            if (node.Rival.HasValue && talentRanks[(int)node.Rival.Value] > 0)
+            {
+                reason = $"갈림길에서 '{BlessingRules.Node(node.Rival.Value).Name}'을(를) 골랐어요";
+                return false;
+            }
+            int need = BlessingRules.TierRequirement[node.Tier];
+            int spent = TalentPointsSpentIn(node.Branch);
+            if (spent < need)
+            {
+                reason = $"{BlessingRules.BranchNames[(int)node.Branch]}에 {need}점을 찍으면 열려요 (지금 {spent}점)";
+                return false;
+            }
+            if (TalentPointsAvailable <= 0) { reason = "축복 점수가 없어요 — 레벨업하면 1점씩 생겨요"; return false; }
+            reason = null;
+            return true;
+        }
+
+        public bool RaiseTalent(TalentId id)
+        {
+            if (!CanRaiseTalent(id, out _)) return false;
+            float hpRatio = MaxHp > 0f ? currentHp / MaxHp : 1f;
+            talentRanks[(int)id]++;
+            if (id == TalentId.Vitality) currentHp = MaxHp * hpRatio; // 최대 체력이 늘면 비율을 지켜 같이 늘린다
+            return true;
+        }
+
+        // 찍은 특성을 전부 되돌린다(골드는 부르는 쪽이 낸다).
+        public void ResetTalents()
+        {
+            float hpRatio = MaxHp > 0f ? currentHp / MaxHp : 1f;
+            System.Array.Clear(talentRanks, 0, talentRanks.Length);
+            currentHp = MaxHp * hpRatio;
+        }
+
+        // 저장 파일에서 특성 단계를 되돌린다("특성이름:단계" 목록). 단계 상한·갈림길·단계 해금·점수 합을 다시 검사해서
+        // 어긋나면(레벨보다 많이 찍혔거나 규칙이 바뀌었으면) 전부 비운다 — 점수는 레벨에서 다시 나오므로 잃는 건 없다.
+        public void RestoreTalents(System.Collections.Generic.IReadOnlyList<string> saved)
+        {
+            System.Array.Clear(talentRanks, 0, talentRanks.Length);
+            if (saved != null)
+            {
+                foreach (var entry in saved)
+                {
+                    int colon = entry != null ? entry.IndexOf(':') : -1;
+                    if (colon <= 0 || !System.Enum.TryParse(entry.Substring(0, colon), out TalentId id)) continue;
+                    if (!int.TryParse(entry.Substring(colon + 1), out int rank)) continue;
+                    talentRanks[(int)id] = Mathf.Clamp(rank, 0, BlessingRules.Node(id).MaxRank);
+                }
+            }
+            bool valid = TalentPointsSpent <= TalentPointsTotal;
+            foreach (var node in BlessingRules.Nodes)
+            {
+                if (talentRanks[(int)node.Id] == 0) continue;
+                if (node.Rival.HasValue && talentRanks[(int)node.Rival.Value] > 0) valid = false;
+                if (TalentPointsBelowTier(node) < BlessingRules.TierRequirement[node.Tier]) valid = false;
+            }
+            if (!valid) System.Array.Clear(talentRanks, 0, talentRanks.Length);
+            currentHp = Mathf.Min(currentHp, MaxHp);
+        }
+
+        // 단계 해금 검사용: 그 갈래에서 이 특성보다 낮은 단계에 찍은 점수.
+        private int TalentPointsBelowTier(TalentNode target)
+        {
+            int sum = 0;
+            foreach (var node in BlessingRules.Nodes)
+                if (node.Branch == target.Branch && node.Tier < target.Tier) sum += talentRanks[(int)node.Id];
+            return sum;
+        }
+
+        public System.Collections.Generic.List<string> TalentsToSave()
+        {
+            var list = new System.Collections.Generic.List<string>();
+            for (int i = 0; i < talentRanks.Length; i++)
+                if (talentRanks[i] > 0) list.Add(((TalentId)i) + ":" + talentRanks[i]);
+            return list;
+        }
+
+        // 리듬 전투·포션이 묻는 특성 수치들.
+        public float TalentPerfectMultiplier(float baseValue) => HasTalent(TalentId.Perfectionist) ? BlessingRules.PerfectionistMultiplier : baseValue;
+        public float TalentComboCap(float baseValue) => HasTalent(TalentId.Tempo) ? BlessingRules.TempoComboCap : baseValue;
+        public float TalentGaugeMultiplier => 1f + TalentValue(TalentId.Pulse) / 100f;
+        public float TalentPotionMultiplier => HasTalent(TalentId.HolyPotion) ? 1f + BlessingRules.HolyPotionBonus : 1f;
+
+        // 레벨 능력치 + 장비 공격력 + 축복 특성 공격력/방어력. 스킬/공격 피해 계산은 모두 이 값을 쓴다.
         public StatBlock Stats
         {
             get
             {
                 var stats = currentStats;
-                stats.attack += equipmentStats.attack + BlessingRules.AttackBonus(blessingLevel);
-                stats.defense += BlessingRules.DefenseBonus(blessingLevel);
+                stats.attack += equipmentStats.attack + TalentValue(TalentId.SharpScythe);
+                stats.defense += TalentValue(TalentId.IronSkin);
                 return stats;
             }
         }
         public ItemStats EquipmentStats => equipmentStats;
         // 치명타 확률(기본 10%), 치명타 피해(기본 150%), 스킬 피해 증가(%). 기본값 위로는 장비와 축복으로 올라간다.
-        public float CritChancePercent => BaseCritChancePercent + equipmentStats.critChance + BlessingRules.CritChanceBonus(blessingLevel);
-        public float CritDamagePercent => BaseCritDamagePercent + equipmentStats.critDamage + BlessingRules.CritDamageBonus(blessingLevel);
-        public float SkillDamagePercent => equipmentStats.skillDamage + BlessingRules.SkillDamageBonus(blessingLevel);
+        public float CritChancePercent => BaseCritChancePercent + equipmentStats.critChance + TalentValue(TalentId.ReaperEye);
+        public float CritDamagePercent => BaseCritDamagePercent + equipmentStats.critDamage + TalentValue(TalentId.DeepWound);
+        public float SkillDamagePercent => equipmentStats.skillDamage + TalentValue(TalentId.Resonance);
         public float CurrentHp => currentHp;
-        public float MaxHp => currentStats.hp * (1f - MaxHpPenalty);
+        public float MaxHp => currentStats.hp * (1f + TalentValue(TalentId.Vitality) / 100f) * (1f - MaxHpPenalty);
         // 전투 중에만 쌓이는 최대 체력 감소 비율(루나벨의 응시). 저장되지 않고 ClearMaxHpPenalty로 풀린다.
         public float MaxHpPenalty { get; private set; }
         public float CurrentMana => currentMana;
@@ -91,6 +207,7 @@ namespace Aethoria.Characters
             body = GetComponent<Rigidbody2D>();
             movement = GetComponent<CharacterMovement2D>();
             InitializeStats();
+            Aethoria.Fx.GroundShadow.Attach(gameObject, 1.6f); // 발밑 그림자(몸 판정이 좁아 넓게)
         }
 
         protected virtual void Update()
@@ -105,7 +222,7 @@ namespace Aethoria.Characters
             UpdateBleed();
 
             if (IsDead || manaRegenPerSecond <= 0f) return;
-            RestoreMana(manaRegenPerSecond * Time.deltaTime);
+            RestoreMana(manaRegenPerSecond * (1f + TalentValue(TalentId.SoulFlow) / 100f) * Time.deltaTime);
         }
 
         public void AssignData(CharacterData newData)
@@ -123,7 +240,7 @@ namespace Aethoria.Characters
             }
 
             currentStats = data.GetStatsAtLevel(level);
-            currentHp = currentStats.hp;
+            currentHp = MaxHp;
             currentMana = currentStats.mana;
         }
 
@@ -140,6 +257,7 @@ namespace Aethoria.Characters
             currentMana = currentStats.mana * mpRatio;
 
             OnLevelUp?.Invoke(this);
+            SfxPlayer.Play(SfxPlayer.LevelUp);
         }
 
         // 저장 파일에서 이어하기: 레벨/경험치/골드를 되돌리고 체력/마나는 가득 채운다.
@@ -150,23 +268,11 @@ namespace Aethoria.Characters
 
             level = Mathf.Clamp(savedLevel, data.minLevel, data.maxLevel);
             currentStats = data.GetStatsAtLevel(level);
-            currentHp = currentStats.hp;
+            currentHp = MaxHp;
             currentMana = currentStats.mana;
             currentExp = Mathf.Max(0, savedExp);
             gold = Mathf.Max(0, savedGold);
             OnGoldChanged?.Invoke(gold);
-        }
-
-        // 저장 파일에서 축복 단계를 되돌린다. 예전 저장 파일에는 없는 값이라 기본 0(축복 없음)이다.
-        public void RestoreBlessingLevel(int savedBlessingLevel)
-        {
-            blessingLevel = Mathf.Clamp(savedBlessingLevel, 0, BlessingRules.MaxLevel);
-        }
-
-        // 축복 한 단계 올리기. 성공/실패가 없어서(골드만 내면 바로 적용) bool 반환 없이 바로 올린다.
-        public void RaiseBlessingLevel()
-        {
-            blessingLevel = Mathf.Clamp(blessingLevel + 1, 0, BlessingRules.MaxLevel);
         }
 
         public void LevelUp()
@@ -211,11 +317,19 @@ namespace Aethoria.Characters
             float damage = CombatMath.BaseDamage(Stats.attack, target.Defense) * attackMultiplier;
             if (isSkill) damage *= 1f + SkillDamagePercent / 100f;
 
-            bool isCritical = UnityEngine.Random.value * 100f < CritChancePercent;
+            // 축복 특성: 처형인(체력 절반 이하) / 첫 일격(체력 가득) / 사신의 심판(체력 25% 이하면 확정 치명타).
+            float hpRatio = target.MaxHp > 0f ? target.CurrentHp / target.MaxHp : 1f;
+            if (HasTalent(TalentId.Executioner) && hpRatio <= BlessingRules.ExecutionerHpRatio) damage *= 1f + BlessingRules.ExecutionerBonus;
+            if (HasTalent(TalentId.FirstStrike) && hpRatio >= 0.999f) damage *= 1f + BlessingRules.FirstStrikeBonus;
+
+            bool isCritical = UnityEngine.Random.value * 100f < CritChancePercent
+                || (HasTalent(TalentId.Execution) && hpRatio <= BlessingRules.ExecutionHpRatio);
             if (isCritical) damage *= CritDamagePercent / 100f;
             damage = CombatMath.Finish(damage);
 
             target.TakeDamage(damage, isCritical, isSkill);
+            // 축복 특성 피의 갈증: 준 피해의 일부만큼 체력 회복.
+            if (HasTalent(TalentId.Bloodthirst) && !IsDead) Heal(damage * BlessingRules.BloodthirstRatio);
             return damage;
         }
 
@@ -251,9 +365,23 @@ namespace Aethoria.Characters
             bool blocked = hitReaction ? IsInvincible : isInvincible;
             if (IsDead || blocked || GodMode || finalDamage <= 0f) return;
 
-            currentHp = Mathf.Max(SurviveLethalHit ? Mathf.Min(1f, currentHp) : 0f, currentHp - finalDamage);
+            // 축복 특성 굳건함: 받는 피해 감소.
+            finalDamage *= 1f - TalentValue(TalentId.Steadfast) / 100f;
+            // 축복 특성 불사의 가호: 쓰러질 피해면 체력 1로 버틴다(쿨타임마다 한 번).
+            // 확정 즉사 기믹(알리아스 처형처럼 최대 체력의 몇 배를 한 번에 주는 피해)은 막지 못한다.
+            bool undying = HasTalent(TalentId.Undying) && !SurviveLethalHit && currentHp - finalDamage <= 0f
+                && finalDamage < MaxHp * 5f
+                && currentHp > 1f && Time.unscaledTime >= undyingReadyAt;
+
+            currentHp = Mathf.Max(SurviveLethalHit || undying ? Mathf.Min(1f, currentHp) : 0f, currentHp - finalDamage);
+            if (undying)
+            {
+                undyingReadyAt = Time.unscaledTime + BlessingRules.UndyingCooldown;
+                Aethoria.UI.ChoicePopup.Toast("불사의 가호! 쓰러지지 않고 버텼다", true, 1.6f);
+            }
             OnDamaged?.Invoke(this, finalDamage);
             DamagePopup.Create(transform.position, finalDamage, Color.red);
+            SfxPlayer.Play(SfxPlayer.NecrosiaHurt);
 
             if (currentHp <= 0f)
             {
@@ -308,6 +436,11 @@ namespace Aethoria.Characters
         }
 
         public void ClearMaxHpPenalty() => MaxHpPenalty = 0f;
+
+        // 루나벨의 '주시' 디버프: 이 시각(Time.time)까지 아이템(포션)을 쓸 수 없다.
+        public float ItemLockedUntil { get; set; }
+        public bool ItemsLocked => Time.time < ItemLockedUntil;
+        public float ItemLockRemaining => Mathf.Max(0f, ItemLockedUntil - Time.time);
 
         private const float BleedTickInterval = 1f;
         private static readonly Color BleedPopupColor = new Color(0.75f, 0.1f, 0.15f);

@@ -18,7 +18,7 @@ namespace Aethoria.Stages
     [RequireComponent(typeof(SpriteRenderer))]
     public class LilyNpc : MonoBehaviour
     {
-        private const string TalkFrame = "UI/Lily_Talk";
+        private const string TalkFrame = "UI/Talk/Lily_Talk";
         private const string SpeakerName = "릴리";
         private const string PlainNameTag = "<b><color=#E8B98C>릴리</color></b>\n";
         // Lily_Talk(2172x724): 이름판 안쪽 x 690~828, y 300~348. 어두운 대사 칸은 x 815~2040, y 363~546이라

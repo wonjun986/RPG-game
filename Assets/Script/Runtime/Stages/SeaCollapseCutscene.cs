@@ -5,28 +5,13 @@ using Aethoria.Characters;
 
 namespace Aethoria.Stages
 {
-    // 마지막 푸른 바다 맵 한가운데에서 땅이 꺼지는 연출. 배경(blue_sea_broken)에는 다리가 끊긴 구멍이 이미 그려져 있고,
-    // 그 위를 멀쩡한 돌길 조각 8장(Backgrounds/BlueSeaCollapse)이 덮고 있다. 조각이 떨어지면 뒤에 있던 진짜 구멍이 드러난다.
+    // 마지막 푸른 바다 맵 한가운데에서 땅이 꺼지는 연출. 바닥 띠(시차 배경 sea_ground)는 가운데 구간이 비어 있고,
+    // 그 구간을 같은 바닥 띠 그림을 잘라 만든 조각들(GameBootstrap이 만들어 넘겨 준다)이 덮고 있다.
+    // 조각이 떨어지면 뒤의 바다가 드러난다.
     // 전조(작은 돌과 먼지) → 균열(조각이 살짝 내려앉음) → 붕괴(가까운 조각부터 시간차로 낙하) → 낙하 → 입수(물보라와 섬광)
     // → 물빛으로 어두워지며 물속 추격전(SeaChaseController)으로 넘어간다.
     public class SeaCollapseCutscene : MonoBehaviour
     {
-        // 아래 좌표는 모두 blue_sea_broken.png(1672x941)의 픽셀이다.
-        private const float ImageCenterPx = 836f;
-        private const float GroundPx = 788f;
-        private const float TriggerPx = 770f;   // 구멍 위로 이만큼 들어서면 무너진다
-        private const float BlockerPx = 900f;   // 구멍을 넘어가지 못하게 막는 자리
-        private const float PixelsPerUnit = 100f;
-
-        private const string PiecesPath = "Backgrounds/BlueSeaCollapse/piece_";
-        // 조각마다 그림 속 가운데 자리. 앞 네 장이 돌길 윗단, 뒤 네 장이 아랫단이다.
-        private static readonly Vector2[] PieceCenters =
-        {
-            new Vector2(697.0f, 835.0f), new Vector2(774.0f, 833.5f), new Vector2(858.5f, 835.5f), new Vector2(922.5f, 837.0f),
-            new Vector2(705.5f, 901.5f), new Vector2(778.5f, 897.0f), new Vector2(853.5f, 896.0f), new Vector2(924.5f, 902.5f),
-        };
-        private const int UpperPieceCount = 4;
-        private const int PieceSortingOrder = -9;   // 배경(-10)보다 앞, 발판/캐릭터보다 뒤
 
         private const float OmenDuration = 1.1f;
         private const float OmenShake = 0.05f;
@@ -40,7 +25,6 @@ namespace Aethoria.Stages
         private const float PieceGravity = 16f;
 
         private const float FallGravityScale = 1.5f;    // 떨어지는 모습이 보이도록 평소보다 천천히 떨어진다
-        private const float FallDepth = 1.7f;           // 바닥 아래 이만큼에 수면이 그려져 있다
         private const float FallTimeout = 1.4f;
         private const float FallCameraDrop = 0.45f;     // 그림 아래끝이 드러나지 않을 만큼만 내려간다
 
@@ -76,8 +60,10 @@ namespace Aethoria.Stages
         private Collider2D playerCollider;
         private Collider2D floor;
         private CameraFollow cameraFollow;
-        private Vector2 anchor;     // 그림의 (가로 가운데, 돌길 높이)가 놓인 월드 좌표
-        private float unitsPerPixel;
+        private Vector2 anchor;     // (구멍 가운데, 돌길 높이)의 월드 좌표
+        private float triggerX;     // 구멍 위로 이만큼 들어서면 무너진다
+        private int upperPieceCount; // 앞쪽 조각들이 돌길 윗단, 나머지는 아랫단(조금 늦게 떨어진다)
+        private float fallDepth;     // 바닥 아래 이만큼에 구멍 속 수면이 그려져 있다 — 여기서 물보라가 튀고 화면이 잠긴다
         private float savedGravity;
         private System.Action onFinished;
         private readonly List<Transform> pieces = new List<Transform>();
@@ -86,39 +72,33 @@ namespace Aethoria.Stages
         private bool falling;
         private bool finished;
 
-        private float WorldX(float px) => anchor.x + (px - ImageCenterPx) * unitsPerPixel;
-        private float WorldY(float py) => anchor.y + (GroundPx - py) * unitsPerPixel;
-
-        public void Initialize(Character targetPlayer, Collider2D floorCollider, float imageCenterX, float mapFloorY, float backgroundScale, System.Action finishedCallback)
+        // collapsePieces: 구멍을 덮는 돌길 조각(윗단 upperPieces장 먼저, 그다음 아랫단). 이 연출 밑으로 옮겨 붙인다.
+        // gapCenterX/triggerAtX/blockerX: 구멍 가운데, 무너지기 시작하는 자리, 넘어가지 못하게 막는 자리(월드 x).
+        // waterDepth: 바닥에서 구멍 속 수면까지의 깊이.
+        public void Initialize(Character targetPlayer, Collider2D floorCollider, IList<Transform> collapsePieces, int upperPieces,
+            float gapCenterX, float triggerAtX, float blockerX, float mapFloorY, float waterDepth, System.Action finishedCallback)
         {
             player = targetPlayer;
             movement = player.GetComponent<CharacterMovement2D>();
             body = player.GetComponent<Rigidbody2D>();
             playerCollider = player.GetComponent<Collider2D>();
             floor = floorCollider;
-            anchor = new Vector2(imageCenterX, mapFloorY);
-            unitsPerPixel = backgroundScale / PixelsPerUnit;
+            anchor = new Vector2(gapCenterX, mapFloorY);
+            triggerX = triggerAtX;
+            upperPieceCount = upperPieces;
+            fallDepth = waterDepth;
             onFinished = finishedCallback;
 
-            for (int i = 0; i < PieceCenters.Length; i++) SpawnPiece(i, backgroundScale);
+            foreach (var piece in collapsePieces)
+            {
+                piece.SetParent(transform, true);
+                pieces.Add(piece);
+            }
 
             var blocker = new GameObject("CollapseBlocker", typeof(BoxCollider2D));
             blocker.transform.SetParent(transform);
-            blocker.transform.position = new Vector3(WorldX(BlockerPx), mapFloorY + 10f, 0f);
+            blocker.transform.position = new Vector3(blockerX, mapFloorY + 10f, 0f);
             blocker.GetComponent<BoxCollider2D>().size = new Vector2(0.5f, 20f);
-        }
-
-        private void SpawnPiece(int index, float scale)
-        {
-            var sprite = Resources.Load<Sprite>(PiecesPath + (index + 1));
-            var go = new GameObject("CollapsePiece", typeof(SpriteRenderer));
-            go.transform.SetParent(transform);
-            go.transform.localScale = new Vector3(scale, scale, 1f);
-            go.transform.position = new Vector3(WorldX(PieceCenters[index].x), WorldY(PieceCenters[index].y), 0f);
-            var renderer = go.GetComponent<SpriteRenderer>();
-            renderer.sprite = sprite;
-            renderer.sortingOrder = PieceSortingOrder;
-            pieces.Add(go.transform);
         }
 
         private void Update()
@@ -126,7 +106,7 @@ namespace Aethoria.Stages
             UpdateParticles();
 
             if (started || player == null || player.IsDead || movement.IsInputLocked) return;
-            if (player.transform.position.x < WorldX(TriggerPx) || !movement.IsGrounded) return;
+            if (player.transform.position.x < triggerX || !movement.IsGrounded) return;
             if (player.transform.position.y > anchor.y + 0.5f) return; // 발판 위는 지나간다
 
             started = true;
@@ -177,7 +157,7 @@ namespace Aethoria.Stages
             falling = true;
             if (cameraFollow != null) cameraFollow.ShiftView(-FallCameraDrop);
 
-            float surfaceY = anchor.y - FallDepth;
+            float surfaceY = anchor.y - fallDepth;
             for (float t = 0f; t < FallTimeout && player.transform.position.y > surfaceY; t += Time.deltaTime)
             {
                 yield return null;
@@ -215,7 +195,7 @@ namespace Aethoria.Stages
                     Velocity = new Vector2(Random.Range(-0.6f, 0.6f), 0f),
                     Gravity = PieceGravity,
                     Spin = Random.Range(-70f, 70f),
-                    Delay = rank * PieceFallStagger + (index >= UpperPieceCount ? LowerPieceExtraDelay : 0f),
+                    Delay = rank * PieceFallStagger + (index >= upperPieceCount ? LowerPieceExtraDelay : 0f),
                 });
             }
         }
