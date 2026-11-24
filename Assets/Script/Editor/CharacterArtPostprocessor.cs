@@ -337,6 +337,14 @@ namespace Aethoria.EditorTools
             // 피의 레이저: 원본보다 줄여 쓰는 빛줄기라 Point면 줄기가 반짝이며 깨진다.
             "Art/Effects/LunabelLaserMuzzle/", "Art/Effects/LunabelLaserBeam/", "Art/Effects/LunabelLaserImpact/",
             "Art/Effects/LunabelLaserFade/", "Art/Effects/LunabelLaserCharge/",
+            // 2페이즈 개막(손 들기·구체 모으기·던지기)은 카메라를 넓힌(작게 보이는) 채 오래 비춰서 Point면 계단처럼 깨진다.
+            "Art/Monsters/FinalBoss/Phase2/Special/", "Art/Monsters/FinalBoss/Phase2/Charge/", "Art/Monsters/FinalBoss/Phase2/Throw/",
+        };
+
+        // 작게 줄여 보이는 그림은 밉맵까지 만들어야 줄였을 때 반짝이며 깨지지 않는다.
+        private static readonly string[] MipmapFolders =
+        {
+            "Art/Monsters/FinalBoss/Phase2/Special/", "Art/Monsters/FinalBoss/Phase2/Charge/", "Art/Monsters/FinalBoss/Phase2/Throw/",
         };
 
         // 길이에 맞춰 이어 붙여(SpriteRenderer Tiled) 그리는 레이저 줄기는 메시를 사각형 그대로(FullRect) 만들어야 이음매가 맞는다.
@@ -391,7 +399,12 @@ namespace Aethoria.EditorTools
             }
             importer.filterMode = smooth ? FilterMode.Bilinear : FilterMode.Point;
             importer.alphaIsTransparency = true;
-            importer.mipmapEnabled = false;
+            bool mipmap = false;
+            foreach (var subfolder in MipmapFolders)
+            {
+                if (normalizedPath.Contains(subfolder)) mipmap = true;
+            }
+            importer.mipmapEnabled = mipmap;
             importer.textureCompression = TextureImporterCompression.Uncompressed;
 
             var settings = new TextureImporterSettings();
