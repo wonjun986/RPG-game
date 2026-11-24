@@ -104,6 +104,9 @@ namespace Aethoria.Monsters
 
             float facing = spriteRenderer.flipX ? -1f : 1f;
             attackAnimator.Play(cannonAnimDuration);
+            // 위험 예고: 물대포가 나갈 때까지 물대포가 날아갈 길에 붉은 상자와 "!".
+            Aethoria.Fx.DangerFx.Area(new Vector2(transform.position.x + facing * (cannonMuzzleForward + cannonTravelRange * 0.5f), transform.position.y),
+                new Vector2(cannonTravelRange, cannonHitRadius * 2f), cannonAnimDuration * cannonFireTiming);
 
             yield return new WaitForSeconds(cannonAnimDuration * cannonFireTiming);
             if (!monster.IsDead)

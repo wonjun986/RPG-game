@@ -12,7 +12,8 @@ namespace Aethoria.Monsters
     // 몸에 닿아 있으면 접촉 피해를 준다. 등장 대사(LunabelIntroCutscene) 동안은 아무것도 하지 않는다.
     // 1페이즈 체력을 다 깎으면 그 자리에서 변신(Phase2 9프레임)해 체력을 모두 채우고 2페이즈로 싸운다.
     // 그 밖의 패턴: 피의 기둥 추격(플레이어 발밑에 기둥이 세 번 연달아 솟는다), 피의 소용돌이(가까이 붙으면 혈류를 흡수해
-    // 몸 주위로 소용돌이를 터뜨리고 맞힌 만큼 회복), 2페이즈 전용 피의 회오리(땅을 타고 플레이어 쪽으로 밀려오는 회오리).
+    // 몸 주위로 소용돌이를 터뜨리고 맞힌 만큼 회복), 2페이즈 전용 피의 회오리(땅을 타고 플레이어 쪽으로 밀려오는 회오리),
+    // 2페이즈 전용 피의 레이저(예고선이 따라오다 고정된 뒤 손끝에서 레이저를 쏜다).
     // 걸어 다니지 않는 대신, 플레이어가 멀리 떨어지면 붉은 차원문으로 빨려 들어가 플레이어 근처의 차원문에서 다시 나타난다.
     [RequireComponent(typeof(Monster))]
     [RequireComponent(typeof(Rigidbody2D))]
@@ -44,8 +45,8 @@ namespace Aethoria.Monsters
         [SerializeField] private float specialRaiseDuration = 1.0f;  // 하늘로 손 뻗기(Special 8프레임 한 번)
         [SerializeField] private float specialChargeDuration = 1.6f; // 구체 모으기(Charge 8프레임 반복)
         [SerializeField] private float specialChargeCycle = 0.8f;
-        [SerializeField] private float specialThrowDuration = 0.6f;  // 던지기(Throw 5프레임)
-        [SerializeField, Range(0f, 1f)] private float specialReleaseTiming = 3f / 5f; // 4번째 프레임(팔을 앞으로 뻗음)에서 놓는다
+        [SerializeField] private float specialThrowDuration = 0.8f;  // 던지기(Throw 8프레임)
+        [SerializeField, Range(0f, 1f)] private float specialReleaseTiming = 5f / 8f; // 6번째 프레임(두 팔을 아래로 내리꽂음)에서 놓는다
         [SerializeField] private float specialOrbScale = 0.32f;      // 예전 핏빛 구체(BloodOrb) 배율 — 새 구체 그림이 없을 때만
         [SerializeField] private float specialGiantOrbScale = 0.4f;  // 진홍빛 에너지 구체(LunabelGiantOrb) 배율: 구슬 지름 약 0.9유닛
         [SerializeField] private float specialOrbFlightTime = 0.25f;
@@ -109,7 +110,8 @@ namespace Aethoria.Monsters
         [Header("피의 소용돌이 (근접)")]
         [SerializeField] private float vortexTriggerRange = 3f;   // 플레이어가 이만큼 붙어 있으면 쓴다
         [SerializeField] private float vortexCooldown = 6f;
-        [SerializeField] private float vortexAbsorbDuration = 1.1f; // 혈류 흡수(Absorb 8프레임)
+        [SerializeField] private float vortexAbsorbDuration = 1.5f; // 혈류 흡수(Absorb 12프레임)
+        [SerializeField, Range(0f, 1f)] private float vortexReleaseTiming = 7f / 12f; // 8번째 프레임(모은 피가 터짐)에서 소용돌이가 솟는다
         [SerializeField] private float vortexHeight = 3.4f;        // 양옆으로 날아가는 소용돌이 키
         [SerializeField] private float vortexHitWidth = 1.2f;
         [SerializeField] private float vortexSpeed = 5f;
@@ -133,18 +135,24 @@ namespace Aethoria.Monsters
         [SerializeField] private float teleportFarRange = 6.5f;   // 플레이어가 이보다 멀면 차원문을 타고 다가간다
         [SerializeField] private float teleportCooldown = 7f;
         [SerializeField] private float teleportFirstDelay = 4f;
-        [SerializeField] private float teleportEnterDuration = 0.32f;   // 차원문에 빨려 드는 6프레임(나올 때는 거꾸로). 0.5초는 뚝뚝 끊겨 보여서 약 19fps로 당겼다
+        [SerializeField] private float teleportEnterDuration = 0.4f;    // 붉은 소용돌이로 가라앉는 8프레임(나올 때는 거꾸로), 약 20fps
         [SerializeField] private float teleportCollapseDuration = 0.16f; // 차원문이 오그라들어 사라지는 4프레임(열릴 때는 거꾸로)
         [SerializeField] private float teleportGap = 0.08f;              // 사라진 뒤 다시 열리기까지
         [SerializeField] private float teleportNearDistance = 3.2f;     // 플레이어 옆 이만큼 떨어진 곳에 나타난다
         // 빨려 든 마지막 장(차원문만 남은 그림)에서 차원문 한가운데는 발 기준점보다 이만큼 앞/위에 있다(182px = 1칸).
-        [SerializeField] private Vector2 portalCenterOffset = new Vector2(11f / 182f, 247f / 182f);
-        [SerializeField] private float portalEffectScale = 0.84f;       // 붕괴 그림의 차원문이 빨려 든 그림의 차원문 크기와 맞도록
+        // 1페이즈 차원문은 발밑에 깔린 소용돌이라, 마지막 장의 소용돌이 가운데(발 기준점보다 앞 49px·위 14px, 198px = 1칸)에
+        // 세로로 선 붕괴 그림을 납작하게 눌러(세로 portalEffectSquash배) 바닥에 깔린 타원처럼 그린다.
+        [SerializeField] private Vector2 portalCenterOffset = new Vector2(49f / 198f, 14f / 198f);
+        [SerializeField] private float portalEffectScale = 0.51f;       // 붕괴 그림의 소용돌이 폭이 발밑 소용돌이 폭(약 1.2유닛)과 맞도록
+        [SerializeField] private float portalEffectSquash = 0.3f;
         // 2페이즈 순간이동(PortalEnter 8프레임 → 붕괴하는 붉은 소용돌이 4프레임). 소용돌이 크기는 그림을 자를 때 맞춰 두어 배율은 1이다.
         [SerializeField] private float teleportEnterDurationPhaseTwo = 0.4f;
         // 빨려 든 마지막 장의 소용돌이 한가운데(바라보는 쪽 기준 앞/위). 그림을 뒤집어 틀기 때문에 원화 기준과 좌우가 반대다.
         [SerializeField] private Vector2 portalCenterOffsetPhaseTwo = new Vector2(0.13f, 1.98f);
         [SerializeField] private float portalEffectScalePhaseTwo = 1f;
+        // 새 2페이즈 순간이동 그림은 소용돌이와 마지막 핏방울 폭발까지 그려져 있어서, 따로 붙이던 붕괴 소용돌이 효과는 끈다.
+        [SerializeField] private bool portalCollapsePhaseTwo = false;
+        [SerializeField] private float blinkClipDuration = 0.24f;  // 낫 패턴의 짧은 순간이동에서 순간이동 그림을 트는 시간(들어갈 때/나올 때 각각)
         // 차원문 그림을 지금 대기 모습 키에 맞추는 배율. 루나벨 시트를 모두 같은 키로 환산해 두어서(CharacterArtPostprocessor)
         // 지금은 둘 다 1이다. 나중에 2페이즈만 크게 그리고 싶으면 여기서 맞춘다.
         [SerializeField] private float portalClipScalePhaseOne = 1f;
@@ -158,6 +166,58 @@ namespace Aethoria.Monsters
         [SerializeField] private float tornadoHitWidth = 1.2f;
         [SerializeField] private float tornadoHitInterval = 0.15f;
         [SerializeField] private float tornadoDamageMultiplier = 0.3f;
+
+        [Header("피의 레이저 (2페이즈)")]
+        // 손을 끌어당겨 피의 구슬을 모으는 동안(공격 1~4프레임을 붙잡음) 플레이어 쪽으로 붉은 예고선이 따라오다가, 쏘기 직전에 방향이 고정된다.
+        // 팔을 뻗으면(5·6프레임 반복) 그 방향으로 땅이나 맵 끝까지 레이저가 뻗고, 닿아 있는 동안 무적 없이 연타로 맞는다.
+        // 예고선이 고정된 뒤 줄기 밖으로 비켜서거나 대시 무적으로 버틴다.
+        [SerializeField] private float laserRange = 11f;           // 플레이어가 이 안에 있으면 쓴다
+        [SerializeField] private float laserCooldown = 11f;
+        [SerializeField] private float laserFirstDelay = 6f;       // 변신 뒤 처음 쓰기까지
+        [SerializeField] private float laserChargeTime = 1.1f;     // 구슬을 모으며 예고선을 보여 주는 시간
+        [SerializeField] private float laserAimLock = 0.3f;        // 쏘기 이만큼 전부터는 예고선이 더 따라오지 않는다
+        [SerializeField] private float laserWindupAnim = 0.45f;    // 공격 1~4프레임(손을 끌어당김)
+        [SerializeField] private float laserDuration = 1.1f;       // 레이저가 뻗어 있는 시간
+        [SerializeField] private float laserFireCycle = 0.16f;     // 팔을 뻗은 5·6프레임이 번갈아 도는 빠르기
+        [SerializeField] private float laserFrameTime = 0.06f;     // 레이저 그림 프레임 빠르기
+        [SerializeField] private float laserFadeFrameTime = 0.07f; // 흩어지는 4프레임
+        [SerializeField] private float laserRecoverAnim = 0.3f;    // 공격 7·8프레임(팔을 거둠)
+        [SerializeField] private float laserHitInterval = 0.1f;
+        [SerializeField] private float laserDamageMultiplier = 0.25f;
+        [SerializeField] private float laserHitHalfWidth = 0.35f;  // 줄기 가운데에서 이만큼(+몸 반폭) 안이면 맞는다
+        // 공격 그림에서 손끝 자리(바라보는 쪽 기준 앞/위, 발 기준점에서). 모을 때는 끌어당긴 손(4프레임), 쏠 때는 뻗은 손(5프레임).
+        [SerializeField] private Vector2 laserChargeHand = new Vector2(0.17f, 2.6f);
+        [SerializeField] private Vector2 laserFireHand = new Vector2(0.75f, 2.56f);
+        [SerializeField] private float laserAimHeight = 0.75f;     // 플레이어 발밑에서 이만큼 위(몸 가운데)를 노린다
+
+        [Header("혈월의 낫 (2페이즈)")]
+        // 플레이어 등 뒤 공중으로 차원문을 타고 넘어가, 거대한 핏빛 낫을 치켜들었다가(예고: 몸이 번쩍이고 앞쪽 바닥이 붉게 물든다)
+        // 앞쪽을 크게 쓸어 버린다. 한 방이 크고 넉백이 있다. 차원문이 등 뒤에 열리는 걸 보고 돌아서서 거리를 벌리거나 대시 무적으로 넘긴다.
+        [SerializeField] private float scytheCooldown = 7f;
+        [SerializeField] private float scytheFirstDelay = 6f;      // 변신 뒤 처음 쓰기까지
+        [SerializeField, Range(0f, 1f)] private float scytheEnrageHealthFraction = 0.5f; // 2페이즈 체력이 이 아래면 3연속 베기
+        [SerializeField] private int scytheEnragedExtraSlashes = 2;   // 첫 베기 뒤 좌우로 넘어가며 더 베는 횟수
+        [SerializeField] private float scytheEnragedWindup = 0.45f;   // 넘어간 뒤 다시 베기까지(범위 예고 시간)
+        [SerializeField] private float scytheImpactTime = 0.12f;     // 휘두르기 시작부터 궤적이 바닥을 긁는 순간까지(큰 흔들림)
+        [SerializeField] private float scytheImpactShake = 0.26f;
+        [SerializeField] private float scytheHitShake = 0.38f;       // 플레이어가 맞았을 때 한 번 더
+        [SerializeField] private float scytheHitStop = 0.07f;        // 맞았을 때 화면이 멈추는 실제 시간
+        [SerializeField] private float offScreenChaseDelay = 0.25f; // 화면 밖으로 벗어난 채 이만큼 지나면 쿨타임 없이 따라간다
+        [SerializeField] private int scytheMaxChases = 0;         // 치켜드는 동안 범위 밖으로 빠져나가면 다시 등 뒤로 따라붙는 횟수(피하기 어려워 꺼 둠)
+        [SerializeField] private float scytheChaseGrace = 0.12f;   // 치켜들기 시작하고 이 시간이 지나야 빠져나간 것으로 본다
+        [SerializeField] private float scytheRange = 10f;          // 플레이어가 이 안에 있으면 쓴다
+        [SerializeField] private float scytheBehindDistance = 1.8f; // 플레이어 등 뒤 이만큼 떨어진 곳에 나타난다
+        [SerializeField] private float scytheAirHeight = 1.2f;     // 바닥에서 이만큼 떠서 휘두른다
+        [SerializeField] private float scytheWindup = 0.7f;        // 낫을 치켜들고 멈춰 있는 예고 시간(모션 1~4프레임 포함)
+        [SerializeField] private float scytheWindupAnim = 0.45f;
+        [SerializeField] private float scytheSwingAnim = 0.5f;     // 쓸어내기~거두기(모션 5~8프레임)
+        [SerializeField] private float scytheHitTime = 0.22f;      // 휘두르기 시작부터 이 시간 동안 맞을 수 있다(한 번만 맞는다)
+        [SerializeField] private float scytheReach = 7f;           // 앞쪽으로 닿는 거리
+        [SerializeField] private float scytheHitHeight = 4f;       // 바닥부터 이 높이까지 맞는다
+        [SerializeField] private float scytheDamageMultiplier = 1.6f;
+        [SerializeField] private float scytheSlashScale = 1.45f;   // 낫 궤적 그림 배율(폭 약 6.7유닛 — 앞쪽 판정 7유닛에 맞춤)
+        [SerializeField] private Vector2 scytheSlashOffset = new Vector2(3.4f, 0f);   // 궤적 아래 가운데(앞/바닥 위)
+        [SerializeField] private float scytheDescendTime = 0.35f;  // 휘두른 뒤 바닥으로 내려오는 시간
 
         [Header("피의 가시 난사")]
         [SerializeField] private float thornRange = 9f;            // 플레이어가 이 안에 있으면 쓴다(가시가 뻗어 나가는 거리도 이만큼)
@@ -205,11 +265,30 @@ namespace Aethoria.Monsters
         // 에너지 구체 그림(배율 1)에서 가운데 구슬 반지름. 구슬 아래끝이 머리 위에 오도록 띄울 때 쓴다.
         private const float GiantOrbCoreRadius = 1.1f;
         private float thornTimer;
+        private float laserTimer;
+        private float scytheTimer;
+        private float offScreenTime;
+        // 혈월의 낫: 낫을 불러내 치켜드는 모션(1~4) → 쓸어내고 거두는 모션(5~8), 앞쪽을 가르는 핏빛 초승달 궤적.
+        // 새 그림이 없으면 2페이즈 기본 공격 모션과 보랏빛 참격(붉게 물들여)으로 대신한다.
+        public const string ScytheSweepPath = "Art/Monsters/FinalBoss/Phase2/ScytheSweep";
+        public const string ScytheSlashPath = "Art/Effects/LunabelScytheSlash";
+        private const string ScytheSlashFallbackPath = "Art/Effects/VoidSlash";
+        private const string ScytheWindupClip = "ScytheWindup";
+        private const string ScytheSwingClip = "ScytheSwing";
+        // 피의 레이저: 모으는 구슬(6) → 손끝 섬광(4)·줄기(4, 길이에 맞춰 이어 붙임)·맞은 자리(4) 반복 → 흩어지는 줄기(4).
+        public const string LaserChargePath = "Art/Effects/LunabelLaserCharge";
+        public const string LaserMuzzlePath = "Art/Effects/LunabelLaserMuzzle";
+        public const string LaserBeamPath = "Art/Effects/LunabelLaserBeam";
+        public const string LaserImpactPath = "Art/Effects/LunabelLaserImpact";
+        public const string LaserFadePath = "Art/Effects/LunabelLaserFade";
+        private const string LaserWindupClip = "LaserWindup";
+        private const string LaserFireClip = "LaserFire";
+        private const string LaserRecoverClip = "LaserRecover";
         // 피의 결정체 분출(4프레임): 바닥이 갈라지며 핏빛 결정 가시가 솟는다. 첫 조우 연출과 피의 가시 난사가 쓴다.
         public const string BloodThornPath = "Art/Effects/BloodThorn";
         public const float ThornFrameDuration = 0.05f;
-        // 가시 그림(664x690)에서 바닥 균열 가운데가 맨 아래로부터 이만큼 위에 있다.
-        private const float ThornGroundLinePx = 85f;
+        // 가시 그림(724x690)에서 바닥 균열 줄(가장 넓게 퍼진 줄)이 맨 아래로부터 이만큼 위에 있다.
+        private const float ThornGroundLinePx = 37f;
         private const float ThornHold = 0.25f;
         private const float ThornFade = 0.2f;
         private readonly System.Collections.Generic.List<GameObject> patternEffects = new System.Collections.Generic.List<GameObject>();
@@ -258,6 +337,8 @@ namespace Aethoria.Monsters
             PhaseTwoStarted = true;
             giantOrbTimer = giantOrbFirstDelay;
             bloodStormTimer = bloodStormInterval;
+            laserTimer = laserFirstDelay;
+            scytheTimer = scytheFirstDelay;
             monster.SurviveLethalHit = false;
             monster.Heal(monster.MaxHp);
             var walk = GetComponent<MonsterWalkSpriteAnimator>();
@@ -355,6 +436,23 @@ namespace Aethoria.Monsters
                     System.Array.Reverse(exitTwo);
                     attackAnimator.AddClip(PortalExitClipPhaseTwo, exitTwo);
                 }
+                // 피의 레이저는 2페이즈 기본 공격(8프레임)을 끌어당김(1~4) / 뻗음(5·6) / 거둠(7·8)으로 나눠 쓴다.
+                var phaseTwoAttack = LoadSorted(PhaseTwoAttackPath);
+                if (phaseTwoAttack.Length == 8)
+                {
+                    attackAnimator.AddClip(LaserWindupClip, Slice(phaseTwoAttack, 0, 4));
+                    attackAnimator.AddClip(LaserFireClip, Slice(phaseTwoAttack, 4, 2));
+                    attackAnimator.AddClip(LaserRecoverClip, Slice(phaseTwoAttack, 6, 2));
+                }
+                // 혈월의 낫: 전용 모션(앞 절반 치켜들기 / 뒤 절반 휘두르기)이 없으면 기본 공격 모션으로 대신한다.
+                var scythe = LoadSorted(ScytheSweepPath);
+                if (scythe.Length < 2) scythe = phaseTwoAttack;
+                if (scythe.Length >= 2)
+                {
+                    int half = scythe.Length / 2;
+                    attackAnimator.AddClip(ScytheWindupClip, Slice(scythe, 0, half));
+                    attackAnimator.AddClip(ScytheSwingClip, Slice(scythe, half, scythe.Length - half));
+                }
             }
         }
 
@@ -386,6 +484,8 @@ namespace Aethoria.Monsters
                 if (teleportTimer > 0f) teleportTimer -= Time.deltaTime;
                 if (thornTimer > 0f) thornTimer -= Time.deltaTime;
                 if (giantOrbTimer > 0f) giantOrbTimer -= Time.deltaTime;
+                if (laserTimer > 0f) laserTimer -= Time.deltaTime;
+                if (scytheTimer > 0f) scytheTimer -= Time.deltaTime;
             }
             UpdateBloodStorm();
 
@@ -403,6 +503,20 @@ namespace Aethoria.Monsters
 
             if (isCasting || monster.IsImmobilized || attackAnimator == null || !attackAnimator.HasFrames) return;
             float distance = Mathf.Abs(offset.x);
+
+            // 플레이어가 화면 밖으로 멀어져 루나벨이 화면에서 벗어나면 쿨타임과 상관없이 곧바로 따라간다.
+            // 2페이즈는 등 뒤로 넘어가 낫을 휘두르고(혈월의 낫), 1페이즈는 차원문을 타고 플레이어 옆으로 넘어간다.
+            if (IsOffScreen()) offScreenTime += Time.deltaTime; else offScreenTime = 0f;
+            if (offScreenTime >= offScreenChaseDelay)
+            {
+                offScreenTime = 0f;
+                castRoutine = null;
+                if (PhaseTwoStarted && attackAnimator.HasClip(ScytheSwingClip) && attackAnimator.HasClip(PortalEnterClipPhaseTwo))
+                    castRoutine = StartCoroutine(ScytheSweepRoutine());
+                else if (attackAnimator.HasClip(PortalEnterClip))
+                    castRoutine = StartCoroutine(TeleportRoutine());
+                if (castRoutine != null) return;
+            }
 
             if (PhaseTwoStarted && giantOrbTimer <= 0f && attackAnimator.HasClip(SpecialClip))
             {
@@ -423,6 +537,17 @@ namespace Aethoria.Monsters
             if (PhaseTwoStarted && tornadoTimer <= 0f && distance <= castRange)
             {
                 castRoutine = StartCoroutine(TornadoRoutine());
+                return;
+            }
+            if (PhaseTwoStarted && scytheTimer <= 0f && distance <= scytheRange && attackAnimator.HasClip(ScytheSwingClip)
+                && attackAnimator.HasClip(PortalEnterClipPhaseTwo))
+            {
+                castRoutine = StartCoroutine(ScytheSweepRoutine());
+                return;
+            }
+            if (PhaseTwoStarted && laserTimer <= 0f && distance <= laserRange && attackAnimator.HasClip(LaserFireClip))
+            {
+                castRoutine = StartCoroutine(LaserRoutine());
                 return;
             }
             if (thornTimer <= 0f && distance <= thornRange)
@@ -507,7 +632,13 @@ namespace Aethoria.Monsters
             isCasting = true;
             vortexTimer = Cooldown(vortexCooldown);
             attackAnimator.PlayClip(AbsorbClip, vortexAbsorbDuration);
-            yield return new WaitForSeconds(vortexAbsorbDuration * 0.75f);
+            // 위험 예고: 양옆으로 밀려 나갈 소용돌이의 길(몸 양쪽 날아가는 거리만큼)에 붉은 상자와 "!".
+            foreach (float side in new[] { -1f, 1f })
+            {
+                float from = transform.position.x + side * vortexSpawnOffset;
+                WarnLane(from, from + side * vortexSpeed * vortexLifetime, vortexHeight, vortexAbsorbDuration * vortexReleaseTiming);
+            }
+            yield return new WaitForSeconds(vortexAbsorbDuration * vortexReleaseTiming);
             if (monster.IsDead) { EndPattern(); yield break; }
 
             float groundY = GroundY();
@@ -517,7 +648,7 @@ namespace Aethoria.Monsters
                     vortexDamageMultiplier, vortexSpeed, vortexLifetime, vortexHitInterval, vortexHitWidth, vortexHeight, vortexHeight,
                     BloodVortexPath, hitReaction: false);
             }
-            yield return new WaitForSeconds(vortexAbsorbDuration * 0.25f + 0.3f);
+            yield return new WaitForSeconds(vortexAbsorbDuration * (1f - vortexReleaseTiming) + 0.3f);
             EndPattern();
         }
 
@@ -529,6 +660,10 @@ namespace Aethoria.Monsters
             tornadoTimer = tornadoCooldown;
             float facing = spriteRenderer.flipX ? -1f : 1f;
             attackAnimator.Play(castAnimDuration);
+            {
+                float from = transform.position.x + facing * handMuzzleForward * 1.5f;
+                WarnLane(from, from + facing * tornadoSpeed * tornadoLifetime, tornadoHeight, castAnimDuration * castFireTiming);
+            }
             yield return new WaitForSeconds(castAnimDuration * castFireTiming);
             if (!monster.IsDead)
             {
@@ -555,6 +690,12 @@ namespace Aethoria.Monsters
             {
                 float facing = spriteRenderer.flipX ? -1f : 1f;
                 attackAnimator.Play(castAnimDuration);
+                // 위험 예고: 가시가 땅을 타고 뻗어 나갈 줄에 붉은 띠와 "!".
+                {
+                    float from = transform.position.x + facing * thornStartForward;
+                    float to = Mathf.Clamp(transform.position.x + facing * thornRange, bounds.xMin + 0.3f, bounds.xMax - 0.3f);
+                    Aethoria.Fx.DangerFx.GroundZone(new Vector2((from + to) * 0.5f, GroundY()), Mathf.Abs(to - from) + 0.8f, castAnimDuration * castFireTiming);
+                }
                 yield return new WaitForSeconds(castAnimDuration * castFireTiming);
                 if (monster.IsDead) break;
 
@@ -621,6 +762,370 @@ namespace Aethoria.Monsters
             }
             patternEffects.Remove(go);
             if (go != null) Destroy(go);
+        }
+
+        // 피의 레이저(2페이즈): 손을 끌어당겨 피의 구슬을 모으는 동안 예고선이 플레이어를 따라오다가 쏘기 직전에 고정되고,
+        // 팔을 뻗으면 그 방향으로 땅이나 맵 끝까지 레이저가 뻗는다. 줄기에 닿아 있으면 laserHitInterval마다 무적 없이 맞는다.
+        private IEnumerator LaserRoutine()
+        {
+            isCasting = true;
+            laserTimer = Cooldown(laserCooldown);
+            var chargeFrames = LoadSorted(LaserChargePath);
+            var muzzleFrames = LoadSorted(LaserMuzzlePath);
+            var beamFrames = LoadSorted(LaserBeamPath);
+            var impactFrames = LoadSorted(LaserImpactPath);
+            var fadeFrames = LoadSorted(LaserFadePath);
+            if (beamFrames.Length == 0) { EndPattern(); yield break; }
+
+            float facing = spriteRenderer.flipX ? -1f : 1f;
+            var root = new GameObject("LunabelLaser");
+            patternEffects.Add(root);
+
+            // 모으기: 끌어당긴 손에 구슬이 커지고, 뻗을 손끝에서 플레이어 쪽으로 가는 가는 예고선이 깜빡인다.
+            attackAnimator.PlayClipAndHold(LaserWindupClip, laserWindupAnim);
+            var orb = NewLaserPart(root, "Charge", 6, false);
+            var warning = NewLaserPart(root, "Warning", 4, true);
+            warning.sprite = beamFrames[0];
+            Vector2 origin = LaserHand(laserFireHand, facing);
+            Vector2 direction = LaserAim(origin, facing);
+            for (float t = 0f; t < laserChargeTime; t += Time.deltaTime)
+            {
+                if (root == null || monster.IsDead) { CleanupLaser(root); EndPattern(); yield break; }
+                if (chargeFrames.Length > 0)
+                {
+                    orb.sprite = chargeFrames[Mathf.Min(chargeFrames.Length - 1, Mathf.FloorToInt(t / laserChargeTime * chargeFrames.Length))];
+                    orb.transform.position = LaserHand(laserChargeHand, facing);
+                }
+                if (t < laserChargeTime - laserAimLock) direction = LaserAim(origin, facing);
+                // 고정되면 예고선이 더 진하고 빠르게 깜빡인다.
+                bool locked = t >= laserChargeTime - laserAimLock;
+                float blink = 0.5f + 0.5f * Mathf.Sin(t * (locked ? 40f : 18f));
+                warning.color = new Color(1f, 0.25f, 0.3f, (locked ? 0.55f : 0.3f) + 0.25f * blink);
+                PlaceLaserPart(warning, origin, direction, LaserLength(origin, direction), 0.18f);
+                yield return null;
+            }
+
+            // 발사: 팔을 뻗은 두 장을 번갈아 보여 주는 동안 섬광·줄기·맞은 자리를 그린다.
+            Destroy(orb.gameObject);
+            Destroy(warning.gameObject);
+            attackAnimator.PlayClipLoop(LaserFireClip, laserFireCycle);
+            var follow = Camera.main != null ? Camera.main.GetComponent<CameraFollow>() : null;
+            if (follow != null) follow.Shake(laserDuration, 0.06f);
+            var beam = NewLaserPart(root, "Beam", 5, true);
+            var muzzle = NewLaserPart(root, "Muzzle", 6, false);
+            var impact = NewLaserPart(root, "Impact", 6, false);
+            float length = LaserLength(origin, direction);
+            Vector2 end = origin + direction * length;
+            float nextHit = 0f;
+            for (float t = 0f; t < laserDuration; t += Time.deltaTime)
+            {
+                if (root == null || monster.IsDead) { CleanupLaser(root); EndPattern(); yield break; }
+                int frame = Mathf.FloorToInt(t / laserFrameTime);
+                beam.sprite = beamFrames[frame % beamFrames.Length];
+                PlaceLaserPart(beam, origin, direction, length, 1f);
+                if (muzzleFrames.Length > 0) { muzzle.sprite = muzzleFrames[frame % muzzleFrames.Length]; PlaceLaserPart(muzzle, origin, direction, 0f, 1f); }
+                if (impactFrames.Length > 0) { impact.sprite = impactFrames[frame % impactFrames.Length]; PlaceLaserPart(impact, end, direction, 0f, 1f); }
+                if (t >= nextHit)
+                {
+                    nextHit += laserHitInterval;
+                    if (LaserTouchesPlayer(origin, end))
+                        target.TakeDamage(CombatMath.PhysicalDamage(monster.Attack * laserDamageMultiplier, target.Stats.defense), end, hitReaction: false);
+                }
+                yield return null;
+            }
+
+            // 소멸: 팔을 거두는 동안 줄기가 흩어지고 섬광·맞은 자리는 빠르게 사라진다.
+            attackAnimator.PlayClip(LaserRecoverClip, laserRecoverAnim);
+            Destroy(muzzle.gameObject);
+            Destroy(impact.gameObject);
+            for (int i = 0; i < fadeFrames.Length; i++)
+            {
+                if (root == null) break;
+                beam.sprite = fadeFrames[i];
+                PlaceLaserPart(beam, origin, direction, length, 1f);
+                yield return new WaitForSeconds(laserFadeFrameTime);
+            }
+            CleanupLaser(root);
+            EndPattern();
+        }
+
+        private SpriteRenderer NewLaserPart(GameObject root, string name, int sortingOrder, bool tiled)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(root.transform, false);
+            var renderer = go.AddComponent<SpriteRenderer>();
+            renderer.sortingOrder = sortingOrder;
+            if (tiled)
+            {
+                // 줄기 그림(약 13.6유닛)을 레이저 길이에 맞춰 잘라 그리거나 이어 붙인다.
+                renderer.drawMode = SpriteDrawMode.Tiled;
+                renderer.tileMode = SpriteTileMode.Continuous;
+            }
+            return renderer;
+        }
+
+        // 레이저 조각을 at에 놓고 direction 쪽으로 돌린다. 그림은 오른쪽을 보고 있어서, 왼쪽으로 쏠 때는 위아래를 뒤집어
+        // 거울에 비친 모양이 되게 한다. length > 0이면 이어 붙이는 줄기의 길이, thickness는 굵기 배율(예고선은 가늘게).
+        private static void PlaceLaserPart(SpriteRenderer renderer, Vector2 at, Vector2 direction, float length, float thickness)
+        {
+            renderer.transform.position = at;
+            renderer.transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg);
+            renderer.transform.localScale = new Vector3(1f, direction.x < 0f ? -thickness : thickness, 1f);
+            if (length > 0f && renderer.sprite != null) renderer.size = new Vector2(length, renderer.sprite.bounds.size.y);
+        }
+
+        private Vector2 LaserHand(Vector2 offset, float facing) => (Vector2)transform.position + new Vector2(offset.x * facing, offset.y);
+
+        // 플레이어 몸 가운데를 노리되, 뒤나 위쪽으로는 꺾이지 않게 앞쪽 아래 방향으로 묶는다.
+        private Vector2 LaserAim(Vector2 origin, float facing)
+        {
+            Vector2 aimAt = target != null ? (Vector2)target.transform.position + Vector2.up * laserAimHeight : origin + new Vector2(facing, -0.3f);
+            Vector2 direction = (aimAt - origin).normalized;
+            if (direction.x * facing < 0.25f) direction.x = facing * 0.25f;
+            if (direction.y > 0.2f) direction.y = 0.2f;
+            return direction.normalized;
+        }
+
+        // 손끝에서 땅(루나벨 발밑 높이)이나 맵 끝, 최대 사거리 중 가장 가까운 곳까지의 길이.
+        private float LaserLength(Vector2 origin, Vector2 direction)
+        {
+            float length = laserRange + 4f;
+            if (direction.y < -0.01f) length = Mathf.Min(length, (origin.y - GroundY()) / -direction.y);
+            Rect bounds = GameBootstrap.CurrentMapBounds;
+            if (Mathf.Abs(direction.x) > 0.01f)
+            {
+                float edge = direction.x > 0f ? bounds.xMax : bounds.xMin;
+                length = Mathf.Min(length, (edge - origin.x) / direction.x);
+            }
+            return Mathf.Max(0.5f, length);
+        }
+
+        // 플레이어 몸(발밑에서 1.5유닛 키)의 네 점 중 하나라도 줄기 가운데 선에서 가까우면 닿은 것으로 본다.
+        private bool LaserTouchesPlayer(Vector2 start, Vector2 end)
+        {
+            if (target == null || target.IsDead) return false;
+            Vector2 feet = target.transform.position;
+            Vector2 segment = end - start;
+            float lengthSq = Mathf.Max(0.0001f, segment.sqrMagnitude);
+            float reach = laserHitHalfWidth + 0.25f;
+            foreach (float height in new[] { 0.2f, 0.6f, 1.0f, 1.4f })
+            {
+                Vector2 point = feet + Vector2.up * height;
+                float along = Mathf.Clamp01(Vector2.Dot(point - start, segment) / lengthSq);
+                if ((start + segment * along - point).sqrMagnitude <= reach * reach) return true;
+            }
+            return false;
+        }
+
+        private void CleanupLaser(GameObject root)
+        {
+            patternEffects.Remove(root);
+            if (root != null) Destroy(root);
+        }
+
+        // 혈월의 낫(2페이즈): 플레이어 등 뒤 공중으로 차원문을 타고 넘어가 거대한 낫을 치켜들고(예고), 앞쪽을 크게 쓸어 버린 뒤 내려온다.
+        private IEnumerator ScytheSweepRoutine()
+        {
+            isCasting = true;
+            scytheTimer = Cooldown(scytheCooldown);
+            float floorPosY = transform.position.y;
+            float groundY = GroundY();
+
+            Rect bounds = GameBootstrap.CurrentMapBounds;
+            isTeleporting = true;
+            yield return PortalHopTo(new Vector3(ScytheBehindX(bounds), floorPosY + scytheAirHeight, transform.position.z), keepAirborne: true);
+            isTeleporting = false;
+            if (monster.IsDead) { EndPattern(); yield break; }
+
+            // 예고: 낫을 치켜들고 멈춘 동안 휘두를 앞쪽 범위에 붉은 상자와 "!". 그 사이 플레이어가 범위 밖으로 빠져나가면
+            // 곧바로 붉은 안개로 흩어져 다시 등 뒤에 나타나 처음부터 치켜든다(scytheMaxChases번까지). 휘두르는 순간을 대시로 넘겨야 한다.
+            float facing = 1f;
+            int chases = 0;
+            while (true)
+            {
+                FacePlayer();
+                facing = spriteRenderer.flipX ? -1f : 1f;
+                attackAnimator.PlayClipAndHold(ScytheWindupClip, scytheWindupAnim);
+                var warning = Aethoria.Fx.DangerFx.Area(new Vector2(transform.position.x + facing * scytheReach * 0.5f, groundY + scytheHitHeight * 0.5f),
+                    new Vector2(scytheReach, scytheHitHeight), scytheWindup);
+                bool escaped = false;
+                for (float t = 0f; t < scytheWindup; t += Time.deltaTime)
+                {
+                    if (monster.IsDead) break;
+                    if (chases < scytheMaxChases && t >= scytheChaseGrace && !PlayerInScytheRange(facing)) { escaped = true; break; }
+                    yield return null;
+                }
+                if (monster.IsDead) { if (warning != null) Destroy(warning); EndPattern(); yield break; }
+                if (!escaped) break;
+
+                if (warning != null) Destroy(warning);
+                chases++;
+                isTeleporting = true;
+                yield return BlinkTo(ScytheBehindX(bounds), floorPosY + scytheAirHeight);
+                isTeleporting = false;
+                if (monster.IsDead) { EndPattern(); yield break; }
+            }
+
+            yield return ScytheSwing(facing, groundY);
+
+            // 2페이즈 체력이 절반 아래면 강화: 플레이어 좌우로 번갈아 순간이동하며 두 번 더 벤다(모두 세 번).
+            // 순간이동한 뒤 짧게 치켜드는 동안 범위 예고가 뜬다.
+            if (ScytheEnraged)
+            {
+                float side = target != null && transform.position.x < target.transform.position.x ? -1f : 1f;
+                for (int i = 0; i < scytheEnragedExtraSlashes && !monster.IsDead && target != null && !target.IsDead; i++)
+                {
+                    side = -side; // 방금 있던 쪽의 반대편으로 넘어간다
+                    float x = Mathf.Clamp(target.transform.position.x + side * scytheBehindDistance, bounds.xMin + 1f, bounds.xMax - 1f);
+                    isTeleporting = true;
+                    yield return BlinkTo(x, floorPosY + scytheAirHeight);
+                    isTeleporting = false;
+                    if (monster.IsDead) break;
+
+                    FacePlayer();
+                    facing = spriteRenderer.flipX ? -1f : 1f;
+                    attackAnimator.PlayClipAndHold(ScytheWindupClip, scytheEnragedWindup * 0.6f);
+                    Aethoria.Fx.DangerFx.Area(new Vector2(transform.position.x + facing * scytheReach * 0.5f, groundY + scytheHitHeight * 0.5f),
+                        new Vector2(scytheReach, scytheHitHeight), scytheEnragedWindup);
+                    yield return new WaitForSeconds(scytheEnragedWindup);
+                    if (monster.IsDead) break;
+                    yield return ScytheSwing(facing, groundY, finisher: i == scytheEnragedExtraSlashes - 1);
+                }
+            }
+
+            // 공중에서 천천히 내려와 다시 바닥에 선다.
+            float startY = transform.position.y;
+            for (float t = 0f; t < scytheDescendTime && !monster.IsDead; t += Time.deltaTime)
+            {
+                float k = t / scytheDescendTime;
+                transform.position = new Vector3(transform.position.x, Mathf.Lerp(startY, floorPosY, k * k), transform.position.z);
+                yield return null;
+            }
+            transform.position = new Vector3(transform.position.x, floorPosY, transform.position.z);
+            body.bodyType = RigidbodyType2D.Dynamic;
+            EndPattern();
+        }
+
+        private bool ScytheEnraged => PhaseTwoStarted && monster.CurrentHp <= monster.MaxHp * scytheEnrageHealthFraction;
+
+        // 쓸어내기 한 번: 궤적이 앞쪽을 가르고, 휘두르는 짧은 동안 앞쪽 상자 안에 있으면 한 번 크게 맞는다(넉백 있음).
+        // 타격감: 휘두르기 시작에 짧게 떨리고(바람 가르는 느낌) → 궤적이 바닥을 긁는 순간 크게 흔들리고 →
+        // 플레이어가 맞으면 아주 잠깐 화면이 멈췄다가(히트스톱) 한 번 더 세게 흔들린다. finisher(3연속의 마지막)는 더 세다.
+        private IEnumerator ScytheSwing(float facing, float groundY, bool finisher = false)
+        {
+            attackAnimator.PlayClip(ScytheSwingClip, scytheSwingAnim);
+            SpawnScytheSlash(facing, groundY);
+            var follow = Camera.main != null ? Camera.main.GetComponent<CameraFollow>() : null;
+            float power = finisher ? 1.4f : 1f;
+            if (follow != null) follow.Shake(0.12f, 0.07f * power);
+            Vector2 boxBottom = new Vector2(transform.position.x + facing * scytheReach * 0.5f, groundY);
+            bool impacted = false, hit = false;
+            for (float t = 0f; t < scytheHitTime; t += Time.deltaTime)
+            {
+                if (monster.IsDead) break;
+                if (!impacted && t >= scytheImpactTime)
+                {
+                    impacted = true;
+                    if (follow != null) follow.Shake(0.4f, scytheImpactShake * power);
+                }
+                if (!hit && HitPlayerInBox(boxBottom, scytheReach, scytheHitHeight, scytheDamageMultiplier, hitReaction: true))
+                {
+                    hit = true;
+                    Aethoria.Fx.HitStop.Request(scytheHitStop * power, 0.15f);
+                    if (follow != null) follow.Shake(0.35f, scytheHitShake * power);
+                }
+                yield return null;
+            }
+            if (!impacted && !monster.IsDead && follow != null) follow.Shake(0.4f, scytheImpactShake * power);
+            yield return new WaitForSeconds(Mathf.Max(0f, scytheSwingAnim - scytheHitTime));
+        }
+
+        // 루나벨 몸이 카메라 화면 가로 범위 밖에 있으면 true(몸 반폭 정도 걸쳐 있어도 밖으로 본다).
+        private bool IsOffScreen()
+        {
+            var cam = Camera.main;
+            if (cam == null || !cam.orthographic) return false;
+            float halfView = cam.orthographicSize * cam.aspect;
+            return Mathf.Abs(transform.position.x - cam.transform.position.x) > halfView + 0.3f;
+        }
+
+        // 플레이어가 바라보는 반대쪽(등 뒤)의 x. 맵 끝에 막히면 앞쪽.
+        private float ScytheBehindX(Rect bounds)
+        {
+            var movement = target.GetComponent<CharacterMovement2D>();
+            float back = movement != null && movement.FacingDirection.x < 0f ? 1f : -1f;
+            float x = target.transform.position.x + back * scytheBehindDistance;
+            if (x < bounds.xMin + 1f || x > bounds.xMax - 1f) x = target.transform.position.x - back * scytheBehindDistance;
+            return Mathf.Clamp(x, bounds.xMin + 1f, bounds.xMax - 1f);
+        }
+
+        // 휘두를 앞쪽 상자(몸 뒤 0.3칸 ~ 앞 scytheReach) 안에 플레이어 발이 있는지.
+        private bool PlayerInScytheRange(float facing)
+        {
+            if (target == null || target.IsDead) return true;
+            float dx = (target.transform.position.x - transform.position.x) * facing;
+            return dx >= -0.3f && dx <= scytheReach;
+        }
+
+        // 짧은 순간이동: 몸이 붉은 소용돌이로 흩어졌다가(모션 없이 소용돌이만) 목적지에서 다시 나타난다. 공중에 떠 있는 채로 옮긴다.
+        private IEnumerator BlinkTo(float x, float y)
+        {
+            var bodyCollider = GetComponent<Collider2D>();
+            // 2페이즈: 순간이동 그림(피 소용돌이로 흩어짐)을 빠르게 틀고, 목적지에서 거꾸로 틀어 나타난다.
+            if (UsePhaseTwoPortal)
+            {
+                if (bodyCollider != null) bodyCollider.enabled = false;
+                yield return PlayPortalClip(PortalEnterClip, blinkClipDuration);
+                SetVisible(false);
+                transform.position = new Vector3(x, y, transform.position.z);
+                FacePlayer();
+                yield return new WaitForSeconds(teleportGap);
+                SetVisible(true);
+                yield return PlayPortalClip(PortalExitClip, blinkClipDuration);
+                if (bodyCollider != null) bodyCollider.enabled = true;
+                yield break;
+            }
+            SetVisible(false);
+            if (bodyCollider != null) bodyCollider.enabled = false;
+            StartCoroutine(PlayPortalCollapse(PortalCenter(), reverse: false));
+            yield return new WaitForSeconds(teleportCollapseDuration);
+            transform.position = new Vector3(x, y, transform.position.z);
+            FacePlayer();
+            StartCoroutine(PlayPortalCollapse(PortalCenter(), reverse: true));
+            yield return new WaitForSeconds(teleportCollapseDuration);
+            SetVisible(true);
+            if (bodyCollider != null) bodyCollider.enabled = true;
+        }
+
+        // 앞쪽을 가르는 핏빛 낫 궤적(한 번 재생). 그림이 없으면 보랏빛 참격을 붉게 물들여 키워 쓴다.
+        private void SpawnScytheSlash(float facing, float groundY)
+        {
+            bool custom = Resources.LoadAll<Sprite>(ScytheSlashPath).Length > 0;
+            var at = new Vector2(transform.position.x + facing * scytheSlashOffset.x, groundY + scytheSlashOffset.y);
+            var fx = FlipbookSpriteEffect.Create("LunabelScytheSlash", custom ? ScytheSlashPath : ScytheSlashFallbackPath, at,
+                scytheSwingAnim / 8f, loop: false, sortingOrder: 6);
+            var renderer = fx.GetComponent<SpriteRenderer>();
+            renderer.flipX = facing < 0f;
+            if (!custom) renderer.color = new Color(1f, 0.25f, 0.3f);
+            fx.transform.localScale = Vector3.one * (custom ? scytheSlashScale : 3f);
+            patternEffects.Add(fx.gameObject);
+        }
+
+        // 바닥을 따라 fromX~toX(맵 안쪽으로 자름), 높이 height 상자에 범위 예고를 띄운다.
+        private void WarnLane(float fromX, float toX, float height, float duration)
+        {
+            Rect arena = GameBootstrap.CurrentMapBounds;
+            fromX = Mathf.Clamp(fromX, arena.xMin, arena.xMax);
+            toX = Mathf.Clamp(toX, arena.xMin, arena.xMax);
+            if (Mathf.Abs(toX - fromX) < 0.2f) return;
+            Aethoria.Fx.DangerFx.Area(new Vector2((fromX + toX) * 0.5f, GroundY() + height * 0.5f), new Vector2(Mathf.Abs(toX - fromX), height), duration);
+        }
+
+        private static Sprite[] Slice(Sprite[] frames, int start, int count)
+        {
+            var slice = new Sprite[count];
+            System.Array.Copy(frames, start, slice, 0, count);
+            return slice;
         }
 
         // 첫 조우 연출 마지막: 의자에서 일어난 루나벨이 차원문을 타고 플레이어 바로 앞(거리 distance)으로 넘어온다.
@@ -702,11 +1207,11 @@ namespace Aethoria.Monsters
         // 몸이 홱 돌아섰다. 차원문 모션을 트는 동안만 좌우를 뒤집어 대기 때와 같은 방향을 보게 하고, 끝나면 되돌린다.
         // 2페이즈에서는 2페이즈 전용 그림으로 바꿔 튼다. 1·2페이즈 차원문 그림 모두 대기와 반대쪽을 보고 그려져 있어서
         // 트는 동안만 좌우를 뒤집는다.
-        private IEnumerator PlayPortalClip(string clipName)
+        private IEnumerator PlayPortalClip(string clipName, float durationOverride = -1f)
         {
             bool phaseTwo = UsePhaseTwoPortal;
             string clip = !phaseTwo ? clipName : clipName == PortalExitClip ? PortalExitClipPhaseTwo : PortalEnterClipPhaseTwo;
-            float duration = phaseTwo ? teleportEnterDurationPhaseTwo : teleportEnterDuration;
+            float duration = durationOverride > 0f ? durationOverride : phaseTwo ? teleportEnterDurationPhaseTwo : teleportEnterDuration;
             bool facingLeft = spriteRenderer.flipX;
             spriteRenderer.flipX = !facingLeft;
             attackAnimator.PlayClip(clip, duration);
@@ -747,6 +1252,7 @@ namespace Aethoria.Monsters
         private IEnumerator PlayPortalCollapse(Vector2 center, bool reverse)
         {
             bool phaseTwo = UsePhaseTwoPortal;
+            if (phaseTwo && !portalCollapsePhaseTwo) yield break;
             var frames = LoadSorted(phaseTwo ? PortalCollapsePhaseTwoPath : PortalCollapsePath);
             if (frames.Length == 0) yield break;
             if (reverse) System.Array.Reverse(frames);
@@ -756,7 +1262,7 @@ namespace Aethoria.Monsters
             // 2페이즈 소용돌이는 화면에 그려진 빨려 든 마지막 장과 같은 쪽으로 뒤집는다(차원문 그림은 바라보는 방향과
             // 반대로 뒤집어 틀므로 !flipX). 소용돌이 모양이 그대로 이어진다.
             bool flip = phaseTwo && !spriteRenderer.flipX;
-            go.transform.localScale = new Vector3(size, size, 1f);
+            go.transform.localScale = new Vector3(size, phaseTwo ? size : size * portalEffectSquash, 1f);
             var renderer = go.AddComponent<SpriteRenderer>();
             renderer.sortingOrder = spriteRenderer.sortingOrder + 1;
             renderer.flipX = flip;
@@ -1360,6 +1866,14 @@ namespace Aethoria.Monsters
 
             float facing = spriteRenderer.flipX ? -1f : 1f;
             attackAnimator.Play(castAnimDuration);
+            // 위험 예고: 피의 손이 날아갈 높이의 길(사거리만큼)에 붉은 상자와 "!".
+            {
+                Rect arena = GameBootstrap.CurrentMapBounds;
+                float from = transform.position.x + facing * handMuzzleForward;
+                float to = Mathf.Clamp(from + facing * handTravelRange, arena.xMin, arena.xMax);
+                Aethoria.Fx.DangerFx.Area(new Vector2((from + to) * 0.5f, transform.position.y + handMuzzleHeight + 0.4f),
+                    new Vector2(Mathf.Abs(to - from), handHitRadius * 2f + 0.4f), castAnimDuration * castFireTiming);
+            }
 
             yield return new WaitForSeconds(castAnimDuration * castFireTiming);
             if (!monster.IsDead)
@@ -1383,8 +1897,13 @@ namespace Aethoria.Monsters
             float facing = spriteRenderer.flipX ? -1f : 1f;
 
             attackAnimator.PlayClip(SpecialClip, specialRaiseDuration);
-            // 위험 예고: 필살기를 모으기 시작하면 몸이 붉게 번쩍인다.
-            Aethoria.Fx.DangerFx.FlashBody(spriteRenderer, specialRaiseDuration, 3);
+            // 위험 예고: 구체가 떨어져 기둥이 줄지어 솟을 땅 전체에 붉은 띠와 "!"(구체를 놓는 순간까지).
+            {
+                float landX = transform.position.x + facing * specialLandForward;
+                float lastX = landX + facing * specialBurstSpacing * (specialBurstCount - 1);
+                float until = specialRaiseDuration + specialChargeDuration + specialThrowDuration * specialReleaseTiming + specialOrbFlightTime;
+                WarnLane(landX - facing * specialBurstWidth * 0.5f, lastX + facing * specialBurstWidth * 0.5f, specialBurstHeight, until);
+            }
             yield return new WaitForSeconds(specialRaiseDuration);
 
             // 머리 위로 든 두 손 사이에서 진홍빛 에너지 구체(개막과 같은 6프레임 반복)가 점점 커진다.

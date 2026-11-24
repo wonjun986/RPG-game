@@ -116,7 +116,6 @@ namespace Aethoria.Bootstrap
             var monster = go.AddComponent<Monster>();
             monster.AssignData(data);
             go.AddComponent<BossSlimeAI>();
-            go.AddComponent<MonsterHealthBar>().Configure(newWidth: 2.4f, newVerticalOffset: 0.15f);
 
             bossHealthUI.Bind(monster, data.monsterName);
             monster.OnDied += _ => OpenBossExitPortal(PlainsPortalStyle);
@@ -159,7 +158,6 @@ namespace Aethoria.Bootstrap
             monster.AssignData(data);
             var dragonAI = go.AddComponent<SandDragonAI>();
             dragonAI.SetArenaBounds(mapXMin, mapXMax + 1f);
-            go.AddComponent<MonsterHealthBar>().Configure(newWidth: 2.25f, newVerticalOffset: 0.08f);
 
             // 쓰러지면 몸이 모래로 허물어지는 모션(SandDragonDeathCutscene)이 끝난 뒤 맵 끝에 마을로 돌아가는 포탈을 연다.
             go.AddComponent<SandDragonDeathCutscene>().Initialize(() => OpenBossExitPortal(RuinsPortalStyle));
@@ -278,7 +276,6 @@ namespace Aethoria.Bootstrap
             var monster = go.AddComponent<Monster>();
             monster.AssignData(data);
             var bossAI = go.AddComponent<BossAI>();
-            go.AddComponent<MonsterHealthBar>().Configure(newWidth: 1.4f, newVerticalOffset: 0.15f);
 
             bossHealthUI.Bind(monster, data.monsterName);
             // 보스를 잡으면 월드로 돌아와 유언 → 쓰러지는 모션(BossDeathCutscene)이 끝난 뒤 맵 끝에 마을로 돌아가는 포탈을 연다.
@@ -318,9 +315,7 @@ namespace Aethoria.Bootstrap
             var bossAI = go.AddComponent<FinalBossAI>();
             go.AddComponent<LunabelGazeCurse>().Initialize(bossAI, monster, player, npcDialogueUI, lunabelGazeTalkSeen,
                 () => lunabelGazeTalkSeen = true);
-            go.AddComponent<MonsterHealthBar>().Configure(newWidth: 1.6f, newVerticalOffset: 0.15f);
 
-            bossHealthUI.Bind(monster, data.monsterName);
             // 루나벨을 쓰러뜨리면 필드로 돌아와 패배 모션 → 네크로시아와의 마지막 대화 → 쓰러져 사라진 뒤 마을의 노아 앞으로 돌아간다.
             // 처음 쓰러뜨렸을 때는 마을로 돌아가기 전에 엔딩(PlayEndingThenReturn)이 한 번 나온다.
             go.AddComponent<LunabelDeathCutscene>().Initialize(player, npcDialogueUI, PlayEndingThenReturn);
@@ -328,6 +323,8 @@ namespace Aethoria.Bootstrap
             var intro = go.AddComponent<LunabelIntroCutscene>();
             intro.Initialize(bossAI, player, npcDialogueUI, skippable: lunabelIntroSeen,
                 onShown: () => lunabelIntroSeen = true);
+            // 체력바와 이름 자막은 언덕 입구가 아니라 왕좌 앞에서 마주치는 순간(등장 연출 시작) 띄운다.
+            intro.OnReveal = () => bossHealthUI.Bind(monster, data.monsterName);
             return intro;
         }
 

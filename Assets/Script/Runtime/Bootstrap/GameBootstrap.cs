@@ -315,6 +315,16 @@ namespace Aethoria.Bootstrap
             return true;
         }
 
+        // Esc 메뉴의 "마을로": 마을 밖 어디서든(튜토리얼 숲은 빼고) 마을 출구 쪽으로 돌아간다. 마을에서는 대신 "타이틀로"가 나온다.
+        // 체력은 채우지 않는다(던전 첫 포탈로 걸어 나온 것과 같다).
+        public static bool CanReturnToVillageFromMenu => currentStage != VillageStage && currentStage != TutorialStage;
+
+        public static void ReturnToVillageFromMenu()
+        {
+            if (!CanReturnToVillageFromMenu) return;
+            LeaveFieldToVillage();
+        }
+
         // 게임오버 화면의 TITLE: 현재 판을 통째로 정리하고 타이틀 화면으로 돌아간다.
         public static void ReturnToTitle()
         {

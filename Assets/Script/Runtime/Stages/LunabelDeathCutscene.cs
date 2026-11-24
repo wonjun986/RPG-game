@@ -11,8 +11,8 @@ namespace Aethoria.Stages
     // 루나벨(최종보스) 처치 연출. 2페이즈 체력이 0이 되는 순간 루나벨을 네크로시아 바로 앞으로 옮기고 패배 모션의 첫 프레임으로
     // 바꿔 둔다(전투가 열린 자리는 언덕 왼쪽이라 원래 자리에 두면 화면에 안 보이고, 2페이즈 모습이 먼저 비치는 것도 막는다).
     // 그다음:
-    //   1) 패배 모션(Art/Monsters/FinalBoss/Phase1/Defeat, Lunabel_Defeat 8프레임)을 끝까지 재생해 쓰러지고,
-    //   2) 쓰러진 채 네크로시아와 마지막 대화를 나눈 뒤([Z]/Enter로 넘김),
+    //   1) 패배 모션(Art/Monsters/FinalBoss/Phase1/Defeat, 고딕 엘프의 몰락과 소멸 12프레임)을 7번째(무릎 꿇고 바닥을 짚음)까지 재생하고,
+    //   2) 그 모습으로 네크로시아와 마지막 대화를 나눈 뒤([Z]/Enter로 넘김) 나머지 프레임으로 완전히 쓰러지고,
     //   3) 서서히 사라지고,
     //   4) onFinished(마을 노아 앞으로 돌아가기)를 부른다.
     // 보상(경험치/골드/드랍/퀘스트)은 쓰러진 순간 Monster.OnDied/AnyDied로 이미 처리된다.
@@ -21,8 +21,11 @@ namespace Aethoria.Stages
     {
         public const string DefeatPath = "Art/Monsters/FinalBoss/Phase1/Defeat";
         private const float DelayAfterBattle = 0.4f;
-        public const float DefeatFrameInterval = 0.16f;
+        public const float DefeatFrameInterval = 0.13f; // 12프레임이라 예전(8프레임 x 0.16)보다 조금 빠르게
         public const float HoldAfterFall = 0.6f;
+        // 마지막 대화 동안 멈춰 있는 프레임(7번째, 무릎 꿇고 바닥을 짚은 모습). 대사가 끝나면 나머지 프레임으로 완전히 쓰러진다.
+        public const int DefeatHoldFrame = 7;
+        public static int DefeatHoldIndex(int frameCount) => Mathf.Clamp(DefeatHoldFrame - 1, 0, Mathf.Max(0, frameCount - 1));
         public const float FadeOutDuration = 1.5f;
         private const float DelayBeforeReturn = 0.8f;
         // 네크로시아 앞 이만큼(유닛) 떨어진 자리에 루나벨을 세운다. 맵 끝에 걸리면 반대쪽에 세운다.
@@ -136,8 +139,9 @@ namespace Aethoria.Stages
             if (playerMovement != null) playerMovement.SetCutsceneLocked(true);
             yield return new WaitForSeconds(DelayAfterBattle);
 
-            // 1) 쓰러지는 모션을 끝까지 재생하고 마지막 프레임(쓰러진 모습)에 멈춘다.
-            for (int i = 1; i < defeatFrames.Length; i++)
+            // 1) 무릎이 꺾여 바닥을 짚은 모습(DefeatHoldFrame)까지 재생하고 거기서 멈춘다.
+            int hold = DefeatHoldIndex(defeatFrames.Length);
+            for (int i = 1; i <= hold; i++)
             {
                 spriteRenderer.sprite = defeatFrames[i];
                 yield return new WaitForSeconds(DefeatFrameInterval);
@@ -154,6 +158,14 @@ namespace Aethoria.Stages
                 while (!AdvancePressed()) yield return null;
             }
             dialogueUI?.Hide();
+
+            // 대사가 끝나면 남은 프레임으로 완전히 바닥에 쓰러진다(후광과 눈 장식이 흐려진다).
+            for (int i = hold + 1; i < defeatFrames.Length; i++)
+            {
+                spriteRenderer.sprite = defeatFrames[i];
+                yield return new WaitForSeconds(DefeatFrameInterval);
+            }
+            yield return new WaitForSeconds(HoldAfterFall);
 
             // 3) 핏빛 안개처럼 서서히 사라진다.
             for (float t = 0f; t < FadeOutDuration; t += Time.deltaTime)

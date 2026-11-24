@@ -100,6 +100,8 @@ namespace Aethoria.Stages
         // OnTriggered는 그 순간 한 번 불린다(결전장 입구를 막아 전투 구역을 가둔다).
         public float TriggerX = float.NegativeInfinity;
         public System.Action OnTriggered;
+        // 등장 연출이 시작되는 순간(왕좌 앞에서 마주쳤을 때) 보스 체력바를 붙인다 — 그때 이름 자막(BossTitleCard)이 뜬다.
+        public System.Action OnReveal;
 
         public void Initialize(FinalBossAI bossAI, Character targetPlayer, NpcDialogueUI dialogue, bool skippable = false, System.Action onShown = null)
         {
@@ -150,6 +152,7 @@ namespace Aethoria.Stages
         {
             while (player != null && player.transform.position.x < TriggerX) yield return null;
             OnTriggered?.Invoke();
+            OnReveal?.Invoke();
             yield return Run();
         }
 

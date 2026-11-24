@@ -7,9 +7,10 @@ using Aethoria.Characters;
 
 namespace Aethoria.UI
 {
-    // 필드 Esc 일시정지 메뉴: 2x2 버튼 [계속하기 | 설정] / [조작법 | 타이틀로]. 판·버튼은 공통 팝업 그림(UI/Common/Popup)을 쓴다.
+    // 필드 Esc 일시정지 메뉴: 2x2 버튼 [계속하기 | 설정] / [조작법 | 마을로(마을에서는 타이틀로)]. 판·버튼은 공통 팝업 그림(UI/Common/Popup)을 쓴다.
     //  계속하기 = 닫기, 설정 = 설정 창(SettingsUI)을 띄우고 닫으면 이 메뉴로 돌아온다,
-    //  타이틀로 = "타이틀 화면으로 돌아가시겠습니까?"(ChoicePopup)에 예를 고르면 자동 저장 후 타이틀로.
+    //  마을로 = "마을로 이동하시겠습니까?"(ChoicePopup)에 예를 고르면 마을 출구 쪽으로 돌아간다(마을 밖, 튜토리얼 숲 제외).
+    //  타이틀로 = 마을(과 튜토리얼 숲)에서만 나온다. "타이틀 화면으로 돌아가시겠습니까?"에 예를 고르면 자동 저장 후 타이틀로.
     //  조작법 = 설정 창을 조작 탭으로 바로 연다.
     // 조작: ↑↓←→(W/S/A/D) 고르기, Z/Enter 누르기, Esc/X 계속하기. 마우스는 올리면 고르고 누르면 실행.
     // 인벤토리/상점/대화/리듬 전투 등 다른 창이 열려 있으면(조작이 잠겨 있으면) 열지 않는다 — 그 창들은 Esc로
@@ -121,6 +122,7 @@ namespace Aethoria.UI
             if (!root.activeSelf) UiSfx.Open();
             root.transform.SetAsLastSibling(); // 다른 HUD 위에 그린다
             root.SetActive(true);
+            labels[3].text = GameBootstrap.CanReturnToVillageFromMenu ? "마을로" : "타이틀로";
             selected = 0;
             openedFrame = Time.frameCount;
             openTime = Time.unscaledTime;
@@ -154,9 +156,18 @@ namespace Aethoria.UI
                     settings.Open(() => OpenMenu(), 3);
                     break;
                 case 3:
-                    ChoicePopup.Ask("타이틀 화면으로 돌아가시겠습니까?", ConfirmTitle, null, subMessage: "지금까지의 진행은 자동 저장됩니다");
+                    if (GameBootstrap.CanReturnToVillageFromMenu)
+                        ChoicePopup.Ask("마을로 이동하시겠습니까?", ConfirmVillage, null, subMessage: "지금 있는 곳의 진행(보스전 등)은 처음부터 다시 해야 합니다");
+                    else
+                        ChoicePopup.Ask("타이틀 화면으로 돌아가시겠습니까?", ConfirmTitle, null, subMessage: "지금까지의 진행은 자동 저장됩니다");
                     break;
             }
+        }
+
+        private void ConfirmVillage()
+        {
+            Resume(); // 시간 배속과 조작 잠금을 먼저 되돌린 뒤 맵을 바꾼다
+            GameBootstrap.ReturnToVillageFromMenu();
         }
 
         private void ConfirmTitle()

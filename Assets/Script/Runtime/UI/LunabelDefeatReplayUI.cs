@@ -137,8 +137,9 @@ namespace Aethoria.UI
             yield return Fade(1f, 0f);
             yield return Wait(StartPause);
 
-            // 1) 쓰러지는 모션.
-            for (int i = 1; i < defeatFrames.Length && !skipped; i++)
+            // 1) 무릎 꿇고 바닥을 짚은 모습까지(필드 연출과 같다).
+            int hold = LunabelDeathCutscene.DefeatHoldIndex(defeatFrames.Length);
+            for (int i = 1; i <= hold && i < defeatFrames.Length && !skipped; i++)
             {
                 SetFrame(lunabel, defeatFrames[i]);
                 yield return Wait(LunabelDeathCutscene.DefeatFrameInterval);
@@ -159,6 +160,14 @@ namespace Aethoria.UI
                 }
             }
             dialogue.Hide();
+
+            // 대사가 끝나면 완전히 바닥에 쓰러진다.
+            for (int i = hold + 1; i < defeatFrames.Length && !skipped; i++)
+            {
+                SetFrame(lunabel, defeatFrames[i]);
+                yield return Wait(LunabelDeathCutscene.DefeatFrameInterval);
+            }
+            if (!skipped) yield return Wait(LunabelDeathCutscene.HoldAfterFall);
 
             // 3) 서서히 사라진다.
             for (float t = 0f; t < LunabelDeathCutscene.FadeOutDuration && !skipped; t += Time.unscaledDeltaTime)

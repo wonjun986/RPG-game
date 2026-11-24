@@ -26,6 +26,10 @@ namespace Aethoria.Stages
             public bool ExtendTop;       // 윗변 색을 위로 길게 늘려(하늘), 카메라가 올라가도 위가 비지 않게
             public Color Tint = Color.white;
             public float Drift;          // 카메라와 상관없이 저절로 흘러가는 속도(칸/초). 안개처럼 바람에 밀리는 층용
+            // 이음매 없는 한 장(달·해가 그려진 하늘용): 이어 붙이지 않고 한 장만 화면을 덮게 둔다. 반전 복사본에 달이 하나 더
+            // 비치지 않게, 시차로 흘러가는 거리를 그림 가장자리가 화면 안에 들어오지 않는 만큼으로 묶고, 화면이 그림보다 넓으면
+            // (카메라를 넓힌 연출 등) 그림을 그만큼 키운다.
+            public bool NoSeam;
         }
 
         private const float ExtensionHeight = 14f;
@@ -70,7 +74,7 @@ namespace Aethoria.Stages
                     Root = root,
                 };
                 layers.Add(state);
-                EnsureCopies(state, def.Tile ? 3 : 1);
+                EnsureCopies(state, def.Tile && !def.NoSeam ? 3 : 1);
             }
 
             var cam = Camera.main;
@@ -95,6 +99,17 @@ namespace Aethoria.Stages
                 var def = state.Def;
                 float originX = anchorX + (c.x - anchorX) * (1f - def.ScrollX) + Time.time * def.Drift;
                 float y = floorY + def.BottomAboveFloor + (c.y - restCameraY) * (1f - def.ScrollY);
+
+                if (def.NoSeam)
+                {
+                    float k = Mathf.Max(1f, halfView * 2f * 1.02f / state.TileWidth);
+                    float slack = Mathf.Max(0f, state.TileWidth * k / 2f - halfView);
+                    float shift = Mathf.Clamp(-(c.x - anchorX) * def.ScrollX + Time.time * def.Drift, -slack, slack);
+                    var only = state.Copies[0];
+                    only.position = new Vector3(c.x + shift, y, 0f);
+                    only.localScale = new Vector3(def.Scale * k, def.Scale * k, 1f);
+                    continue;
+                }
 
                 if (!def.Tile)
                 {

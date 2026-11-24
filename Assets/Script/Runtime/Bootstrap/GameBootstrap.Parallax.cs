@@ -23,7 +23,7 @@ namespace Aethoria.Bootstrap
             new ParallaxBackground.Layer
             {
                 Path = ForestParallaxFolder + "forest_sky", ScrollX = 0.1f, ScrollY = 0.05f, BottomAboveFloor = -1.8f,
-                SortingOrder = -15, Mirror = true, ExtendTop = true, ExtendBottom = true,
+                SortingOrder = -15, NoSeam = true, ExtendTop = true, ExtendBottom = true,
             },
             // 먼 숲(2048x1100): 나무 꼭대기가 바닥 위 약 3.8칸. 밑은 흙길 띠 뒤에 숨는다.
             new ParallaxBackground.Layer
@@ -70,7 +70,7 @@ namespace Aethoria.Bootstrap
             new ParallaxBackground.Layer
             {
                 Path = PlainsParallaxFolder + "plains_sky", Scale = 0.9f, ScrollX = 0.1f, ScrollY = 0.05f, BottomAboveFloor = -1.6f,
-                SortingOrder = -15, Mirror = true, ExtendTop = true, ExtendBottom = true,
+                SortingOrder = -15, NoSeam = true, ExtendTop = true, ExtendBottom = true,
             },
             // 폭포 절벽과 고대 유적(2048x701, 0.85배).
             new ParallaxBackground.Layer
@@ -100,7 +100,7 @@ namespace Aethoria.Bootstrap
             new ParallaxBackground.Layer
             {
                 Path = HillParallaxFolder + "hill_sky", Scale = 0.9f, ScrollX = 0.1f, ScrollY = 0.05f, BottomAboveFloor = -1.8f,
-                SortingOrder = -15, Mirror = true, ExtendTop = true, ExtendBottom = true,
+                SortingOrder = -15, NoSeam = true, ExtendTop = true, ExtendBottom = true,
             },
             new ParallaxBackground.Layer
             {
@@ -136,12 +136,12 @@ namespace Aethoria.Bootstrap
         // 마을은 발판이 없어 카메라가 위로 올라가지 않으므로, 화면 세로 8칸 안에 달·집·바닥이 다 들어오게 크기를 줄여 맞췄다.
         private static ParallaxBackground.Layer[] VillageParallaxLayers() => new[]
         {
-            // 하늘(2400x1600, 0.9배 → 16x10.7칸): 화면 폭(약 14.2칸)보다 넓어야 반전 복사본(달이 두 개)이 안 보인다.
+            // 하늘(2400x1600, 0.9배 → 16x10.7칸): 이어 붙이지 않는 한 장(NoSeam)이라 달이 두 개 보이지 않는다.
             // 달이 화면 위쪽(바닥 위 약 5.5칸)에 오게 내렸다. 산 위 성은 집들 뒤에 가려 틈으로만 보인다.
             new ParallaxBackground.Layer
             {
                 Path = VillageParallaxFolder + "village_sky", Scale = 0.9f, ScrollX = 0.1f, ScrollY = 0.05f, BottomAboveFloor = -2.3f,
-                SortingOrder = -15, Mirror = true, ExtendTop = true, ExtendBottom = true,
+                SortingOrder = -15, NoSeam = true, ExtendTop = true, ExtendBottom = true,
             },
             // 먼 마을 지붕선(2048x1213, 0.85배): 집 사이 틈으로 보이는 첨탑과 창문 불빛.
             new ParallaxBackground.Layer
@@ -174,7 +174,7 @@ namespace Aethoria.Bootstrap
             new ParallaxBackground.Layer
             {
                 Path = RuinsParallaxFolder + "ruins_sky", Scale = 0.9f, ScrollX = 0.1f, ScrollY = 0.05f, BottomAboveFloor = 0.5f,
-                SortingOrder = -15, Mirror = true, ExtendTop = true, ExtendBottom = true,
+                SortingOrder = -15, NoSeam = true, ExtendTop = true, ExtendBottom = true,
             },
             // 모래 언덕과 해골 장미창 성당(1711x869): 밑까지 모래로 꽉 차 있어 아래로 늘려 깐다.
             new ParallaxBackground.Layer
@@ -207,7 +207,7 @@ namespace Aethoria.Bootstrap
             new ParallaxBackground.Layer
             {
                 Path = EnsroomParallaxFolder + "ensroom_sky", Scale = 0.9f, ScrollX = 0.1f, ScrollY = 0.05f, BottomAboveFloor = 2f,
-                SortingOrder = -15, Mirror = true, ExtendTop = true, ExtendBottom = true,
+                SortingOrder = -15, NoSeam = true, ExtendTop = true, ExtendBottom = true,
             },
             // 폭포 절벽 위 성채 도시(2172x485, 1.2배): 거리의 낮은 난간·아치 사이로 보인다. 밑은 거리 뒤에 숨는다.
             new ParallaxBackground.Layer
@@ -248,7 +248,7 @@ namespace Aethoria.Bootstrap
                 new ParallaxBackground.Layer
                 {
                     Path = SeaParallaxFolder + "sea_sky", Scale = 1.4f, ScrollX = 0.1f, ScrollY = 0.05f, BottomAboveFloor = -1.4f,
-                    SortingOrder = -15, Mirror = true, ExtendTop = true, ExtendBottom = true,
+                    SortingOrder = -15, NoSeam = true, ExtendTop = true, ExtendBottom = true,
                 },
                 // 물 위 유적(2172x465, 0.9배): 수면이 그림 밑에서 91px. 밑은 바다라 늘려 깐다.
                 new ParallaxBackground.Layer
@@ -294,7 +294,7 @@ namespace Aethoria.Bootstrap
             new ParallaxBackground.Layer
             {
                 Path = HeavenParallaxFolder + "heaven_sky", Scale = 1.1f, ScrollX = 0.1f, ScrollY = 0.05f, BottomAboveFloor = -0.8f,
-                SortingOrder = -15, Mirror = true, ExtendTop = true, ExtendBottom = true,
+                SortingOrder = -15, NoSeam = true, ExtendTop = true, ExtendBottom = true,
             },
             // 떠 있는 섬과 하얀 계단 끝 신전(1711x885, 0.9배 → 높이 약 5.9칸). 밑은 구름이 물결 모양으로 끊겨 회랑·바닥 뒤에 숨긴다.
             new ParallaxBackground.Layer

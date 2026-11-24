@@ -363,7 +363,6 @@ namespace Aethoria.Monsters
             float duration = attackAnimator.DefaultDuration;
             attackAnimator.Play(duration);
             // 위험 예고: 몸이 번쩍이고, 내려찍을 바닥에 범위를 표시한다.
-            Aethoria.Fx.DangerFx.FlashBody(spriteRenderer, duration * slamImpactTiming, 3);
             Aethoria.Fx.DangerFx.GroundZone(new Vector2(transform.position.x + facing * slamForward, GroundY()), slamRadius * 2f, duration * slamImpactTiming);
 
             yield return new WaitForSeconds(duration * slamImpactTiming);
@@ -514,6 +513,16 @@ namespace Aethoria.Monsters
 
             attackAnimator.PlayClip(RoarClip, roarDuration);
             SfxPlayer.Play(SfxPlayer.SandDragonRoar);
+            // 위험 예고: 두 회오리가 솟아 조여 올 구간(몸 앞 ~ 플레이어 너머) 전체에 붉은 상자와 "!".
+            if (target != null)
+            {
+                float toPlayer = target.transform.position.x < transform.position.x ? -1f : 1f;
+                float frontX = transform.position.x + toPlayer * whirlFrontOffset;
+                float beyondX = Mathf.Clamp(target.transform.position.x + toPlayer * whirlBeyondPlayer, arenaMinX + 1f, arenaMaxX - 1f);
+                float groundY = GroundY();
+                Aethoria.Fx.DangerFx.Area(new Vector2((frontX + beyondX) * 0.5f, groundY + whirlHeight * 0.5f),
+                    new Vector2(Mathf.Abs(beyondX - frontX) + 1.5f, whirlHeight), roarDuration * roarImpactTiming);
+            }
             yield return new WaitForSeconds(roarDuration * roarImpactTiming);
             if (!monster.IsDead)
             {
@@ -568,7 +577,11 @@ namespace Aethoria.Monsters
             for (float t = 0f; t < beamHoldDuration; t += Time.deltaTime)
             {
                 if (monster.IsDead) { EndBeam(); yield break; }
-                if (t < beamHoldDuration - beamAimLockLead) aimX = AimX(facing);
+                bool wasAiming = t < beamHoldDuration - beamAimLockLead;
+                if (wasAiming) aimX = AimX(facing);
+                // 조준이 고정되는 순간, 빔이 내리꽂혀 밀려 나갈 땅에 붉은 띠와 "!".
+                if (wasAiming && t + Time.deltaTime >= beamHoldDuration - beamAimLockLead)
+                    Aethoria.Fx.DangerFx.GroundZone(new Vector2(aimX + facing * beamSweep * 0.5f, groundY), beamSweep + 1.6f, beamAimLockLead);
                 yield return null;
             }
 

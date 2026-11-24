@@ -7,11 +7,12 @@ using Aethoria.UI;
 
 namespace Aethoria.Monsters
 {
-    // 루나벨 2페이즈의 타임어택. 멀리 도망쳐 스킬이 다 찰 때까지 시간을 끄는 플레이를 막으려고 화면에 제한 시간을 띄운다.
-    // 시간이 다 되면 응시 패턴이 온다: 세상이 멈추고 화면이 암전 → 어둠 속에서 붉은 눈들이 떠서 네크로시아를 응시 → 최대 체력이 깎인다.
-    // 깎인 최대 체력은 이 전투 동안 쌓이고(MaxPenalty까지), 시간은 다시 돌아간다. 쓰러지거나 전투가 끝나면 원래대로 돌아온다.
-    // 첫 응시는 2페이즈 개막 패턴의 기둥이 사그라들자마자(루나벨이 던진 자세로 공중에 떠 있는 채로) 오고,
-    // 어둠 속에서 대사로 규칙을 알려 준 뒤 시간이 돌기 시작한다.
+    // 루나벨 2페이즈의 응시: 세상이 멈추고 화면이 암전 → 어둠 속에서 붉은 눈들이 떠서 네크로시아를 응시한다.
+    // 전투 중 두 번만 온다.
+    //  1) 2페이즈 개막 패턴의 기둥이 사그라들자마자(루나벨이 던진 자세로 공중에 떠 있는 채로): 최대 체력이 깎이고 잠깐 아이템을 못 쓴다.
+    //     어둠 속에서 대사로 규칙을 알려 준다.
+    //  2) 2페이즈 체력이 절반 아래로 처음 내려갔을 때: 이 전투가 끝날 때까지 아이템(포션)을 영영 쓸 수 없다.
+    // 쓰러지거나 전투가 끝나면 원래대로 돌아온다.
     public class LunabelGazeCurse : MonoBehaviour
     {
         private const string FramesPath = "Backgrounds/LunabelGaze";
@@ -30,12 +31,10 @@ namespace Aethoria.Monsters
             (true, "그럼 그 전에 끝내면 될 일이다."),
         };
 
-        private const float FirstLimit = 60f;
-        private const float RepeatLimit = 45f;
-        private const float WarningTime = 10f;      // 이 아래로 내려가면 시간 글자가 붉어진다
-        // 첫 응시에서만 최대 체력이 줄고, 응시마다 '주시' 디버프로 한동안 아이템(포션)을 쓸 수 없다.
+        // 첫 응시: 최대 체력이 줄고 한동안 아이템을 쓸 수 없다. 체력 절반 응시: 전투 끝까지 아이템을 쓸 수 없다.
         private const float FirstGazePenalty = 0.15f;
         private const float ItemLockSeconds = 15f;
+        private const float HalfHealthFraction = 0.5f;
 
         // 응시 연출: 세상이 어두워짐 → 감긴 눈들이 스며 나옴 → 천천히 뜨다가 마지막에 번쩍 뜸(붉은 섬광·화면 울림)
         // → 심장이 두 번 뛰듯 두근거림 → 눈을 감으며 사라짐. 눈 그림 10장 사이는 겹쳐 그려(크로스페이드) 끊기지 않게 한다.
@@ -48,8 +47,6 @@ namespace Aethoria.Monsters
         private const float ReleaseTime = 0.5f;
         private const float PushStart = 1.03f, PushEnd = 1.09f; // 응시하는 내내 아주 천천히 다가온다(가장자리도 가려 준다)
 
-        private static readonly Color NormalTimeColor = Color.white;
-        private static readonly Color WarningTimeColor = new Color(1f, 0.25f, 0.25f);
 
         private FinalBossAI boss;
         private Monster monster;
@@ -104,8 +101,9 @@ namespace Aethoria.Monsters
         private bool skippable;
         private System.Action onTalkShown;
         private bool firstGazeDone;
-        private float timeLeft = FirstLimit;
         private bool gazing;
+        private bool halfGazeDone;
+        private bool permanentLock;
         private bool talking;
 
         public void Initialize(FinalBossAI lunabel, Monster lunabelMonster, Character targetPlayer,
@@ -294,25 +292,19 @@ namespace Aethoria.Monsters
             if (gazing || boss == null) return;
 
             if (monster.IsDead && !eyesClosed) CloseWatchingEyes();
+            if (monster.IsDead && player != null && player.ItemsLocked) player.ItemLockedUntil = 0f; // 이기면 주시가 풀린다
             bool fighting = boss.PhaseTwoStarted && !boss.IsTransforming && !monster.IsDead && player != null && !player.IsDead;
-            timerRoot.SetActive(fighting && firstGazeDone);
+            timerRoot.SetActive(false); // 제한 시간은 없앴다(응시는 정해진 두 때에만 온다)
             if (debuffText != null && player != null)
-                debuffText.text = player.ItemsLocked ? $"주시 — 아이템 사용 불가  {Mathf.CeilToInt(player.ItemLockRemaining)}초" : string.Empty;
+                debuffText.text = !player.ItemsLocked ? string.Empty
+                    : permanentLock ? "주시 — 아이템 사용 불가 (전투가 끝날 때까지)"
+                    : $"주시 — 아이템 사용 불가  {Mathf.CeilToInt(player.ItemLockRemaining)}초";
             if (!fighting) return;
 
-            if (!firstGazeDone)
-            {
-                if (!boss.IsBusy && frames.Length > 0) StartCoroutine(GazeRoutine());
-                return;
-            }
-
-            timeLeft = Mathf.Max(0f, timeLeft - Time.deltaTime);
-            int seconds = Mathf.CeilToInt(timeLeft);
-            timerText.text = $"{seconds / 60}:{seconds % 60:00}";
-            timerText.color = timeLeft <= WarningTime ? WarningTimeColor : NormalTimeColor;
-
-            // 공격 도중에 끊으면 패턴이 꼬이므로 시간이 다 되어도 지금 공격이 끝나기를 기다린다.
-            if (timeLeft <= 0f && !boss.IsBusy && frames.Length > 0) StartCoroutine(GazeRoutine());
+            // 공격 도중에 끊으면 패턴이 꼬이므로 지금 공격이 끝나기를 기다린다.
+            if (frames.Length == 0 || boss.IsBusy) return;
+            if (!firstGazeDone) StartCoroutine(GazeRoutine());
+            else if (!halfGazeDone && monster.CurrentHp <= monster.MaxHp * HalfHealthFraction) StartCoroutine(GazeRoutine());
         }
 
         private IEnumerator GazeRoutine()
@@ -367,7 +359,7 @@ namespace Aethoria.Monsters
             }
             else
             {
-                message.text = $"주시당했다\n<size=24>{ItemLockSeconds:0}초 동안 아이템을 쓸 수 없다</size>";
+                message.text = "영원히 주시당한다\n<size=24>이 싸움이 끝날 때까지 아이템을 쓸 수 없다</size>";
             }
             for (float t = 0f; t < SnapTime; t += Time.unscaledDeltaTime, elapsed += Time.unscaledDeltaTime)
             {
@@ -422,9 +414,17 @@ namespace Aethoria.Monsters
 
             overlayRoot.SetActive(false);
             Time.timeScale = 1f;
-            player.ItemLockedUntil = Time.time + ItemLockSeconds;
-            if (!firstGazeDone) SpawnWatchingEyes();
-            timeLeft = firstGazeDone ? RepeatLimit : FirstLimit;
+            if (!firstGazeDone)
+            {
+                player.ItemLockedUntil = Time.time + ItemLockSeconds;
+                SpawnWatchingEyes();
+            }
+            else
+            {
+                halfGazeDone = true;
+                permanentLock = true;
+                player.ItemLockedUntil = float.PositiveInfinity;
+            }
             firstGazeDone = true;
             gazing = false;
         }

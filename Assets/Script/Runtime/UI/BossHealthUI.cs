@@ -5,7 +5,7 @@ using Aethoria.Monsters;
 namespace Aethoria.UI
 {
     // 보스 전용 대형 체력바. 화면 하단 중앙에 이름과 함께 크게 표시하고,
-    // 보스가 없거나 죽으면 숨긴다. 몬스터 발밑의 작은 MonsterHealthBar와는 별개로 같이 붙는다.
+    // 보스가 없거나 죽으면 숨긴다. 보스에는 몬스터 발밑의 작은 MonsterHealthBar를 붙이지 않는다(이 체력바 하나로 본다).
     public class BossHealthUI : MonoBehaviour
     {
         private GameObject panel;

@@ -488,8 +488,24 @@ namespace Aethoria.Monsters
             nextIsDash = !nextIsDash;
 
             float patternDuration = useDash ? dashComboDuration : sweepComboDuration;
-            // 위험 예고: 콤보 시작 전에 몸이 붉게 번쩍인다.
-            Aethoria.Fx.DangerFx.FlashBody(spriteRenderer, 0.35f, 2);
+            // 위험 예고: 첫 베기까지 칼이 닿을 범위에 붉은 상자와 "!". 돌진 콤보는 앞으로 나아가는 거리까지, 휩쓸기는 몸 양옆.
+            {
+                float warn = Mathf.Max(0.3f, SlashTime(0, patternDuration));
+                float dir = FacingToTarget().x;
+                var bodyCollider = GetComponent<Collider2D>();
+                float baseY = bodyCollider != null ? bodyCollider.bounds.min.y : transform.position.y;
+                if (useDash)
+                {
+                    float reach = dashStepDistance * SlashFrames.Length + swordReach;
+                    Aethoria.Fx.DangerFx.Area(new Vector2(transform.position.x + dir * reach * 0.5f, baseY + swordHitHeight * 0.5f),
+                        new Vector2(reach, swordHitHeight), warn);
+                }
+                else
+                {
+                    float half = Mathf.Max(sweepRadius, swordReach);
+                    Aethoria.Fx.DangerFx.Area(new Vector2(transform.position.x, baseY + swordHitHeight * 0.5f), new Vector2(half * 2f, swordHitHeight), warn);
+                }
+            }
             if (attackAnimator != null) attackAnimator.Play(patternDuration);
             SfxPlayer.Play(SfxPlayer.AliasAttack);
 
@@ -555,6 +571,16 @@ namespace Aethoria.Monsters
             spriteRenderer.flipX = direction.x < 0f;
             attackAnimator.Play(waveSwingDuration);
             SfxPlayer.Play(SfxPlayer.AliasAttack);
+            // 위험 예고: 검기가 솟을 때까지 검기가 땅을 타고 날아갈 길 전체에 붉은 상자와 "!".
+            if (!PlayerIsAbove())
+            {
+                var zoneCollider = GetComponent<Collider2D>();
+                float zoneY = zoneCollider != null ? zoneCollider.bounds.min.y : transform.position.y;
+                Rect arena = GameBootstrap.CurrentMapBounds;
+                float from = transform.position.x + direction.x * waveForward;
+                float to = Mathf.Clamp(from + direction.x * waveTravelRange, arena.xMin, arena.xMax);
+                Aethoria.Fx.DangerFx.Area(new Vector2((from + to) * 0.5f, zoneY + 0.8f), new Vector2(Mathf.Abs(to - from), 1.6f), waveSwingDuration * waveReleaseTiming);
+            }
 
             yield return new WaitForSeconds(waveSwingDuration * waveReleaseTiming);
             if (monster.IsDead) yield break;
@@ -895,8 +921,7 @@ namespace Aethoria.Monsters
                 // 위험 예고: 내려찍을 바닥 범위를 착지 순간까지 붉게 표시한다.
                 var landCollider = GetComponent<Collider2D>();
                 float landY = landCollider != null ? landCollider.bounds.min.y : transform.position.y;
-                Aethoria.Fx.DangerFx.GroundZone(new Vector2(landingX, landY), jumpSlamRadius * 2f, duration * JumpImpactFraction);
-            }
+                Aethoria.Fx.DangerFx.GroundZone(new Vector2(landingX, landY), jumpSlamRadius * 2f, duration * JumpImpactFraction);            }
 
             yield return new WaitForSeconds(duration * JumpTakeoffFraction);
 

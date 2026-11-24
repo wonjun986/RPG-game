@@ -556,7 +556,7 @@ namespace Aethoria.Monsters
             AimDrill(new Vector2(dir, 0f));
 
             PlayPose(drillTransformFrames, drillChargeTime, loops: false);
-            var lane = CreateWarning(new Vector2((arenaMinX + arenaMaxX) / 2f, laneY), new Vector2(arenaMaxX - arenaMinX, drillLaneHeight), 0f);
+            var lane =CreateWarning(new Vector2((arenaMinX + arenaMaxX) / 2f, laneY), new Vector2(arenaMaxX - arenaMinX, drillLaneHeight), 0f);
             Vector2 start = Center;
             for (float t = 0f; t < drillChargeTime; t += Time.deltaTime)
             {
@@ -834,6 +834,16 @@ namespace Aethoria.Monsters
                 FacePlayer();
                 // 창을 뒤로 당겼다가(찌르기 앞쪽 절반) 내지르는 순간 쏜다.
                 PlayPose(thrustFrames, lanceWindup * 2f, loops: false);
+                // 위험 예고: 창이 날아갈 방향(지금 네크로시아 쪽)으로 부채꼴만큼 넓은 붉은 띠와 "!".
+                if (target != null)
+                {
+                    Vector2 origin = Center + new Vector2(spriteRenderer.flipX ? -1f : 1f, 0.3f);
+                    Vector2 aim = PlayerCenter - origin;
+                    float length = Mathf.Max(aim.magnitude + 3f, 6f);
+                    float width = 0.9f + 2f * aim.magnitude * Mathf.Tan((lancesPerVolley - 1) * 0.5f * lanceSpreadDegrees * Mathf.Deg2Rad);
+                    Aethoria.Fx.DangerFx.Area(origin + aim.normalized * length * 0.5f, new Vector2(length, Mathf.Clamp(width, 0.9f, 4f)),
+                        lanceWindup, Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg, sortingOrder: 19);
+                }
                 casting = true;
                 yield return new WaitForSeconds(lanceWindup);
                 casting = false;

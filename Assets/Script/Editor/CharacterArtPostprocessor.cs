@@ -57,12 +57,16 @@ namespace Aethoria.EditorTools
             // 의자에 앉은 모습을 뺀 모든 시트를 얼굴 가운데~부츠 끝 키가 1페이즈 대기와 같은 약 2.08유닛이 되도록 환산했다
             // (시트마다 첫 장의 얼굴 위치와 발끝을 재서 맞춘 값). 아래 각 줄의 옛 설명은 처음 값을 정할 때의 기록이다.
             // 절망의 언덕 최종보스(붉은 여왕) 대기: 후광 끝까지 프레임 키 528px가 약 2.9유닛(보스 기사보다 조금 크게)이 되게 한다.
-            ("Art/Monsters/FinalBoss/Phase1/Idle/", 180f),
+            // 새 1페이즈 대기(뱀파이어 소서리스 idle 스프라이트 시트, 6프레임)·혈류 흡수(마법 폭발, 12프레임)·차원문(8프레임)은
+            // 첫 장의 후광 끝~부츠가 예전 대기(515px/180)와 같은 약 2.86유닛이 되게, 패배(12프레임)는 그 0.8배로 맞췄다.
+            ("Art/Monsters/FinalBoss/Phase1/Idle/", 233f),
             // 첫 조우 때 의자에 앉아 있는 모습(First Encounter with Lunabel, 4프레임): 대기와 같은 180(약 3.4유닛)은
             // 주인공보다 너무 커 보인다는 피드백으로, 의자 꼭대기~받침 620px가 약 2.4유닛이 되게 줄였다.
-            ("Art/Monsters/FinalBoss/Phase1/Seated/", 258f),
+            // 새 왕좌(고딕 왕좌의 여섯 장면, 6프레임)도 왕좌 꼭대기~받침 637px가 예전과 같은 약 2.4유닛.
+            ("Art/Monsters/FinalBoss/Phase1/Seated/", 265f),
             // 손 뻗기 공격 시트는 루나벨을 더 작게 그렸다(키 433px, 대기는 516px). 대기와 같은 키로 보이게 환산한 값.
-            ("Art/Monsters/FinalBoss/Phase1/Attack/", 155f),
+            // 새 1페이즈 공격(초록 배경의 뱀파이어 혈마법 연속 동작, 8프레임): 첫 장 후광 끝~부츠 516px가 새 대기와 같은 약 2.86유닛.
+            ("Art/Monsters/FinalBoss/Phase1/Attack/", 180f),
             // 2페이즈 변신(Lunabel`s_Phase2, 12프레임 중 9프레임) 시트는 키 500px로, 대기와 같은 키로 환산한 값.
             // 새 변신 18장(웅크림·각성·펼침 세 시트를 발끝·크기 맞춰 이어 붙임): 서 있는 첫 장 머리~부츠 610px가 1페이즈 대기와 같은 약 2.43유닛.
             ("Art/Monsters/FinalBoss/Phase2/Transform/", 251f),
@@ -72,18 +76,30 @@ namespace Aethoria.EditorTools
             // 환산한 값. 공중 대기(Lunabel Aerial Motion)는 크게 그려서 머리~부츠 565px, 차지 322px.
             // 필살기 시트는 차지 시트보다 루나벨을 약 1.13배 크게 그렸다(몸을 겹쳐 맞춰 잰 값). 차지와 같은 크기로 보이게 환산한 값.
             // 2페이즈 대기/기본 공격은 공중에 비스듬히 뜬 포즈라 머리~몸통이 1페이즈보다 작아 보인다는 피드백으로, 둘 다 1.2배 키웠다(254→212, 237→198).
-            ("Art/Monsters/FinalBoss/Phase2/Idle/", 212f),
-            ("Art/Monsters/FinalBoss/Phase2/Special/", 151f), ("Art/Monsters/FinalBoss/Phase2/Charge/", 152f),
+            // 새 2페이즈 대기(초록 배경의 뱀파이어 악마 캐릭터 스프라이트 시트, 5프레임): 후광 끝~부츠 694px가 예전 대기(680px/212)와 같은 약 3.2유닛.
+            ("Art/Monsters/FinalBoss/Phase2/Idle/", 216f),
+            // 새 개막·필살기 모션(혈구체 시전 7장 / 붉은 마법 소환술사 8장 / 악마 소서리스 연속 공격 5장, 새 2페이즈 순간이동 8장):
+            // 첫 장 후광 끝~부츠가 2페이즈 대기와 같은 약 3.2유닛이 되게 환산한 값.
+            ("Art/Monsters/FinalBoss/Phase2/Special/", 165f), ("Art/Monsters/FinalBoss/Phase2/Charge/", 161f),
             // 구체 던지기(Lunabel's sphere-throwing motion)는 두 팔을 든 첫 프레임 머리~부츠 393px 기준.
-            ("Art/Monsters/FinalBoss/Phase2/Throw/", 196f),
+            ("Art/Monsters/FinalBoss/Phase2/Throw/", 161f), // 던지기 8프레임: 첫 장 후광 끝~부츠 518px
             // 2페이즈 기본 공격(붉은 마법의 팔중 캐릭터 스프라이트, 8프레임 — 원화는 왼쪽을 봐서 좌우 반전해 잘랐다)은
             // 2페이즈 대기와 머리·몸통 크기가 같아 보이는 값. 발밑에 대기와 같은 만큼(약 0.33유닛) 여백을 둬서 공중에 떠 있는 높이도 맞췄다.
-            ("Art/Monsters/FinalBoss/Phase2/Attack/", 165f),
+            // 새 기본 공격(여덟 장면의 피꽃 공격 애니메이션, 8프레임): 후광 끝~부츠 535px를 새 대기와 같은 키로 환산한 값(216 x 535/694).
+            ("Art/Monsters/FinalBoss/Phase2/Attack/", 167f),
+            // 피의 레이저: 발사구·줄기·끝·소멸은 같은 배율이어야 이음매에서 줄기 굵기(약 70px, 0.44유닛)가 맞는다.
+            // 모으는 구슬(346px 칸)은 손끝에 약 1.1유닛으로.
+            ("Art/Effects/LunabelLaserMuzzle/", 160f), ("Art/Effects/LunabelLaserBeam/", 160f),
+            ("Art/Effects/LunabelLaserImpact/", 160f), ("Art/Effects/LunabelLaserFade/", 160f),
+            ("Art/Effects/LunabelLaserCharge/", 320f),
+            // 혈월의 낫(붉은 피의 낫 공격 애니메이션, 8프레임): 첫 장 후광 끝~부츠 348px가 2페이즈 대기와 같은 약 3.2유닛.
+            // 낫 궤적(붉은 초승달 베기, 6프레임 368x322 칸)은 폭이 약 4.6유닛(앞쪽 판정 5유닛)이 되게.
+            ("Art/Monsters/FinalBoss/Phase2/ScytheSweep/", 108f), ("Art/Effects/LunabelScytheSlash/", 80f),
             // 1페이즈 혈류 흡수(뱀파이어 엘프의 혈류 흡수 연속 동작)는 1페이즈 대기와 나란히 놓고 키를 맞춘 값.
-            ("Art/Monsters/FinalBoss/Phase1/Absorb/", 151f),
+            ("Art/Monsters/FinalBoss/Phase1/Absorb/", 122f),
             // 패배 모션(Lunabel_Defeat, 8프레임): 대기와 같은 키(166)로는 클리어 연출에서 너무 커 보인다는 피드백으로 두 번 줄여,
             // 프레임 키(후광 포함) 481px가 약 1.7유닛 — 네크로시아(대기 1.8)와 비슷한 키가 되게 했다.
-            ("Art/Monsters/FinalBoss/Phase1/Defeat/", 205f), // 다른 시트와 같은 키(167)로 맞췄더니 쓰러지는 모션이 커 보여 약 0.8배로 줄였다.
+            ("Art/Monsters/FinalBoss/Phase1/Defeat/", 175f), // 다른 시트와 같은 키(167)로 맞췄더니 쓰러지는 모션이 커 보여 약 0.8배로 줄였다.
             // 맞는 모션(Lunabel`s_Hit) 시트는 더 크게 그렸다(키 629px).
             ("Art/Monsters/FinalBoss/Phase1/Hit/", 232f),
             // 루나벨이 날리는 피의 손(Lunabel's hand launch, 6프레임): 그림 폭 638px가 약 2.2유닛이 되게 한다.
@@ -154,9 +170,9 @@ namespace Aethoria.EditorTools
             // 모래룡 포효 회오리(여섯 프레임 마법의 모래 회오리): 키 491px가 약 6유닛. SandWhirlwind가 원하는 키로 다시 맞춘다.
             ("Art/Effects/SandWhirlwind/", 80f),
             // 루나벨 차원문 순간이동(붉은 차원문에 흡수되는 마녀): 서 있는 1프레임 머리~부츠 495px가 1페이즈 대기와 같은 키가 되게 한다.
-            ("Art/Monsters/FinalBoss/Phase1/PortalEnter/", 182f),
+            ("Art/Monsters/FinalBoss/Phase1/PortalEnter/", 198f),
             // 2페이즈 차원문 순간이동(붉은 소용돌이에 잠식되는 고딕 악마 소녀, 8프레임): 2페이즈 대기와 머리·몸통 크기가 같아 보이는 값.
-            ("Art/Monsters/FinalBoss/Phase2/PortalEnter/", 180f),
+            ("Art/Monsters/FinalBoss/Phase2/PortalEnter/", 169f),
             // 2페이즈 붕괴하는 소용돌이(4프레임): 첫 장 소용돌이 폭 669px가 빨려 든 마지막 장의 소용돌이 폭(430px, 180)과 같은 크기가 되게.
             ("Art/Effects/LunabelPortalCollapsePhase2/", 280f),
             // 2페이즈 개막의 거대한 에너지 구체(진홍빛 마법 에너지 오브, 6프레임): 가운데 구슬 지름 약 220px가 2.2유닛(배율 1)이 되게.
@@ -237,14 +253,42 @@ namespace Aethoria.EditorTools
             ("Art/Effects/UltGate/", new Vector2(290f / 589f, 19f / 374f)),
             ("Art/Effects/UltDragon/", new Vector2(290f / 589f, 19f / 374f)),
             // 루나벨 차원문 순간이동: 칸(512) 안에서 1프레임의 두 부츠 굽 사이 바닥(x 265, y 505)이 발 기준점.
-            ("Art/Monsters/FinalBoss/Phase1/PortalEnter/", new Vector2(265f / 512f, 1f - 505f / 512f)),
+            // 새 1페이즈 시트: 원화가 왼쪽을 봐서 대기·흡수·패배·왕좌는 좌우를 뒤집어 잘랐고(차원문은 코드가 뒤집어 트므로 그대로),
+            // 대기·흡수는 프레임마다 후광을 같은 자리에 맞췄다. 기준점은 첫 장의 후광 가운데 아래 부츠 바닥(왕좌는 꼭대기 장식 아래 받침 바닥).
+            ("Art/Monsters/FinalBoss/Phase1/PortalEnter/", new Vector2(181f / 275f, 15f / 586f)),
+            ("Art/Monsters/FinalBoss/Phase1/Idle/", new Vector2(175f / 427f, 2f / 672f)),
+            ("Art/Monsters/FinalBoss/Phase1/Absorb/", new Vector2(187f / 380f, 10f / 363f)),
+            ("Art/Monsters/FinalBoss/Phase1/Defeat/", new Vector2(150f / 327f, 1f / 406f)),
+            ("Art/Monsters/FinalBoss/Phase1/Seated/", new Vector2(137f / 347f, 1f / 642f)),
+            // 공격(449x520 칸)은 몸을 앞으로 기울이는 동작이 살도록 후광을 맞추지 않고 시트에 그려진 자리 그대로 잘랐다(부츠는 제자리).
+            ("Art/Monsters/FinalBoss/Phase1/Attack/", new Vector2(190f / 449f, 1f / 520f)),
             // 붕괴하는 차원문: 프레임마다 소용돌이 한가운데를 캔버스 가운데에 맞춰 잘랐다.
             ("Art/Effects/LunabelPortalCollapse/", new Vector2(0.5f, 0.5f)),
             // 2페이즈 차원문 순간이동(463x543 칸): 대기와 반대쪽을 보고 그려져 있어 게임에서는 좌우를 뒤집어 튼다.
             // 뒤집었을 때 1프레임 부츠(x 194, 바닥 3px 위)가 기준점에서 앞쪽 0.25유닛·위 0.34유닛(대기 모습의 부츠 자리)에
             // 오도록, 부츠보다 0.25유닛(45px) 오른쪽에 둔 기준점. 바닥 아래로 내려가 있다.
-            ("Art/Monsters/FinalBoss/Phase2/PortalEnter/", new Vector2(239f / 463f, -58f / 543f)),
+            // 새 2페이즈 순간이동(피 소용돌이, 280x555 칸): 원화는 오른쪽을 봐서 다른 순간이동 그림처럼 왼쪽을 보게 뒤집어 잘랐다(코드가 틀 때 다시 뒤집는다).
+            // 기준점은 첫 장 후광 가운데 아래, 대기처럼 부츠보다 약 0.33유닛 아래.
+            ("Art/Monsters/FinalBoss/Phase2/PortalEnter/", new Vector2(139f / 280f, -46f / 555f)),
+            // 개막·필살기 모션도 후광 가운데 아래, 부츠보다 약 0.33유닛 아래(공중에 뜬 높이). 던지기는 몸을 숙이는 동작이라 프레임을 따로 맞추지 않았다.
+            ("Art/Monsters/FinalBoss/Phase2/Special/", new Vector2(134f / 265f, -45f / 563f)),
+            ("Art/Monsters/FinalBoss/Phase2/Charge/", new Vector2(135f / 258f, -51f / 523f)),
+            ("Art/Monsters/FinalBoss/Phase2/Throw/", new Vector2(153f / 288f, -51f / 522f)),
             ("Art/Effects/LunabelPortalCollapsePhase2/", new Vector2(0.5f, 0.5f)),
+            // 새 2페이즈 대기(292x702 칸)·기본 공격(305x548 칸): 프레임마다 후광을 같은 자리에 맞춰 잘랐다. 기준점은 후광 가운데(x 165 / x 152) 아래,
+            // 예전 대기처럼 부츠보다 약 0.34유닛 아래(공중에 뜬 높이)라 캔버스 밖으로 내려가 있다.
+            ("Art/Monsters/FinalBoss/Phase2/Idle/", new Vector2(165f / 292f, -71f / 702f)),
+            ("Art/Monsters/FinalBoss/Phase2/Attack/", new Vector2(152f / 305f, -49f / 548f)),
+            // 피의 레이저: 발사구(543x537)는 손끝 섬광 한가운데(x 180, 위에서 276px), 끝(541x579)은 맞은 자리 섬광 한가운데(x 280, 위에서 294px).
+            // 줄기(2172x152)와 소멸(1199x224)은 왼쪽 끝 세로 줄기 가운데에서 오른쪽으로 늘어난다. 모으는 구슬은 가운데.
+            ("Art/Effects/LunabelLaserMuzzle/", new Vector2(180f / 543f, 1f - 276f / 537f)),
+            ("Art/Effects/LunabelLaserImpact/", new Vector2(280f / 541f, 1f - 294f / 579f)),
+            ("Art/Effects/LunabelLaserBeam/", new Vector2(0f, 1f - 79f / 152f)),
+            ("Art/Effects/LunabelLaserFade/", new Vector2(0f, 1f - 121f / 224f)),
+            ("Art/Effects/LunabelLaserCharge/", new Vector2(0.5f, 0.5f)),
+            // 혈월의 낫: 후광 가운데(x 250) 아래, 2페이즈 대기처럼 부츠보다 약 0.33유닛 아래. 궤적은 아래 가운데(바닥에 닿는 호 끝).
+            ("Art/Monsters/FinalBoss/Phase2/ScytheSweep/", new Vector2(250f / 505f, -28f / 374f)),
+            ("Art/Effects/LunabelScytheSlash/", new Vector2(0.5f, 5f / 322f)),
             // 거대한 에너지 구체: 프레임마다 하얗게 빛나는 구슬 한가운데를 캔버스 가운데에 맞춰 잘랐다.
             ("Art/Effects/LunabelGiantOrb/", new Vector2(0.5f, 0.5f)),
             ("Art/Effects/LunabelTransformCocoon/", new Vector2(0.5f, 0.5f)),
@@ -290,6 +334,15 @@ namespace Aethoria.EditorTools
             "Art/Effects/MonsterDeathBurst/",
             // 알리아스 각성 이펙트: 원본보다 크게 줄여 쓰는 빛·불꽃·연기라 Point면 반짝이며 깨진다.
             "Art/Effects/AliasEyeSilk/", "Art/Effects/AliasEyeGlow/", "Art/Effects/AliasAwakenBurst/", "Art/Effects/AliasDarkAura/",
+            // 피의 레이저: 원본보다 줄여 쓰는 빛줄기라 Point면 줄기가 반짝이며 깨진다.
+            "Art/Effects/LunabelLaserMuzzle/", "Art/Effects/LunabelLaserBeam/", "Art/Effects/LunabelLaserImpact/",
+            "Art/Effects/LunabelLaserFade/", "Art/Effects/LunabelLaserCharge/",
+        };
+
+        // 길이에 맞춰 이어 붙여(SpriteRenderer Tiled) 그리는 레이저 줄기는 메시를 사각형 그대로(FullRect) 만들어야 이음매가 맞는다.
+        private static readonly string[] FullRectMeshFolders =
+        {
+            "Art/Effects/LunabelLaserBeam/", "Art/Effects/LunabelLaserFade/",
         };
 
         private void OnPreprocessTexture()
@@ -357,6 +410,10 @@ namespace Aethoria.EditorTools
             {
                 settings.spriteAlignment = (int)SpriteAlignment.BottomCenter;
                 settings.spritePivot = new Vector2(0.5f, 0f);
+            }
+            foreach (var subfolder in FullRectMeshFolders)
+            {
+                if (normalizedPath.Contains(subfolder)) settings.spriteMeshType = SpriteMeshType.FullRect;
             }
             importer.SetTextureSettings(settings);
         }

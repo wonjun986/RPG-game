@@ -418,6 +418,14 @@ namespace Aethoria.UI
         {
             if (selected < 0 || selected >= active.Count) return;
             var row = active[selected];
+            // 아래 버튼(기본값으로/닫기)은 나란히 놓여 있어서 ←→로 서로 옮겨 다닌다.
+            int bottom = bottomRows.IndexOf(row);
+            if (bottom >= 0)
+            {
+                int next = Mathf.Clamp(bottom + delta, 0, bottomRows.Count - 1);
+                if (next != bottom) SelectRow(bottomRows[next]);
+                return;
+            }
             if (row.change == null) return;
             row.change(delta);
             Refresh();
